@@ -34,7 +34,13 @@ function AppHeader({ screen, onGo }: { screen: Screen; onGo: (screen: Screen) =>
   return (
     <header className="app-header">
       <button className="brand-button" type="button" onClick={() => onGo("home")} aria-label="トップへ戻る">
-        <span className="brand-rabbit" aria-hidden="true">⌒(・x・)⌒</span>
+        <span className="brand-icon-frame" aria-hidden="true">
+          <img
+            className="brand-icon"
+            src={`${import.meta.env.BASE_URL}assets/usapon-brand-icon.png`}
+            alt=""
+          />
+        </span>
         <span><strong>うさぽん</strong><small>パッケージメーカー</small></span>
       </button>
       {screen !== "home" && (
