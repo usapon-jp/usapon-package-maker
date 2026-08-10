@@ -2,6 +2,8 @@
 
 ハンドメイド作家向けに、箱の寸法から実寸の展開図を生成し、柄や文字を配置してA4 PDFへ出力するブラウザアプリです。
 
+公開版: https://usapon-jp.github.io/usapon-package-maker/
+
 ## 起動
 
 ```bash

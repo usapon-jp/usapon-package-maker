@@ -56,7 +56,13 @@ function AppHeader({ screen, onGo }: { screen: Screen; onGo: (screen: Screen) =>
 }
 
 function HeroIllustration() {
-  return <img className="hero-illustration" src="/assets/usapon-rabbits-transparent.png" alt="福袋から顔を出す2匹のうさぎ" />;
+  return (
+    <img
+      className="hero-illustration"
+      src={`${import.meta.env.BASE_URL}assets/usapon-rabbits-transparent.png`}
+      alt="福袋から顔を出す2匹のうさぎ"
+    />
+  );
 }
 
 function FitNotice({ geometry, fit, compact = false }: { geometry: DielineGeometry; fit: A4FitResult; compact?: boolean }) {

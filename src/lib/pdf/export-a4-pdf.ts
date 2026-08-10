@@ -8,7 +8,7 @@ let fontPromise: Promise<opentype.Font> | null = null;
 
 function loadJapaneseFont(): Promise<opentype.Font> {
   if (!fontPromise) {
-    fontPromise = fetch("/fonts/NotoSansJP-Regular.otf")
+    fontPromise = fetch(`${import.meta.env.BASE_URL}fonts/NotoSansJP-Regular.otf`)
       .then((response) => {
         if (!response.ok) throw new Error("日本語フォントを読み込めませんでした。");
         return response.arrayBuffer();
