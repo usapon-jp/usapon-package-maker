@@ -1,0 +1,33 @@
+{
+  "name": "usapon-package-maker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "assets:prepare": "node scripts/remove-background.mjs",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "dompurify": "^3.2.6",
+    "jspdf": "^4.0.0",
+    "opentype.js": "^1.3.4",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "svg2pdf.js": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/opentype.js": "^1.3.8",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^6.0.0",
+    "pngjs": "^7.0.0",
+    "typescript": "^5.9.2",
+    "vite": "^8.0.0",
+    "vitest": "^4.0.0"
+  }
+}
