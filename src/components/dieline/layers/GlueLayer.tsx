@@ -4,6 +4,14 @@ import { pointsToString } from "../geometry-utils";
 type Props = { geometry: DielineGeometry; patternId: string; exportMode: boolean };
 
 export function GlueLayer({ geometry, patternId, exportMode }: Props) {
+  const giftGlueLabels = geometry.type === "gift-box-v1"
+    ? geometry.layers.glue.map((region) => ({
+        id: `${region.id}-label`,
+        x: region.points.reduce((sum, point) => sum + point.x, 0) / region.points.length,
+        y: region.points.reduce((sum, point) => sum + point.y, 0) / region.points.length,
+      }))
+    : [];
+
   return (
     <g data-layer="glue">
       <defs>
@@ -19,7 +27,7 @@ export function GlueLayer({ geometry, patternId, exportMode }: Props) {
           stroke="none"
         />
       ))}
-      {!exportMode && (
+      {!exportMode && geometry.type === "straight-tuck-carton-v1" && (
         <text
           x={geometry.input.glueFlapMm / 2}
           y={(geometry.bodyTopMm + geometry.bodyBottomMm) / 2}
@@ -32,6 +40,19 @@ export function GlueLayer({ geometry, patternId, exportMode }: Props) {
           のりしろ
         </text>
       )}
+      {!exportMode && giftGlueLabels.map((label) => (
+        <text
+          key={label.id}
+          x={label.x}
+          y={label.y}
+          fontSize="2.2"
+          fill="#a65e6a"
+          textAnchor="middle"
+          dominantBaseline="middle"
+        >
+          のりしろ
+        </text>
+      ))}
     </g>
   );
 }

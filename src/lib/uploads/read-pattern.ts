@@ -1,6 +1,6 @@
 import DOMPurify from "dompurify";
 
-import type { PatternItem } from "../../app/app-types";
+import type { UploadedAsset } from "../../app/app-types";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
@@ -72,7 +72,7 @@ async function readPng(file: File): Promise<{ dataUrl: string; aspectRatio: numb
   return { dataUrl, aspectRatio: image.naturalWidth / image.naturalHeight };
 }
 
-export async function readPatternFile(file: File): Promise<Omit<PatternItem, "tileWidthMm" | "offsetXmm" | "offsetYmm" | "repeat">> {
+export async function readPatternFile(file: File): Promise<UploadedAsset> {
   if (file.size > MAX_FILE_BYTES) throw new Error("柄ファイルは10MB以下にしてください。");
   const svgFile = file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg");
   const pngFile = file.type === "image/png" || file.name.toLowerCase().endsWith(".png");
@@ -82,7 +82,6 @@ export async function readPatternFile(file: File): Promise<Omit<PatternItem, "ti
     const { svg, aspectRatio } = sanitizeSvg(await file.text());
     return {
       id: crypto.randomUUID(),
-      kind: "pattern",
       fileName: file.name,
       sourceType: "svg",
       dataUrl: svgDataUrl(svg),
@@ -93,7 +92,6 @@ export async function readPatternFile(file: File): Promise<Omit<PatternItem, "ti
   const { dataUrl, aspectRatio } = await readPng(file);
   return {
     id: crypto.randomUUID(),
-    kind: "pattern",
     fileName: file.name,
     sourceType: "png",
     dataUrl,

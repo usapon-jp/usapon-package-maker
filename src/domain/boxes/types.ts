@@ -1,12 +1,14 @@
 import type { Millimeters } from "../units";
 
+export type BoxType = "straight-tuck-carton-v1" | "gift-box-v1" | "n-style-gift-box-v1";
+
 export type Point = { x: Millimeters; y: Millimeters };
 export type Line = { id: string; from: Point; to: Point };
 export type PathShape = { id: string; d: string };
 export type PolygonShape = { id: string; points: Point[] };
 
 export type BoxInput = {
-  type: "straight-tuck-carton-v1";
+  type: BoxType;
   widthMm: Millimeters;
   depthMm: Millimeters;
   heightMm: Millimeters;
