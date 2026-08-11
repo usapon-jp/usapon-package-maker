@@ -1,4 +1,4 @@
-import { useMemo, useReducer, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 
 import { A4ExportSvg, CalibrationSvg } from "../components/dieline/A4ExportSvg";
 import { DielineSvg } from "../components/dieline/DielineSvg";
@@ -10,6 +10,7 @@ import { exportA4Pdf } from "../lib/pdf/export-a4-pdf";
 import { readPatternFile } from "../lib/uploads/read-pattern";
 import { appReducer, initialState } from "./app-state";
 import type { AppAction, AppState, PatternItem, Screen, TextItem } from "./app-types";
+import { parseNumberDraft } from "./number-input";
 
 const FIT_COPY: Record<FitStatus, { title: string; description: string }> = {
   safe: {
@@ -148,10 +149,41 @@ type NumberFieldProps = {
 };
 
 function NumberField({ label, shortLabel, value, min, max, step = 1, onChange, hint }: NumberFieldProps) {
+  const [draft, setDraft] = useState(() => String(value));
+  const isEditing = useRef(false);
+
+  useEffect(() => {
+    if (!isEditing.current) setDraft(String(value));
+  }, [value]);
+
+  const updateDraft = (nextDraft: string) => {
+    setDraft(nextDraft);
+    const nextValue = parseNumberDraft(nextDraft, min, max);
+    if (nextValue !== null) onChange(nextValue);
+  };
+
+  const finishEditing = () => {
+    isEditing.current = false;
+    const nextValue = parseNumberDraft(draft, min, max);
+    setDraft(nextValue === null ? String(value) : String(nextValue));
+  };
+
   return (
     <label className="number-field">
       <span>{label}{shortLabel && <b>（{shortLabel}）</b>}</span>
-      <div><input type="number" value={value} min={min} max={max} step={step} onChange={(event) => onChange(Number(event.target.value))} /><em>mm</em></div>
+      <div>
+        <input
+          type="number"
+          value={draft}
+          min={min}
+          max={max}
+          step={step}
+          onFocus={() => { isEditing.current = true; }}
+          onChange={(event) => updateDraft(event.target.value)}
+          onBlur={finishEditing}
+        />
+        <em>mm</em>
+      </div>
       {hint && <small>{hint}</small>}
     </label>
   );
