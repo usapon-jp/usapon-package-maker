@@ -28,6 +28,7 @@ export const initialState: AppState = {
     glueFlapMm: 12,
     lidDepthMm: 40,
     lidClearanceMm: 0.6,
+    foldoverMm: 25,
   },
   activePageId: "main",
   backgroundColors: { main: "#fffdf9", lid: "#fffdf9", base: "#fffdf9" },
@@ -41,6 +42,7 @@ export const initialState: AppState = {
   showGuides: true,
   lineColors: DEFAULT_DIELINE_LINE_COLORS,
   includeCalibrationPage: true,
+  printFoldoverLines: true,
 };
 
 export function appReducer(state: AppState, action: AppAction): AppState {
@@ -57,12 +59,13 @@ export function appReducer(state: AppState, action: AppAction): AppState {
               ...state.box,
               type: action.boxType,
               widthMm: 100,
-              heightMm: 80,
+              heightMm: 75,
               depthMm: 40,
               paperThicknessMm: 0.4,
               glueFlapMm: 12,
               lidDepthMm: 40,
               lidClearanceMm: 0.6,
+              foldoverMm: 25,
             }
           : { ...state.box, type: action.boxType },
         activePageId: action.boxType === "two-piece-gift-box-v1" ? "lid" : "main",
@@ -87,6 +90,21 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
     case "set-background-color":
       return { ...state, backgroundColors: { ...state.backgroundColors, [action.pageId]: action.color } };
+    case "replace-page-background":
+      return {
+        ...state,
+        backgroundColors: {
+          ...state.backgroundColors,
+          [action.targetPageId]: state.backgroundColors[action.sourcePageId],
+        },
+        artworkLayers: [
+          ...state.artworkLayers.filter((item) => item.pageId !== action.targetPageId),
+          ...action.items.map((item) => ({ ...item, pageId: action.targetPageId })),
+        ],
+        selectedArtworkId: null,
+        selectedStampId: null,
+        selectedTextId: null,
+      };
     case "add-artwork":
       return { ...state, artworkLayers: [...state.artworkLayers, action.item], selectedArtworkId: action.item.id, selectedStampId: null, selectedTextId: null };
     case "select-artwork":
@@ -144,6 +162,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, lineColors: action.colors };
     case "set-calibration":
       return { ...state, includeCalibrationPage: action.value };
+    case "set-print-foldover-lines":
+      return { ...state, printFoldoverLines: action.value };
     default:
       return state;
   }

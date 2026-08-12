@@ -303,6 +303,7 @@ export const generateNStyleGiftBox: BoxGenerator = (input): DielineGeometry => {
     layers: {
       cut,
       fold,
+      foldover: [],
       glue: [],
       guide: panelGuides(panels),
     },

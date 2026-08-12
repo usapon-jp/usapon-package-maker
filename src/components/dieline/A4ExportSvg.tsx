@@ -14,10 +14,11 @@ export type A4PageSvgProps = {
   stamps: StampItem[];
   texts: TextItem[];
   lineColors: DielineLineColors;
+  includeFoldoverLines?: boolean;
 };
 
 export const A4PageSvg = forwardRef<SVGSVGElement, A4PageSvgProps>(function A4PageSvg(
-  { pageId = "main", geometry, fit, backgroundColor, artworkLayers, stamps, texts, lineColors },
+  { pageId = "main", geometry, fit, backgroundColor, artworkLayers, stamps, texts, lineColors, includeFoldoverLines = true },
   ref,
 ) {
   return (
@@ -47,6 +48,7 @@ export const A4PageSvg = forwardRef<SVGSVGElement, A4PageSvgProps>(function A4Pa
           selectedStampId={null}
           selectedTextId={null}
           exportMode
+          includeFoldoverLines={includeFoldoverLines}
           idPrefix={`export-dieline-${pageId}`}
         />
       </g>

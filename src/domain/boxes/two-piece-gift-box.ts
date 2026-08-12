@@ -34,6 +34,7 @@ function assertInput(input: BoxInput) {
     ["のりしろ", input.glueFlapMm],
     ["蓋の深さ", input.lidDepthMm ?? input.depthMm],
     ["蓋の片側余裕", input.lidClearanceMm ?? 0.6],
+    ["側面の折り返し", input.foldoverMm ?? 25],
   ];
   for (const [label, value] of checks) {
     if (!Number.isFinite(value) || value <= 0) {
@@ -66,12 +67,14 @@ function generateTray(
   wallDepth: number,
 ): DielineGeometry {
   const prefix = part;
-  const x0 = wallDepth;
+  const foldover = input.foldoverMm ?? 25;
+  const outerDepth = wallDepth + foldover;
+  const x0 = outerDepth;
   const x1 = x0 + panelWidth;
-  const y0 = wallDepth;
+  const y0 = outerDepth;
   const y1 = y0 + panelHeight;
-  const outerRight = x1 + wallDepth;
-  const outerBottom = y1 + wallDepth;
+  const outerRight = x1 + outerDepth;
+  const outerBottom = y1 + outerDepth;
   const relief = clamp(input.paperThicknessMm * 2.5, 1, Math.max(1, wallDepth * 0.16));
   const glueReach = Math.min(input.glueFlapMm, Math.max(4, wallDepth - relief * 2));
   const chamfer = Math.min(2.5, glueReach * 0.22);
@@ -79,8 +82,8 @@ function generateTray(
   function sideTab(id: string, side: "left" | "right", top: boolean): PolygonShape {
     const attachX = side === "left" ? x0 : x1;
     const outerX = side === "left" ? attachX - glueReach : attachX + glueReach;
-    const nearY = top ? relief : y1 + relief;
-    const farY = top ? y0 - relief : outerBottom - relief;
+    const nearY = top ? foldover + relief : y1 + relief;
+    const farY = top ? y0 - relief : y1 + wallDepth - relief;
     const direction = side === "left" ? -1 : 1;
     return {
       id: `${prefix}-${id}`,
@@ -111,26 +114,34 @@ function generateTray(
   const tabs = [topLeftTab, topRightTab, bottomLeftTab, bottomRightTab];
 
   const center = rectPolygon(`${prefix}-center-shape`, x0, y0, panelWidth, panelHeight);
-  const topWall = rectPolygon(`${prefix}-top-wall-shape`, x0, 0, panelWidth, wallDepth);
+  const topFoldover = rectPolygon(`${prefix}-top-foldover-shape`, x0, 0, panelWidth, foldover);
+  const topWall = rectPolygon(`${prefix}-top-wall-shape`, x0, foldover, panelWidth, wallDepth);
   const bottomWall = rectPolygon(`${prefix}-bottom-wall-shape`, x0, y1, panelWidth, wallDepth);
-  const leftWall = rectPolygon(`${prefix}-left-wall-shape`, 0, y0, wallDepth, panelHeight);
+  const bottomFoldover = rectPolygon(`${prefix}-bottom-foldover-shape`, x0, y1 + wallDepth, panelWidth, foldover);
+  const leftFoldover = rectPolygon(`${prefix}-left-foldover-shape`, 0, y0, foldover, panelHeight);
+  const leftWall = rectPolygon(`${prefix}-left-wall-shape`, foldover, y0, wallDepth, panelHeight);
   const rightWall = rectPolygon(`${prefix}-right-wall-shape`, x1, y0, wallDepth, panelHeight);
+  const rightFoldover = rectPolygon(`${prefix}-right-foldover-shape`, x1 + wallDepth, y0, foldover, panelHeight);
 
   const panels: Panel[] = [
     { id: `${prefix}-center`, label: part === "lid" ? "蓋（天面）" : "本体（底面）", x: x0, y: y0, width: panelWidth, height: panelHeight },
-    { id: `${prefix}-top-wall`, label: "上側面", x: x0, y: 0, width: panelWidth, height: wallDepth },
+    { id: `${prefix}-top-wall`, label: "上側面", x: x0, y: foldover, width: panelWidth, height: wallDepth },
     { id: `${prefix}-right-wall`, label: "右側面", x: x1, y: y0, width: wallDepth, height: panelHeight },
     { id: `${prefix}-bottom-wall`, label: "下側面", x: x0, y: y1, width: panelWidth, height: wallDepth },
-    { id: `${prefix}-left-wall`, label: "左側面", x: 0, y: y0, width: wallDepth, height: panelHeight },
+    { id: `${prefix}-left-wall`, label: "左側面", x: foldover, y: y0, width: wallDepth, height: panelHeight },
+    { id: `${prefix}-top-foldover`, label: "上側面 折り返し", x: x0, y: 0, width: panelWidth, height: foldover },
+    { id: `${prefix}-right-foldover`, label: "右側面 折り返し", x: x1 + wallDepth, y: y0, width: foldover, height: panelHeight },
+    { id: `${prefix}-bottom-foldover`, label: "下側面 折り返し", x: x0, y: y1 + wallDepth, width: panelWidth, height: foldover },
+    { id: `${prefix}-left-foldover`, label: "左側面 折り返し", x: 0, y: y0, width: foldover, height: panelHeight },
   ];
 
   const cut: PathShape[] = [
     pathThrough(`${prefix}-top-edge`, [{ x: x0, y: 0 }, { x: x1, y: 0 }]),
     pathThrough(`${prefix}-top-left-tab-cut`, [
-      { x: x0, y: 0 }, { x: x0, y: relief }, ...topLeftTab.points.slice(1, -1), { x: x0, y: y0 - relief }, { x: x0, y: y0 },
+      { x: x0, y: 0 }, { x: x0, y: foldover + relief }, ...topLeftTab.points.slice(1, -1), { x: x0, y: y0 - relief }, { x: x0, y: y0 },
     ]),
     pathThrough(`${prefix}-top-right-tab-cut`, [
-      { x: x1, y: 0 }, { x: x1, y: relief }, ...topRightTab.points.slice(1, -1), { x: x1, y: y0 - relief }, { x: x1, y: y0 },
+      { x: x1, y: 0 }, { x: x1, y: foldover + relief }, ...topRightTab.points.slice(1, -1), { x: x1, y: y0 - relief }, { x: x1, y: y0 },
     ]),
     pathThrough(`${prefix}-left-edge`, [
       { x: x0, y: y0 }, { x: 0, y: y0 }, { x: 0, y: y1 }, { x: x0, y: y1 },
@@ -139,10 +150,10 @@ function generateTray(
       { x: x1, y: y0 }, { x: outerRight, y: y0 }, { x: outerRight, y: y1 }, { x: x1, y: y1 },
     ]),
     pathThrough(`${prefix}-bottom-left-tab-cut`, [
-      { x: x0, y: y1 }, { x: x0, y: y1 + relief }, ...bottomLeftTab.points.slice(1, -1), { x: x0, y: outerBottom - relief }, { x: x0, y: outerBottom },
+      { x: x0, y: y1 }, { x: x0, y: y1 + relief }, ...bottomLeftTab.points.slice(1, -1), { x: x0, y: y1 + wallDepth - relief }, { x: x0, y: outerBottom },
     ]),
     pathThrough(`${prefix}-bottom-right-tab-cut`, [
-      { x: x1, y: y1 }, { x: x1, y: y1 + relief }, ...bottomRightTab.points.slice(1, -1), { x: x1, y: outerBottom - relief }, { x: x1, y: outerBottom },
+      { x: x1, y: y1 }, { x: x1, y: y1 + relief }, ...bottomRightTab.points.slice(1, -1), { x: x1, y: y1 + wallDepth - relief }, { x: x1, y: outerBottom },
     ]),
     pathThrough(`${prefix}-bottom-edge`, [{ x: x0, y: outerBottom }, { x: x1, y: outerBottom }]),
   ];
@@ -158,6 +169,13 @@ function generateTray(
     { id: `${prefix}-bottom-right-tab-fold`, from: bottomRightTab.points[0], to: bottomRightTab.points.at(-1)! },
   ];
 
+  const foldoverLines: Line[] = [
+    { id: `${prefix}-top-foldover-fold`, from: { x: x0, y: foldover }, to: { x: x1, y: foldover } },
+    { id: `${prefix}-right-foldover-fold`, from: { x: x1 + wallDepth, y: y0 }, to: { x: x1 + wallDepth, y: y1 } },
+    { id: `${prefix}-bottom-foldover-fold`, from: { x: x0, y: y1 + wallDepth }, to: { x: x1, y: y1 + wallDepth } },
+    { id: `${prefix}-left-foldover-fold`, from: { x: foldover, y: y0 }, to: { x: foldover, y: y1 } },
+  ];
+
   return {
     type: input.type,
     input,
@@ -165,8 +183,8 @@ function generateTray(
     bodyTopMm: roundMm(y0),
     bodyBottomMm: roundMm(y1),
     panels,
-    clipPolygons: [center, topWall, rightWall, bottomWall, leftWall, ...tabs],
-    layers: { cut, fold, glue: tabs, guide: panelGuides(panels) },
+    clipPolygons: [center, topFoldover, topWall, rightWall, rightFoldover, bottomWall, bottomFoldover, leftWall, leftFoldover, ...tabs],
+    layers: { cut, fold, foldover: foldoverLines, glue: tabs, guide: panelGuides(panels) },
   };
 }
 

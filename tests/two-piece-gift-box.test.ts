@@ -7,12 +7,13 @@ import { evaluateA4Fit } from "../src/domain/paper/a4";
 const input = {
   type: "two-piece-gift-box-v1" as const,
   widthMm: 100,
-  heightMm: 80,
+  heightMm: 75,
   depthMm: 40,
   paperThicknessMm: 0.4,
   glueFlapMm: 12,
   lidDepthMm: 40,
   lidClearanceMm: 0.6,
+  foldoverMm: 25,
 };
 
 describe("two-piece-gift-box-v1", () => {
@@ -21,12 +22,14 @@ describe("two-piece-gift-box-v1", () => {
     const [lid, base] = document.pages;
 
     expect(document.pages.map((page) => page.id)).toEqual(["lid", "base"]);
-    expect(lid.geometry.bounds).toEqual({ x: 0, y: 0, widthMm: 182, heightMm: 162 });
-    expect(base.geometry.bounds).toEqual({ x: 0, y: 0, widthMm: 180, heightMm: 160 });
+    expect(lid.geometry.bounds).toEqual({ x: 0, y: 0, widthMm: 232, heightMm: 207 });
+    expect(base.geometry.bounds).toEqual({ x: 0, y: 0, widthMm: 230, heightMm: 205 });
     for (const page of document.pages) {
       const fit = evaluateA4Fit(page.geometry.bounds.widthMm, page.geometry.bounds.heightMm);
-      expect(fit.status).toBe("safe");
+      expect(fit.status).toBe("paper-only");
       expect(fit.orientation).toBe("landscape");
+      expect(fit.pageWidthMm).toBe(297);
+      expect(fit.pageHeightMm).toBe(210);
     }
   });
 
@@ -35,12 +38,12 @@ describe("two-piece-gift-box-v1", () => {
     const lidPanel = document.pages[0].geometry.panels.find((panel) => panel.id === "lid-center");
     const basePanel = document.pages[1].geometry.panels.find((panel) => panel.id === "base-center");
 
-    expect(lidPanel).toMatchObject({ width: 102, height: 82 });
-    expect(basePanel).toMatchObject({ width: 100, height: 80 });
+    expect(lidPanel).toMatchObject({ width: 102, height: 77 });
+    expect(basePanel).toMatchObject({ width: 100, height: 75 });
 
     const looser = generateTwoPieceGiftBox({ ...input, paperThicknessMm: 0.6, lidClearanceMm: 0.8 });
-    expect(looser.pages[0].geometry.bounds).toEqual({ x: 0, y: 0, widthMm: 182.8, heightMm: 162.8 });
-    expect(looser.pages[1].geometry.bounds).toEqual({ x: 0, y: 0, widthMm: 180, heightMm: 160 });
+    expect(looser.pages[0].geometry.bounds).toEqual({ x: 0, y: 0, widthMm: 232.8, heightMm: 207.8 });
+    expect(looser.pages[1].geometry.bounds).toEqual({ x: 0, y: 0, widthMm: 230, heightMm: 205 });
   });
 
   it("蓋深さ27mmでも嵌合寸法を維持する", () => {
@@ -50,7 +53,7 @@ describe("two-piece-gift-box-v1", () => {
     const shallowPanel = shallow.panels.find((panel) => panel.id === "lid-center");
 
     expect(shallowPanel).toMatchObject({ width: fullPanel?.width, height: fullPanel?.height });
-    expect(shallow.bounds).toEqual({ x: 0, y: 0, widthMm: 156, heightMm: 136 });
+    expect(shallow.bounds).toEqual({ x: 0, y: 0, widthMm: 206, heightMm: 181 });
   });
 
   it("両パーツに四隅のりしろと分離レイヤーを生成する", () => {
@@ -59,7 +62,24 @@ describe("two-piece-gift-box-v1", () => {
       expect(page.geometry.layers.glue).toHaveLength(4);
       expect(page.geometry.layers.cut.length).toBeGreaterThan(0);
       expect(page.geometry.layers.fold).toHaveLength(8);
+      expect(page.geometry.layers.foldover).toHaveLength(4);
       expect(page.geometry.layers.guide.length).toBeGreaterThan(0);
+      expect(page.geometry.panels.filter((panel) => panel.id.includes("foldover"))).toHaveLength(4);
+    }
+  });
+
+  it("25mm折り返しを通常折り線と別レイヤーにし、4側面を上端から二重にする", () => {
+    const document = generateTwoPieceGiftBox(input);
+    for (const page of document.pages) {
+      expect(page.geometry.layers.foldover.map((line) => line.id)).toEqual([
+        `${page.id}-top-foldover-fold`,
+        `${page.id}-right-foldover-fold`,
+        `${page.id}-bottom-foldover-fold`,
+        `${page.id}-left-foldover-fold`,
+      ]);
+      for (const panel of page.geometry.panels.filter((item) => item.id.includes("foldover"))) {
+        expect(Math.min(panel.width, panel.height)).toBe(25);
+      }
     }
   });
 
@@ -80,5 +100,6 @@ describe("two-piece-gift-box-v1", () => {
   it("不正な蓋の入力値を拒否する", () => {
     expect(() => generateTwoPieceGiftBox({ ...input, lidDepthMm: 0 })).toThrow(RangeError);
     expect(() => generateTwoPieceGiftBox({ ...input, lidClearanceMm: 0 })).toThrow(RangeError);
+    expect(() => generateTwoPieceGiftBox({ ...input, foldoverMm: 0 })).toThrow(RangeError);
   });
 });

@@ -103,6 +103,7 @@ export type AppState = {
   showGuides: boolean;
   lineColors: DielineLineColors;
   includeCalibrationPage: boolean;
+  printFoldoverLines: boolean;
 };
 
 export type AppAction =
@@ -112,6 +113,7 @@ export type AppAction =
   | { type: "set-active-page"; pageId: DielinePageId }
   | { type: "update-box"; field: keyof Omit<BoxInput, "type">; value: number }
   | { type: "set-background-color"; pageId: DielinePageId; color: string }
+  | { type: "replace-page-background"; sourcePageId: DielinePageId; targetPageId: DielinePageId; items: ArtworkLayer[] }
   | { type: "add-artwork"; item: ArtworkLayer }
   | { type: "select-artwork"; id: string | null }
   | { type: "update-artwork"; id: string; patch: Partial<ArtworkLayer> }
@@ -132,4 +134,5 @@ export type AppAction =
   | { type: "toggle-guides" }
   | { type: "set-line-color"; layer: keyof DielineLineColors; color: string }
   | { type: "set-line-colors"; colors: DielineLineColors }
-  | { type: "set-calibration"; value: boolean };
+  | { type: "set-calibration"; value: boolean }
+  | { type: "set-print-foldover-lines"; value: boolean };

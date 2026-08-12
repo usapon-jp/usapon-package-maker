@@ -6,6 +6,7 @@ import { clamp } from "../../domain/units";
 import { pointsToString } from "./geometry-utils";
 import { CutLayer } from "./layers/CutLayer";
 import { FoldLayer } from "./layers/FoldLayer";
+import { FoldoverLayer } from "./layers/FoldoverLayer";
 import { GlueLayer } from "./layers/GlueLayer";
 import { GuideLayer } from "./layers/GuideLayer";
 import { ArtworkLayer } from "./layers/ArtworkLayer";
@@ -23,6 +24,7 @@ type LayersProps = {
   selectedStampId: string | null;
   selectedTextId: string | null;
   exportMode: boolean;
+  includeFoldoverLines?: boolean;
   idPrefix: string;
   onArtworkPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
   onStampPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
@@ -42,6 +44,7 @@ export function DielineLayers({
   selectedStampId,
   selectedTextId,
   exportMode,
+  includeFoldoverLines = true,
   idPrefix,
   onArtworkPointerDown,
   onStampPointerDown,
@@ -83,6 +86,7 @@ export function DielineLayers({
       </g>
       <GlueLayer geometry={geometry} patternId={gluePatternId} exportMode={exportMode} />
       <FoldLayer geometry={geometry} color={lineColors.fold} />
+      {(!exportMode || includeFoldoverLines) && <FoldoverLayer geometry={geometry} color={lineColors.fold} />}
       <CutLayer geometry={geometry} color={lineColors.cut} />
       {!exportMode && showGuides && <GuideLayer geometry={geometry} />}
     </>
@@ -112,6 +116,7 @@ export function DielineSvg({
   selectedStampId,
   selectedTextId,
   exportMode,
+  includeFoldoverLines = true,
   onSelectArtwork,
   onMoveArtwork,
   onSelectStamp,
@@ -210,6 +215,7 @@ export function DielineSvg({
         selectedStampId={selectedStampId}
         selectedTextId={selectedTextId}
         exportMode={exportMode}
+        includeFoldoverLines={includeFoldoverLines}
         idPrefix={idPrefix}
         onArtworkPointerDown={handleArtworkPointerDown}
         onStampPointerDown={handleStampPointerDown}

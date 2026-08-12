@@ -6,6 +6,7 @@ import { createDotPattern, createStamp, createUploadedArtwork } from "../src/app
 import type { TextItem, UploadedAsset } from "../src/app/app-types";
 import { A4ExportSvg, A4PreviewSvg } from "../src/components/dieline/A4ExportSvg";
 import { generateStraightTuckCarton } from "../src/domain/boxes/straight-tuck-carton";
+import { generateTwoPieceGiftBox } from "../src/domain/boxes/two-piece-gift-box";
 import { evaluateA4Fit } from "../src/domain/paper/a4";
 
 const geometry = generateStraightTuckCarton(initialState.box);
@@ -84,5 +85,38 @@ describe("A4 Web/PDF SVG source", () => {
     expect(markup).toContain('transform="translate(44 58) rotate(90)"');
     expect(markup).toContain('data-text-id="shared-text" x="50" y="60"');
     expect(markup).toContain('font-size="6"');
+  });
+
+  it("折り返し補助線だけをレビューとPDF元SVGから外せる", () => {
+    const foldoverGeometry = generateTwoPieceGiftBox({
+      ...initialState.box,
+      type: "two-piece-gift-box-v1",
+      widthMm: 100,
+      heightMm: 75,
+      depthMm: 40,
+      foldoverMm: 25,
+    }).pages[1].geometry;
+    const foldoverFit = evaluateA4Fit(foldoverGeometry.bounds.widthMm, foldoverGeometry.bounds.heightMm);
+    const foldoverProps = {
+      ...props,
+      pageId: "base",
+      geometry: foldoverGeometry,
+      fit: foldoverFit,
+      artworkLayers: [],
+      stamps: [],
+      texts: [],
+    };
+
+    const withFoldover = renderToStaticMarkup(<A4PreviewSvg {...foldoverProps} includeFoldoverLines />);
+    const withoutFoldoverPreview = renderToStaticMarkup(<A4PreviewSvg {...foldoverProps} includeFoldoverLines={false} />);
+    const withoutFoldoverPdf = renderToStaticMarkup(<A4ExportSvg {...foldoverProps} includeFoldoverLines={false} />);
+
+    expect(withFoldover).toContain('data-layer="foldover"');
+    expect(withFoldover).toContain('stroke-width="0.4"');
+    expect(withFoldover).toContain('stroke-dasharray="2 1.25"');
+    expect(withoutFoldoverPreview).not.toContain('data-layer="foldover"');
+    expect(withoutFoldoverPreview).toContain('data-layer="fold"');
+    expect(withoutFoldoverPreview).toContain('data-layer="cut"');
+    expect(withoutFoldoverPreview).toBe(withoutFoldoverPdf);
   });
 });

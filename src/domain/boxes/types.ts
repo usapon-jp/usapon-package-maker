@@ -22,6 +22,7 @@ export type BoxInput = {
   glueFlapMm: Millimeters;
   lidDepthMm?: Millimeters;
   lidClearanceMm?: Millimeters;
+  foldoverMm?: Millimeters;
 };
 
 export type Panel = {
@@ -51,6 +52,7 @@ export type DielineGeometry = {
   layers: {
     cut: PathShape[];
     fold: Line[];
+    foldover: Line[];
     glue: PolygonShape[];
     guide: Line[];
   };

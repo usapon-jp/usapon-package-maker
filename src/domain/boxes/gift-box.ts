@@ -245,6 +245,7 @@ export const generateGiftBox: BoxGenerator = (input): DielineGeometry => {
     layers: {
       cut,
       fold,
+      foldover: [],
       glue,
       guide: panelGuides(panels),
     },

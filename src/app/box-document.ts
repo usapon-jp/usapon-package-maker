@@ -86,6 +86,7 @@ export const boxDocumentV1Schema = z.object({
     glueFlapMm: z.number().nonnegative().finite(),
     lidDepthMm: z.number().positive().finite().optional(),
     lidClearanceMm: z.number().nonnegative().finite().optional(),
+    foldoverMm: z.number().positive().finite().optional(),
   }),
   design: z.object({
     backgroundColors: z.object({ main: z.string(), lid: z.string(), base: z.string() }),
@@ -94,6 +95,7 @@ export const boxDocumentV1Schema = z.object({
     texts: z.array(textSchema),
     lineColors: z.object({ cut: z.string(), fold: z.string() }),
     includeCalibrationPage: z.boolean(),
+    printFoldoverLines: z.boolean().default(true),
   }),
 });
 
@@ -128,6 +130,7 @@ export function serializeBoxDocument(state: AppState): BoxDocumentV1 {
       texts: state.texts.map((item) => ({ ...item })),
       lineColors: { ...state.lineColors },
       includeCalibrationPage: state.includeCalibrationPage,
+      printFoldoverLines: state.printFoldoverLines,
     },
   };
 }
@@ -166,6 +169,7 @@ export async function hydrateBoxDocument(value: unknown, resolveAsset: AssetReso
     texts: document.design.texts.map((item) => ({ ...item } as TextItem)),
     lineColors: { ...document.design.lineColors },
     includeCalibrationPage: document.design.includeCalibrationPage,
+    printFoldoverLines: document.design.printFoldoverLines,
   };
 }
 

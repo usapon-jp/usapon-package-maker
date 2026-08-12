@@ -135,6 +135,23 @@ describe("BoxDocumentV1", () => {
     expect(document.design.stamps[0]).toMatchObject({ assetRef: { kind: "user", assetId: USER_ASSET_ID } });
   });
 
+  it("新しい折り返し項目がない既存V1作品も読み込める", async () => {
+    const legacy = JSON.parse(JSON.stringify(serializeBoxDocument(stateFor("two-piece-gift-box-v1")))) as {
+      box: { foldoverMm?: number };
+      design: { printFoldoverLines?: boolean };
+    };
+    delete legacy.box.foldoverMm;
+    delete legacy.design.printFoldoverLines;
+
+    const parsed = parseBoxDocument(legacy);
+    expect(parsed.box.foldoverMm).toBeUndefined();
+    expect(parsed.design.printFoldoverLines).toBe(true);
+
+    const restored = await hydrateBoxDocument(legacy, async () => ({ dataUrl: "data:image/png;base64,RESTORED" }));
+    expect(restored.box.foldoverMm).toBeUndefined();
+    expect(restored.printFoldoverLines).toBe(true);
+  });
+
   it.each([
     null,
     {},

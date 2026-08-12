@@ -8,7 +8,7 @@ import { MyBoxesScreen } from "../components/cloud/MyBoxesScreen";
 import { generateDielineDocument } from "../domain/boxes/registry";
 import type { BoxType, DielineGeometry, DielinePage, DielinePageId } from "../domain/boxes/types";
 import { evaluateA4Fit, type A4FitResult, type FitStatus } from "../domain/paper/a4";
-import { roundMm } from "../domain/units";
+import { clamp, roundMm } from "../domain/units";
 import { exportA4Pdf } from "../lib/pdf/export-a4-pdf";
 import { readPatternFile } from "../lib/uploads/read-pattern";
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from "../lib/drafts/local-draft";
@@ -79,8 +79,8 @@ const BOX_TYPE_COPY: Record<BoxType, { name: string; description: string; struct
   },
   "two-piece-gift-box-v1": {
     name: "ツーピースギフトBOX",
-    description: "蓋と本体をA4 2枚で作る、配送向けの四隅接着箱",
-    structure: "two-piece-gift-box-v1（蓋・本体分離型）",
+    description: "蓋と本体をA4 2枚で作る、上端二重の四隅接着箱",
+    structure: "two-piece-gift-box-v1（蓋・本体分離／側面二重型）",
   },
 };
 
@@ -237,6 +237,7 @@ function LineLegend({ geometry, lineColors }: { geometry: DielineGeometry; lineC
     <div className="line-legend">
       <span className="cut-swatch" style={cutStyle}>カット線</span>
       <span className="fold-swatch" style={foldStyle}>折り線</span>
+      {geometry.layers.foldover.length > 0 && <span className="foldover-swatch" style={foldStyle}>折り返し補助線</span>}
       {geometry.layers.glue.length > 0
         ? <span className="glue-swatch">のりしろ</span>
         : <span className="no-glue-swatch">のり不要</span>}
@@ -356,6 +357,34 @@ function NumberField({ label, shortLabel, value, min, max, step = 1, onChange, h
   );
 }
 
+function FineTuneControl({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  onChange: (value: number) => void;
+}) {
+  const update = (next: number) => onChange(roundMm(clamp(next, min, max), 1));
+  return (
+    <div className="fine-tune-control">
+      <div><strong>{label}</strong><output>{mm(value)}</output></div>
+      <div>
+        <button type="button" aria-label={`${label}を${step}mm小さく`} onClick={() => update(value - step)}>−</button>
+        <input aria-label={label} type="range" min={min} max={max} step={step} value={value} onChange={(event) => update(Number(event.target.value))} />
+        <button type="button" aria-label={`${label}を${step}mm大きく`} onClick={() => update(value + step)}>＋</button>
+      </div>
+    </div>
+  );
+}
+
 function DesignColorControl({
   label,
   value,
@@ -451,10 +480,15 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
             ))}
           </div>
           <div className="form-divider" />
-          <div className="form-section-heading"><h3>仕上がり寸法</h3><p>{shallowBox ? "表面を W × H、箱の深さを D で指定" : "幅 W／奥行 D／高さ H を指定"}</p></div>
+          <div className="form-section-heading"><h3>仕上がり寸法</h3><p>{twoPiece ? "幅 W／奥行 D／高さ H を指定" : shallowBox ? "表面を W × H、箱の深さを D で指定" : "幅 W／奥行 D／高さ H を指定"}</p></div>
           <div className="dimension-grid">
             <NumberField label="幅" shortLabel="W" value={state.box.widthMm} min={10} max={400} onChange={(value) => dispatch({ type: "update-box", field: "widthMm", value })} />
-            {shallowBox ? (
+            {twoPiece ? (
+              <>
+                <NumberField label="奥行" shortLabel="D" value={state.box.heightMm} min={10} max={500} onChange={(value) => dispatch({ type: "update-box", field: "heightMm", value })} />
+                <NumberField label="高さ" shortLabel="H" value={state.box.depthMm} min={10} max={300} onChange={(value) => dispatch({ type: "update-box", field: "depthMm", value })} />
+              </>
+            ) : shallowBox ? (
               <>
                 <NumberField label="高さ" shortLabel="H" value={state.box.heightMm} min={10} max={500} onChange={(value) => dispatch({ type: "update-box", field: "heightMm", value })} />
                 <NumberField label="深さ" shortLabel="D" value={state.box.depthMm} min={twoPiece ? 10 : 5} max={300} onChange={(value) => dispatch({ type: "update-box", field: "depthMm", value })} />
@@ -483,12 +517,17 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
                 <NumberField label="蓋の深さ" value={state.box.lidDepthMm ?? state.box.depthMm} min={10} max={state.box.depthMm} step={1} onChange={(value) => dispatch({ type: "update-box", field: "lidDepthMm", value })} hint="全かぶせは本体深さと同じ40mm。浅蓋にも変更できます" />
                 <NumberField label="蓋の片側余裕" value={state.box.lidClearanceMm ?? 0.6} min={0.1} max={2} step={0.1} onChange={(value) => dispatch({ type: "update-box", field: "lidClearanceMm", value })} hint="試作初期値0.6mm。きつい時0.8mm、緩い時0.4mm" />
               </div>
+              <div className="form-divider" />
+              <div className="form-section-heading"><h3>二重側面</h3><p>側面上端を内側へ折り返す長さ</p></div>
+              <div className="option-grid">
+                <NumberField label="折り返し" value={state.box.foldoverMm ?? 25} min={5} max={40} step={1} onChange={(value) => dispatch({ type: "update-box", field: "foldoverMm", value })} hint="基準25mm。4cm側面の上側25mmが二重になります" />
+              </div>
             </>
           )}
           <div className="measurement-note">
             <strong>{twoPiece ? "A4 2枚で組み立て" : shallowBox ? "1枚で組み立て" : "寸法の考え方"}</strong>
             <p>{twoPiece
-              ? "1ページ目が蓋、2ページ目が本体です。両方の四隅を接着して別々のトレーを作ります。蓋内寸には紙厚と片側余裕を加えています。"
+              ? "1ページ目が蓋、2ページ目が本体です。両方の四隅を接着し、側面上端を内側へ折り返して切断面を隠します。蓋内寸には紙厚と片側余裕を加えています。"
               : nStyle
               ? "底面の上下側壁を立て、角ロックを内側へ折って側面を固定します。前面の折り返しを2つのノッチで留め、最後にフタの舌を差し込みます。"
               : state.box.type === "gift-box-v1"
@@ -586,6 +625,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   const [stampUploadError, setStampUploadError] = useState("");
   const [uploadingArtwork, setUploadingArtwork] = useState(false);
   const [uploadingStamp, setUploadingStamp] = useState(false);
+  const [backgroundCopyMessage, setBackgroundCopyMessage] = useState("");
   const [favoriteColors, setFavoriteColors] = useState<string[]>(() => {
     try {
       return parseFavoriteColors(window.localStorage.getItem(FAVORITE_COLORS_STORAGE_KEY));
@@ -607,6 +647,14 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
 
   const addFavorite = (color: string) => setFavoriteColors((colors) => addFavoriteColor(colors, color));
   const removeFavorite = (color: string) => setFavoriteColors((colors) => removeFavoriteColor(colors, color));
+
+  const copyLidBackgroundToBase = () => {
+    const copies = state.artworkLayers
+      .filter((item) => item.pageId === "lid")
+      .map((item) => ({ ...item, id: crypto.randomUUID(), pageId: "base" as const }));
+    dispatch({ type: "replace-page-background", sourcePageId: "lid", targetPageId: "base", items: copies });
+    setBackgroundCopyMessage(`本体へ背景色と背景・柄 ${copies.length}件をコピーしました。`);
+  };
 
   const handleArtworkFiles = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = [...(event.target.files ?? [])];
@@ -682,10 +730,17 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
       </div>
       <PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} />
 
-      <div className="editor-layout">
+      <div className={`editor-layout ${state.openEditorSection === "artwork" ? "is-background-editing" : ""}`}>
         <aside className="editor-controls panel-card">
           <AccordionSection section="artwork" openSection={state.openEditorSection} title="背景・柄" icon="▧" count={pageArtworkLayers.length} onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
             <DesignColorControl className="background-color-control" label="基本背景色" value={design.backgroundColor} favoriteColors={favoriteColors} onChange={(color) => dispatch({ type: "set-background-color", pageId: activePage.id, color })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
+            {state.box.type === "two-piece-gift-box-v1" && activePage.id === "lid" && (
+              <div className="background-copy-control">
+                <button className="outline-button full-button" type="button" onClick={copyLidBackgroundToBase}>背景を本体にもコピー</button>
+                <small>本体の背景色と背景・柄を置き換えます。スタンプと文字はコピーも削除もしません。</small>
+                {backgroundCopyMessage && <p role="status">{backgroundCopyMessage}</p>}
+              </div>
+            )}
             <div className="preset-grid" aria-label="基本柄プリセット">
               <button type="button" onClick={() => dispatch({ type: "add-artwork", item: createStripePattern(crypto.randomUUID(), pageArtworkLayers.filter((item) => item.kind === "stripe-pattern").length + 1, activePage.id) })}><i className="stripe-preview" /><strong>ストライプ</strong><small>幅・間隔・向きを調整</small></button>
               <button type="button" onClick={() => dispatch({ type: "add-artwork", item: createDotPattern(crypto.randomUUID(), pageArtworkLayers.filter((item) => item.kind === "dot-pattern").length + 1, activePage.id) })}><i className="dot-preview" /><strong>水玉</strong><small>色・大きさ・間隔を調整</small></button>
@@ -725,12 +780,15 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
                 )}
                 {selectedArtwork.kind === "uploaded-artwork" && (
                   <>
-                    <label className="range-control"><span>画像の幅 <output>{mm(selectedArtwork.widthMm)}</output></span><input type="range" min="2" max="200" step="1" value={selectedArtwork.widthMm} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { widthMm: Number(event.target.value) } })} /></label>
+                    <FineTuneControl label="画像の幅" value={selectedArtwork.widthMm} min={2} max={200} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { widthMm: value } })} />
                     <label className="toggle-row"><span><strong>リピート</strong><small>画像を繰り返して全面へ配置</small></span><input type="checkbox" checked={selectedArtwork.repeat} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { repeat: event.target.checked } })} /></label>
                     <button className="rotate-button" type="button" onClick={() => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { rotationDeg: rotateQuarterTurn(selectedArtwork.rotationDeg) } })}>↻ 90°回転 <span>{selectedArtwork.rotationDeg}°</span></button>
                   </>
                 )}
-                <div className="mini-number-grid"><NumberField label="横位置 X" value={roundMm(selectedArtwork.offsetXmm, 1)} min={-500} max={500} step={1} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { offsetXmm: value } })} /><NumberField label="縦位置 Y" value={roundMm(selectedArtwork.offsetYmm, 1)} min={-500} max={500} step={1} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { offsetYmm: value } })} /></div>
+                <div className="background-position-controls">
+                  <FineTuneControl label="横位置 X" value={roundMm(selectedArtwork.offsetXmm, 1)} min={-geometry.bounds.widthMm} max={geometry.bounds.widthMm} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { offsetXmm: value } })} />
+                  <FineTuneControl label="縦位置 Y" value={roundMm(selectedArtwork.offsetYmm, 1)} min={-geometry.bounds.heightMm} max={geometry.bounds.heightMm} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { offsetYmm: value } })} />
+                </div>
                 <div className="layer-action-row"><button type="button" onClick={() => dispatch({ type: "move-artwork", id: selectedArtwork.id, direction: "backward" })}>← 背面</button><button type="button" onClick={() => dispatch({ type: "move-artwork", id: selectedArtwork.id, direction: "forward" })}>前面 →</button><button type="button" onClick={() => dispatch({ type: "duplicate-artwork", id: selectedArtwork.id, newId: crypto.randomUUID() })}>複製</button><button className="danger" type="button" onClick={() => dispatch({ type: "remove-artwork", id: selectedArtwork.id })}>削除</button></div>
               </div>
             )}
@@ -782,7 +840,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
           </AccordionSection>
 
           <AccordionSection section="lines" openSection={state.openEditorSection} title="線の色" icon="／" onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
-            <p className="control-help">カット線（実線）と折り線（点線）は、画面とPDFに同じ色で反映されます。</p>
+            <p className="control-help">カット線（実線）と通常の折り線（点線）は、画面とPDFに同じ色で反映されます。折り返し補助線は印刷画面でPDFだけ非表示にできます。</p>
             <div className="line-color-grid">
               <label className="line-color-row">
                 <span><strong>カット線</strong><small>実線</small></span>
@@ -842,7 +900,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
 
       <div className="sticky-actions">
         <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: "size" })}>サイズに戻る</button>
-        <button className="primary-button" type="button" onClick={() => dispatch({ type: "go", screen: "print" })}>プレビュー／印刷へ <span>▣</span></button>
+        <button className="primary-button" type="button" onClick={() => dispatch({ type: "go", screen: "print" })}>PDFを確認 <span>▣</span></button>
       </div>
     </main>
   );
@@ -857,6 +915,7 @@ function PrintScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   const hasOverflow = pages.some((page) => page.fit.status === "overflow");
   const calibrationPageNumber = pages.length + 1;
   const twoPiece = state.box.type === "two-piece-gift-box-v1";
+  const hasFoldoverLines = pages.some((page) => page.geometry.layers.foldover.length > 0);
 
   const handleExport = async () => {
     const exportPages = pages.flatMap((page) => {
@@ -884,7 +943,7 @@ function PrintScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   return (
     <main className="tool-page print-page">
       <div className="page-heading horizontal-heading">
-        <div><button className="back-button" type="button" onClick={() => dispatch({ type: "go", screen: "design" })}>← デザイン編集</button><p className="eyebrow">STEP 3</p><h1>印刷プレビュー</h1><p>A4実寸PDFを作成します。展開図の自動縮小は行いません。</p></div>
+        <div><button className="back-button" type="button" onClick={() => dispatch({ type: "go", screen: "design" })}>← デザイン編集</button><p className="eyebrow">STEP 3</p><h1>PDFレビュー</h1><p>下のレビューが保存されるPDFと同じ内容です。確認後、その下の設定からダウンロードできます。</p></div>
         <FitNotice geometry={activePage.geometry} fit={activePage.fit} compact />
       </div>
 
@@ -903,6 +962,7 @@ function PrintScreen({ state, dispatch, pages, activePage }: ScreenProps) {
                     fit={page.fit}
                     {...design}
                     lineColors={state.lineColors}
+                    includeFoldoverLines={state.printFoldoverLines}
                   />
                 </div>
               </section>
@@ -911,19 +971,25 @@ function PrintScreen({ state, dispatch, pages, activePage }: ScreenProps) {
         </div>
 
         <aside className="print-settings panel-card">
-          <h2>A4 PDF出力</h2>
+          <p className="eyebrow">PRINT SETTINGS</p>
+          <h2>PDF出力設定</h2>
           <div className="fit-notice-stack">{pages.map((page) => <FitNotice key={page.id} geometry={page.geometry} fit={page.fit} label={page.label} />)}</div>
           <div className="print-instruction">
             <span aria-hidden="true">!</span>
             <div><strong>印刷設定が重要です</strong><p>プリンター設定で<strong>「100%／実際のサイズ」</strong>を選び、<strong>「用紙に合わせる」をOFF</strong>にしてください。</p></div>
           </div>
           <label className="toggle-row calibration-toggle"><span><strong>50mm検寸ページを追加</strong><small>PDFの{calibrationPageNumber}ページ目で印刷倍率を確認できます</small></span><input type="checkbox" checked={state.includeCalibrationPage} onChange={(event) => dispatch({ type: "set-calibration", value: event.target.checked })} /></label>
+          {hasFoldoverLines && (
+            <label className="toggle-row print-line-toggle"><span><strong>折り返し線を印刷する</strong><small>側面上端{mm(state.box.foldoverMm ?? 25)}の補助点線だけをPDFレビューと保存PDFで切り替えます</small></span><input type="checkbox" checked={state.printFoldoverLines} onChange={(event) => dispatch({ type: "set-print-foldover-lines", value: event.target.checked })} /></label>
+          )}
+          <div className="guide-print-status"><span aria-hidden="true">✓</span><div><strong>面名・中心ガイドは印刷しません</strong><small>編集画面のガイド表示とは別管理です。カット線と通常の折り線は常に残ります。</small></div></div>
           <div className="calibration-explanation"><b>実寸の確認方法</b><ol><li>{calibrationPageNumber}ページ目も同じ設定で印刷</li><li>検寸線を定規で測る</li><li>ちょうど50mmなら正しい倍率です</li></ol></div>
           {twoPiece && (
             <div className="two-piece-shipping-guide">
               <h3>組み立て・茶封筒配送ガイド</h3>
               <ol>
                 <li>切る前に全折り線へ筋入れし、蓋と本体の四隅を強粘着両面テープで固定</li>
+                <li>4側面の上端を補助点線で内側へ折り返し、上側{mm(state.box.foldoverMm ?? 25)}を二重にする</li>
                 <li>商品を薄紙で動かないようにし、蓋を対向する2か所の剥がせるシールで固定</li>
                 <li>箱を厚さ約3mmの気泡緩衝材で一周包む</li>
                 <li>内寸160×120mm以上・マチ約50mmのクラフト封筒へ入れ、封入口を梱包テープで補強</li>
@@ -934,7 +1000,7 @@ function PrintScreen({ state, dispatch, pages, activePage }: ScreenProps) {
           {exportError && <p className="export-error">{exportError}</p>}
           {exportSuccess && <p className="export-success" role="status">{exportSuccess}</p>}
           <button className="pdf-button" type="button" disabled={hasOverflow || exporting} onClick={handleExport}>
-            <span aria-hidden="true">⇩</span>{exporting ? "PDFを作成中…" : "A4 PDFをダウンロード"}
+            <span aria-hidden="true">⇩</span>{exporting ? "PDFを作成中…" : "PDFをダウンロード"}
           </button>
           {hasOverflow && <p className="blocked-copy">蓋または本体がA4に収まらないため出力を停止しています。サイズ設定へ戻って寸法を小さくしてください。</p>}
           <p className="privacy-copy">PDFはこの端末内で作成します。作品をクラウド保存した場合だけ、作品JSONと追加画像を非公開のSupabaseへ送信します。</p>

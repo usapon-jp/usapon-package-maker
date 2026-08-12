@@ -114,4 +114,35 @@ describe("背景・柄・スタンプの状態管理", () => {
     state = appReducer(state, { type: "update-box", field: "depthMm", value: 30 });
     expect(state.box.lidDepthMm).toBe(30);
   });
+
+  it("蓋の背景だけを本体へコピーし、スタンプと文字は維持する", () => {
+    const lidDots = { ...createDotPattern("lid-dots", 1, "lid"), offsetXmm: 12, offsetYmm: -4 };
+    const oldBase = createStripePattern("old-base", 1, "base");
+    let state = appReducer(initialState, { type: "set-box-type", boxType: "two-piece-gift-box-v1" });
+    state = {
+      ...state,
+      backgroundColors: { ...state.backgroundColors, lid: "#f6d96f", base: "#ffffff" },
+      artworkLayers: [lidDots, oldBase],
+      stamps: [{ ...createStamp({ ...asset, id: "base-stamp" }, geometry, "本体スタンプ", "base") }],
+      texts: [{ id: "base-text", kind: "text", pageId: "base", text: "残す", xMm: 10, yMm: 10, fontSizeMm: 4, color: "#333333" }],
+    };
+
+    state = appReducer(state, {
+      type: "replace-page-background",
+      sourcePageId: "lid",
+      targetPageId: "base",
+      items: [{ ...lidDots, id: "base-dots-copy", pageId: "base" }],
+    });
+
+    expect(state.backgroundColors.base).toBe("#f6d96f");
+    expect(state.artworkLayers.filter((item) => item.pageId === "base")).toEqual([
+      { ...lidDots, id: "base-dots-copy", pageId: "base" },
+    ]);
+    expect(state.stamps).toHaveLength(1);
+    expect(state.texts).toHaveLength(1);
+
+    state = appReducer(state, { type: "update-artwork", id: "base-dots-copy", patch: { offsetXmm: 99 } });
+    expect(state.artworkLayers.find((item) => item.id === "lid-dots")?.offsetXmm).toBe(12);
+    expect(state.artworkLayers.find((item) => item.id === "base-dots-copy")?.offsetXmm).toBe(99);
+  });
 });

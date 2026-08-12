@@ -221,6 +221,7 @@ export const generateStraightTuckCarton: BoxGenerator = (input): DielineGeometry
     layers: {
       cut,
       fold,
+      foldover: [],
       glue: [rectPolygon("glue-region", 0, bodyTop, glue, height)],
       guide,
     },
