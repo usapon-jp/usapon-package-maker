@@ -1,14 +1,15 @@
-# うさぽん パッケージメーカー MVP
+# うさぽん パッケージメーカー
 
 ハンドメイド作家向けに、箱の寸法から実寸の展開図を生成し、柄や文字を配置してA4 PDFへ出力するブラウザアプリです。
 
-公開版: https://usapon-jp.github.io/usapon-package-maker/
+公開版: https://package.usa-pon.com/
 
 ## 起動
 
 ```bash
-cd "/Users/yoshidafumio/Documents/ChatGPT/うさぽん制作ツール/package-maker"
+cd "/Users/yoshidafumio/Documents/ChatGPT/ボックス制作アプリ"
 npm install
+cp .env.example .env.local
 npm run dev
 ```
 
@@ -67,12 +68,40 @@ PDFはA4実寸で生成します。印刷画面では必ず次の設定にして
 
 ## データの扱い
 
-画像、SVG、文字、PDFはすべてブラウザ内で処理します。ログイン、クラウド保存、外部送信はありません。
+未保存の作業と画像Blobは、OAuth遷移や再読み込みで失われないよう端末のIndexedDBへ自動退避します。Googleログイン後に「保存」を押した作品だけ、次のデータをSupabaseへ送信します。
+
+- 箱寸法、背景色、柄・スタンプ・文字、線色、検寸ページ設定を含む`BoxDocumentV1` JSON
+- ユーザーが追加したPNG／サニタイズ済みSVG（非公開Storage）
+
+Googleから取得する情報は氏名、メールアドレス、プロフィール画像だけです。Google DriveやGmailへはアクセスせず、Google側のアクセストークンをアプリDBへ保存しません。PDFは従来どおりブラウザ内で生成します。詳細は[プライバシーポリシー](public/privacy.html)を確認してください。
+
+### クラウド保存の制限
+
+- 1アカウント20作品
+- 画像は1点10MB、合計100MB
+- 作品JSONは1MB
+- PNG／SVGのみ
+
+## Supabase設定
+
+ブラウザへ渡す値はPublishable Keyだけです。`service_role`はEdge Functionsの実行環境以外へ置かないでください。
+
+1. 東京リージョンの専用Supabaseプロジェクトを用意する
+2. `supabase/migrations/202608120001_cloud_box_sync.sql`を適用する
+3. `upload-box-asset`、`delete-box-project`、`delete-account`、`cleanup-box-assets`をデプロイする
+4. Google Providerを有効にし、Site URLを`https://package.usa-pon.com/`へ設定する
+5. Redirect URLsへ`https://package.usa-pon.com/`と`http://127.0.0.1:5174/`を追加する
+6. GitHub Repository Variablesへ`VITE_SUPABASE_URL`と`VITE_SUPABASE_PUBLISHABLE_KEY`を登録する
+
+ローカル開発では`.env.example`を`.env.local`へコピーし、同じ2値を設定します。秘密値を`VITE_`で始めないでください。
+
+## クラウド保存の検証境界
+
+モック／ローカルテストに加えて、公開完了前に実SupabaseでRLS、Storage、OAuth、保存競合、アカウント削除を確認します。Google OAuthのProduction公開とブランド確認が終わるまでは、テストユーザー以外のログインを完成扱いにしません。
 
 ## MVP対象外
 
 - テンプレートから作る機能
 - 3Dプレビュー
 - AI生成
-- ログイン、クラウド保存
 - 決済

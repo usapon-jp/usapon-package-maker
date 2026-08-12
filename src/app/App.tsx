@@ -1,14 +1,28 @@
-import { useEffect, useMemo, useReducer, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from "react";
+import type { User } from "@supabase/supabase-js";
 
 import { A4ExportSvg, A4PreviewSvg, CalibrationSvg } from "../components/dieline/A4ExportSvg";
 import { DielineSvg } from "../components/dieline/DielineSvg";
 import { BoxTypeIcon } from "../components/icons/BoxTypeIcon";
+import { MyBoxesScreen } from "../components/cloud/MyBoxesScreen";
 import { generateDielineDocument } from "../domain/boxes/registry";
 import type { BoxType, DielineGeometry, DielinePage, DielinePageId } from "../domain/boxes/types";
 import { evaluateA4Fit, type A4FitResult, type FitStatus } from "../domain/paper/a4";
 import { roundMm } from "../domain/units";
 import { exportA4Pdf } from "../lib/pdf/export-a4-pdf";
 import { readPatternFile } from "../lib/uploads/read-pattern";
+import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from "../lib/drafts/local-draft";
+import {
+  currentUser,
+  deleteCloudAccount,
+  openCloudProject,
+  ProjectConflictError,
+  saveCloudProject,
+  signInWithGoogle,
+  signOutLocally,
+} from "../cloud/box-repository";
+import { isCloudConfigured, supabase } from "../cloud/supabase-client";
+import type { ProjectWorkspace, SaveState } from "../cloud/types";
 import { appReducer, DEFAULT_DIELINE_LINE_COLORS, initialState } from "./app-state";
 import {
   addFavoriteColor,
@@ -24,10 +38,12 @@ import {
   createStamp,
   createStripePattern,
   createUploadedArtwork,
+  markAsBuiltInStamp,
   POFUMOFU_STAMP_FILE,
   rotateQuarterTurn,
 } from "./artwork";
 import type { AppAction, AppState, DielineLineColors, EditorSection, Screen, TextItem } from "./app-types";
+import { serializeBoxDocument } from "./box-document";
 import { parseNumberDraft } from "./number-input";
 
 const FIT_COPY: Record<FitStatus, { title: string; description: string }> = {
@@ -113,7 +129,28 @@ function mm(value: number) {
   return `${roundMm(value, 1)}mm`;
 }
 
-function AppHeader({ screen, onGo }: { screen: Screen; onGo: (screen: Screen) => void }) {
+function AppHeader({
+  screen,
+  user,
+  saveState,
+  saveMessage,
+  onGo,
+  onSave,
+  onLogin,
+  onLogout,
+  onDeleteAccount,
+}: {
+  screen: Screen;
+  user: User | null;
+  saveState: SaveState;
+  saveMessage: string;
+  onGo: (screen: Screen) => void;
+  onSave: () => void;
+  onLogin: () => void;
+  onLogout: () => void;
+  onDeleteAccount: () => void;
+}) {
+  const saveLabel = saveState === "saving" ? "保存中…" : saveState === "saved" ? "保存済み" : saveState === "error" ? "保存失敗" : saveState === "conflict" ? "更新あり" : "保存";
   return (
     <header className="app-header">
       <button className="brand-button" type="button" onClick={() => onGo("home")} aria-label="トップへ戻る">
@@ -126,7 +163,7 @@ function AppHeader({ screen, onGo }: { screen: Screen; onGo: (screen: Screen) =>
         </span>
         <span><strong>うさぽん</strong><small>パッケージメーカー</small></span>
       </button>
-      {screen !== "home" && (
+      {screen !== "home" && screen !== "my-boxes" && (
         <nav className="step-nav" aria-label="作成ステップ">
           {(["size", "design", "print"] as const).map((step, index) => (
             <button
@@ -140,6 +177,28 @@ function AppHeader({ screen, onGo }: { screen: Screen; onGo: (screen: Screen) =>
           ))}
         </nav>
       )}
+      <div className="cloud-header-actions">
+        {saveMessage && <small className={`save-indicator is-${saveState}`} role="status">{saveMessage}</small>}
+        <button className="my-boxes-button" type="button" onClick={() => onGo("my-boxes")}>▦ <span>マイボックス</span></button>
+        {screen !== "home" && screen !== "my-boxes" && (
+          <button className={`cloud-save-button is-${saveState}`} type="button" disabled={saveState === "saving"} onClick={onSave}>☁ {saveLabel}</button>
+        )}
+        {user ? (
+          <details className="account-menu">
+            <summary aria-label="アカウントメニュー">
+              {user.user_metadata.avatar_url ? <img src={user.user_metadata.avatar_url} alt="" referrerPolicy="no-referrer" /> : <span>{(user.email ?? "U").slice(0, 1).toUpperCase()}</span>}
+            </summary>
+            <div>
+              <strong>{user.user_metadata.full_name ?? "ログイン中"}</strong>
+              <small>{user.email}</small>
+              <button type="button" onClick={onLogout}>この端末からログアウト</button>
+              <button className="danger" type="button" onClick={onDeleteAccount}>アカウントと全データを削除</button>
+            </div>
+          </details>
+        ) : (
+          <button className="google-login-button header-login" type="button" onClick={onLogin}><b>G</b> <span>Googleでログイン</span></button>
+        )}
+      </div>
     </header>
   );
 }
@@ -185,7 +244,7 @@ function LineLegend({ geometry, lineColors }: { geometry: DielineGeometry; lineC
   );
 }
 
-function HomeScreen({ onStart }: { onStart: () => void }) {
+function HomeScreen({ onStart, onMyBoxes }: { onStart: () => void; onMyBoxes: () => void }) {
   return (
     <main className="home-screen">
       <section className="home-hero">
@@ -196,7 +255,7 @@ function HomeScreen({ onStart }: { onStart: () => void }) {
           <h1>うさぽん<br /><span>パッケージメーカー</span></h1>
           <p>箱のサイズを入力するだけで、実寸の展開図を作れます。柄と文字をのせて、A4 PDFで印刷しましょう。</p>
           <div className="hero-points">
-            <span>実寸mm設計</span><span>A4自動判定</span><span>端末内で編集</span>
+            <span>実寸mm設計</span><span>A4自動判定</span><span>クラウド保存対応</span>
           </div>
         </div>
       </section>
@@ -213,6 +272,12 @@ function HomeScreen({ onStart }: { onStart: () => void }) {
             <p>W・D・Hをmmで入力して、ぴったりの展開図を作成</p>
             <b>この方法ではじめる　→</b>
           </button>
+          <button className="choice-card cloud-choice-card" type="button" onClick={onMyBoxes}>
+            <span className="choice-icon" aria-hidden="true">☁</span>
+            <strong>保存した箱を開く</strong>
+            <p>Googleログインして、別の端末で作った作品を続きから編集</p>
+            <b>マイボックスを見る　→</b>
+          </button>
           <div className="choice-card is-disabled" aria-disabled="true">
             <span className="coming-soon">準備中</span>
             <span className="choice-icon" aria-hidden="true">▦</span>
@@ -220,6 +285,12 @@ function HomeScreen({ onStart }: { onStart: () => void }) {
             <p>人気の箱や封筒から選べる機能は、次のバージョンで追加予定です。</p>
           </div>
         </div>
+      </section>
+
+      <section className="cloud-data-notice">
+        <strong>Googleログインとデータ保存について</strong>
+        <p>ログインにはGoogleの氏名・メールアドレス・プロフィール画像だけを使用します。未保存の作品は端末内、保存した作品JSONとアップロード画像は非公開のSupabaseへ保存します。Google DriveやGmailにはアクセスしません。</p>
+        <a href={`${import.meta.env.BASE_URL}privacy.html`}>プライバシーポリシー</a>
       </section>
 
       <section className="flow-strip" aria-label="完成までの流れ">
@@ -580,7 +651,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
       const response = await fetch(`${import.meta.env.BASE_URL}assets/stamps/${POFUMOFU_STAMP_FILE}`);
       if (!response.ok) throw new Error("プリセット画像を読み込めませんでした。");
       const file = new File([await response.blob()], POFUMOFU_STAMP_FILE, { type: "image/png" });
-      dispatch({ type: "add-stamp", item: createStamp(await readPatternFile(file), geometry, "Pofumofu friends", activePage.id) });
+      dispatch({ type: "add-stamp", item: createStamp(markAsBuiltInStamp(await readPatternFile(file)), geometry, "Pofumofu friends", activePage.id) });
     } catch (error) {
       setStampUploadError(error instanceof Error ? error.message : "プリセット画像を読み込めませんでした。");
     } finally {
@@ -866,7 +937,7 @@ function PrintScreen({ state, dispatch, pages, activePage }: ScreenProps) {
             <span aria-hidden="true">⇩</span>{exporting ? "PDFを作成中…" : "A4 PDFをダウンロード"}
           </button>
           {hasOverflow && <p className="blocked-copy">蓋または本体がA4に収まらないため出力を停止しています。サイズ設定へ戻って寸法を小さくしてください。</p>}
-          <p className="privacy-copy">画像・スタンプ・文字はサーバーへ送信されず、この端末内だけで処理されます。</p>
+          <p className="privacy-copy">PDFはこの端末内で作成します。作品をクラウド保存した場合だけ、作品JSONと追加画像を非公開のSupabaseへ送信します。</p>
         </aside>
       </div>
 
@@ -876,8 +947,56 @@ function PrintScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   );
 }
 
+function SaveNameDialog({ initialName, onCancel, onSave }: { initialName: string; onCancel: () => void; onSave: (name: string) => void }) {
+  const [name, setName] = useState(initialName);
+  return (
+    <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onCancel(); }}>
+      <section className="app-modal" role="dialog" aria-modal="true" aria-labelledby="save-name-title">
+        <p className="eyebrow">CLOUD SAVE</p>
+        <h2 id="save-name-title">作品名を付けて保存</h2>
+        <p>マイボックスで見つけやすい名前を入力してください。</p>
+        <label>作品名<input autoFocus maxLength={80} value={name} onChange={(event) => setName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && name.trim()) onSave(name.trim()); }} /></label>
+        <small>{name.length} / 80文字</small>
+        <div className="modal-actions"><button type="button" onClick={onCancel}>キャンセル</button><button className="primary-button" type="button" disabled={!name.trim()} onClick={() => onSave(name.trim())}>保存する</button></div>
+      </section>
+    </div>
+  );
+}
+
+function ConflictDialog({ onLoadLatest, onSaveCopy, onCancel }: { onLoadLatest: () => void; onSaveCopy: () => void; onCancel: () => void }) {
+  return (
+    <div className="modal-backdrop">
+      <section className="app-modal" role="alertdialog" aria-modal="true" aria-labelledby="conflict-title">
+        <p className="eyebrow">NEWER VERSION FOUND</p>
+        <h2 id="conflict-title">別の端末で更新されています</h2>
+        <p>クラウドの最新版を開くか、今の編集内容を別作品として残してください。無言で上書きはしません。</p>
+        <div className="modal-actions stacked"><button type="button" onClick={onLoadLatest}>クラウドの最新版を開く</button><button className="primary-button" type="button" onClick={onSaveCopy}>今の内容を別作品として保存</button><button type="button" onClick={onCancel}>編集に戻る</button></div>
+      </section>
+    </div>
+  );
+}
+
+function cloudErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    if (error.message.includes("PROJECT_LIMIT_REACHED")) return "保存できる作品は20件までです。不要な作品を削除してください。";
+    if (error.message.includes("STORAGE_LIMIT_REACHED")) return "クラウド画像が100MBに達しました。不要な作品を削除してください。";
+    return error.message;
+  }
+  return "クラウド操作を完了できませんでした。";
+}
+
 export function App() {
   const [state, dispatch] = useReducer(appReducer, initialState);
+  const [user, setUser] = useState<User | null>(null);
+  const [workspace, setWorkspace] = useState<ProjectWorkspace | null>(null);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [saveMessage, setSaveMessage] = useState("");
+  const [draftReady, setDraftReady] = useState(false);
+  const [nameDialogOpen, setNameDialogOpen] = useState(false);
+  const pendingSaveHandled = useRef(false);
+  const oauthRedirecting = useRef(false);
+  const lastSavedSignature = useRef(JSON.stringify(serializeBoxDocument(initialState)));
+  const documentSignature = useMemo(() => JSON.stringify(serializeBoxDocument(state)), [state]);
   const document = useMemo(() => generateDielineDocument(state.box), [state.box]);
   const pages = useMemo<DielinePageView[]>(() => document.pages.map((page) => ({
     ...page,
@@ -885,14 +1004,217 @@ export function App() {
   })), [document]);
   const activePage = pages.find((page) => page.id === state.activePageId) ?? pages[0];
 
+  useEffect(() => {
+    let mounted = true;
+    if (isCloudConfigured) {
+      void currentUser().then((nextUser) => { if (mounted) setUser(nextUser); }).catch(() => undefined);
+    }
+    const authSubscription = supabase?.auth.onAuthStateChange((_event, session) => {
+      if (mounted) setUser(session?.user ?? null);
+    }).data.subscription;
+    void loadLocalDraft()
+      .then((draft) => {
+        if (!mounted || !draft) return;
+        dispatch({ type: "replace-state", state: draft.state });
+        setWorkspace(draft.workspace);
+        lastSavedSignature.current = "";
+        setSaveState("dirty");
+        setSaveMessage("端末内の前回作業を復元しました");
+      })
+      .catch(() => undefined)
+      .finally(() => { if (mounted) setDraftReady(true); });
+    return () => {
+      mounted = false;
+      authSubscription?.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!draftReady || saveState === "saving" || saveState === "conflict") return;
+    if (documentSignature !== lastSavedSignature.current && saveState !== "dirty") {
+      setSaveState("dirty");
+      setSaveMessage("未保存の変更があります");
+    }
+  }, [documentSignature, draftReady, saveState]);
+
+  useEffect(() => {
+    if (!draftReady) return;
+    const timer = window.setTimeout(() => { void saveLocalDraft(state, workspace).catch(() => undefined); }, 400);
+    return () => window.clearTimeout(timer);
+  }, [state, workspace, draftReady]);
+
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => {
+      if (oauthRedirecting.current) return;
+      if (saveState === "dirty" || saveState === "error" || saveState === "conflict") event.preventDefault();
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [saveState]);
+
+  const confirmDiscard = useCallback(() => {
+    if (saveState !== "dirty" && saveState !== "error" && saveState !== "conflict") return true;
+    return window.confirm("クラウドへ保存していない変更があります。今の編集内容から移動しますか？\n端末内の下書きは残ります。");
+  }, [saveState]);
+
+  const login = useCallback(async () => {
+    try {
+      if (!isCloudConfigured) throw new Error("クラウド接続がまだ設定されていません。");
+      await saveLocalDraft(state, workspace);
+      oauthRedirecting.current = true;
+      await signInWithGoogle();
+    } catch (error) {
+      oauthRedirecting.current = false;
+      setSaveState("error");
+      setSaveMessage(cloudErrorMessage(error));
+    }
+  }, [state, workspace]);
+
+  const commitSave = useCallback(async (name: string, target: ProjectWorkspace | null = workspace) => {
+    setSaveState("saving");
+    setSaveMessage("クラウドへ保存しています…");
+    try {
+      const saved = await saveCloudProject(state, name, target);
+      setWorkspace(saved);
+      lastSavedSignature.current = JSON.stringify(serializeBoxDocument(state));
+      setSaveState("saved");
+      setSaveMessage(`保存済み ${new Intl.DateTimeFormat("ja-JP", { hour: "2-digit", minute: "2-digit" }).format(new Date())}`);
+      await saveLocalDraft(state, saved);
+    } catch (error) {
+      if (error instanceof ProjectConflictError) {
+        setSaveState("conflict");
+        setSaveMessage("別の端末に新しい更新があります");
+      } else {
+        setSaveState("error");
+        setSaveMessage(cloudErrorMessage(error));
+      }
+    }
+  }, [state, workspace]);
+
+  const save = useCallback(async () => {
+    if (!isCloudConfigured) {
+      setSaveState("error");
+      setSaveMessage("クラウド接続がまだ設定されていません");
+      return;
+    }
+    if (!user) {
+      window.sessionStorage.setItem("usapon-package-maker.pending-save", "1");
+      await login();
+      return;
+    }
+    if (!workspace) {
+      setNameDialogOpen(true);
+      return;
+    }
+    await commitSave(workspace.name);
+  }, [commitSave, login, user, workspace]);
+
+  useEffect(() => {
+    if (!user || !draftReady || pendingSaveHandled.current || window.sessionStorage.getItem("usapon-package-maker.pending-save") !== "1") return;
+    pendingSaveHandled.current = true;
+    window.sessionStorage.removeItem("usapon-package-maker.pending-save");
+    void save();
+  }, [user, draftReady, save]);
+
+  const openProject = useCallback(async (project: ProjectWorkspace, skipDiscardConfirmation = false) => {
+    if (!skipDiscardConfirmation && !confirmDiscard()) return;
+    setSaveMessage("クラウド作品を読み込んでいます…");
+    try {
+      const loaded = await openCloudProject(project.id);
+      dispatch({ type: "replace-state", state: loaded.state });
+      const nextWorkspace = { id: loaded.project.id, name: loaded.project.name, revision: loaded.project.revision, updatedAt: loaded.project.updatedAt };
+      setWorkspace(nextWorkspace);
+      lastSavedSignature.current = JSON.stringify(serializeBoxDocument(loaded.state));
+      setSaveState("saved");
+      setSaveMessage(`「${loaded.project.name}」を開きました`);
+      await saveLocalDraft(loaded.state, nextWorkspace);
+    } catch (error) {
+      setSaveState("error");
+      setSaveMessage(cloudErrorMessage(error));
+    }
+  }, [confirmDiscard]);
+
+  const startNew = useCallback(() => {
+    if (!confirmDiscard()) return;
+    const next = { ...initialState, screen: "size" as const };
+    dispatch({ type: "replace-state", state: next });
+    setWorkspace(null);
+    lastSavedSignature.current = "";
+    setSaveState("dirty");
+    setSaveMessage("新しい作品（未保存）");
+  }, [confirmDiscard]);
+
+  const logout = useCallback(async () => {
+    if (!confirmDiscard()) return;
+    try {
+      await signOutLocally();
+      await clearLocalDraft();
+      dispatch({ type: "replace-state", state: initialState });
+      setWorkspace(null);
+      lastSavedSignature.current = JSON.stringify(serializeBoxDocument(initialState));
+      setSaveState("idle");
+      setSaveMessage("この端末からログアウトしました");
+    } catch (error) {
+      setSaveState("error");
+      setSaveMessage(cloudErrorMessage(error));
+    }
+  }, [confirmDiscard]);
+
+  const deleteAccount = useCallback(async () => {
+    const confirmation = window.prompt("作品・画像・ログイン情報をすべて完全に削除します。続ける場合は「削除」と入力してください。");
+    if (confirmation !== "削除") return;
+    if (!window.confirm("本当に全データを削除しますか？この操作は取り消せません。")) return;
+    setSaveMessage("アカウントデータを削除しています…");
+    try {
+      await deleteCloudAccount();
+      await clearLocalDraft();
+      dispatch({ type: "replace-state", state: initialState });
+      setUser(null);
+      setWorkspace(null);
+      setSaveState("idle");
+      setSaveMessage("アカウントとクラウドデータを削除しました");
+    } catch (error) {
+      setSaveState("error");
+      setSaveMessage(cloudErrorMessage(error));
+    }
+  }, []);
+
   return (
     <div className="app-shell">
-      <AppHeader screen={state.screen} onGo={(screen) => dispatch({ type: "go", screen })} />
-      {state.screen === "home" && <HomeScreen onStart={() => dispatch({ type: "go", screen: "size" })} />}
+      <AppHeader
+        screen={state.screen}
+        user={user}
+        saveState={saveState}
+        saveMessage={saveMessage}
+        onGo={(screen) => dispatch({ type: "go", screen })}
+        onSave={() => { void save(); }}
+        onLogin={() => { void login(); }}
+        onLogout={() => { void logout(); }}
+        onDeleteAccount={() => { void deleteAccount(); }}
+      />
+      {state.screen === "home" && <HomeScreen onStart={startNew} onMyBoxes={() => dispatch({ type: "go", screen: "my-boxes" })} />}
       {state.screen === "size" && <SizeScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
       {state.screen === "design" && <DesignScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
       {state.screen === "print" && <PrintScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
-      <footer className="app-footer"><strong>うさぽん パッケージメーカー</strong><span>MVP — データは端末内で処理されます</span></footer>
+      {state.screen === "my-boxes" && (
+        <MyBoxesScreen
+          user={user}
+          onLogin={() => { void login(); }}
+          onBack={() => dispatch({ type: "go", screen: "home" })}
+          onNew={startNew}
+          onOpen={openProject}
+          onWorkspaceChange={(updated) => { if (workspace?.id === updated.id) setWorkspace(updated); }}
+        />
+      )}
+      <footer className="app-footer"><strong>うさぽん パッケージメーカー</strong><span>未保存は端末内／保存作品は非公開クラウド</span><a href={`${import.meta.env.BASE_URL}privacy.html`}>プライバシーポリシー</a></footer>
+      {nameDialogOpen && <SaveNameDialog initialName={workspace?.name ?? "無題のボックス"} onCancel={() => setNameDialogOpen(false)} onSave={(name) => { setNameDialogOpen(false); void commitSave(name, null); }} />}
+      {saveState === "conflict" && workspace && (
+        <ConflictDialog
+          onLoadLatest={() => { setSaveState("dirty"); void openProject(workspace, true); }}
+          onSaveCopy={() => { setSaveState("dirty"); void commitSave(`${workspace.name.slice(0, 76)} コピー`, null); }}
+          onCancel={() => { setSaveState("dirty"); setSaveMessage("未保存の変更があります"); }}
+        />
+      )}
     </div>
   );
 }
