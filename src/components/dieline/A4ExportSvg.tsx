@@ -6,6 +6,7 @@ import type { A4FitResult } from "../../domain/paper/a4";
 import { DielineLayers } from "./DielineSvg";
 
 type Props = {
+  pageId?: string;
   geometry: DielineGeometry;
   fit: A4FitResult;
   backgroundColor: string;
@@ -80,7 +81,7 @@ export function A4PreviewSvg({ geometry, fit, backgroundColor, artworkLayers, st
 }
 
 export const A4ExportSvg = forwardRef<SVGSVGElement, Props>(function A4ExportSvg(
-  { geometry, fit, backgroundColor, artworkLayers, stamps, texts, lineColors },
+  { pageId = "main", geometry, fit, backgroundColor, artworkLayers, stamps, texts, lineColors },
   ref,
 ) {
   return (
@@ -106,7 +107,7 @@ export const A4ExportSvg = forwardRef<SVGSVGElement, Props>(function A4ExportSvg
           selectedStampId={null}
           selectedTextId={null}
           exportMode
-          idPrefix="export-dieline"
+          idPrefix={`export-dieline-${pageId}`}
         />
       </g>
     </svg>

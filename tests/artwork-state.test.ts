@@ -25,7 +25,7 @@ describe("背景・柄・スタンプの状態管理", () => {
     const stripe = createStripePattern("stripe-1", 1);
     const dots = createDotPattern("dots-1", 1);
 
-    expect(initialState.backgroundColor).toBe("#fffdf9");
+    expect(initialState.backgroundColors.main).toBe("#fffdf9");
     expect(stripe).toMatchObject({ color: "#f6d96f", stripeWidthMm: 5, gapMm: 5, angleDeg: 45 });
     expect(dots).toMatchObject({ color: "#f6d96f", dotDiameterMm: 8, spacingMm: 24 });
   });
@@ -92,5 +92,26 @@ describe("背景・柄・スタンプの状態管理", () => {
     const textOpen = appReducer(stampsOpen, { type: "set-open-editor-section", section: "text" });
     expect(stampsOpen.openEditorSection).toBe("stamps");
     expect(textOpen.openEditorSection).toBe("text");
+  });
+
+  it("蓋と本体の背景・柄を別々に保持する", () => {
+    const lidDots = createDotPattern("lid-dots", 1, "lid");
+    const baseStripe = createStripePattern("base-stripe", 1, "base");
+    let state = appReducer(initialState, { type: "set-box-type", boxType: "two-piece-gift-box-v1" });
+    state = appReducer(state, { type: "set-background-color", pageId: "lid", color: "#f6d96f" });
+    state = appReducer(state, { type: "add-artwork", item: lidDots });
+    state = appReducer(state, { type: "add-artwork", item: baseStripe });
+
+    expect(state.activePageId).toBe("lid");
+    expect(state.backgroundColors).toMatchObject({ lid: "#f6d96f", base: "#fffdf9" });
+    expect(state.artworkLayers.filter((item) => item.pageId === "lid")).toEqual([lidDots]);
+    expect(state.artworkLayers.filter((item) => item.pageId === "base")).toEqual([baseStripe]);
+
+    state = appReducer(state, { type: "set-active-page", pageId: "base" });
+    expect(state.activePageId).toBe("base");
+    expect(state.selectedArtworkId).toBeNull();
+
+    state = appReducer(state, { type: "update-box", field: "depthMm", value: 30 });
+    expect(state.box.lidDepthMm).toBe(30);
   });
 });

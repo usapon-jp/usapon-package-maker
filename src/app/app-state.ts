@@ -5,10 +5,13 @@ export const DEFAULT_DIELINE_LINE_COLORS = {
   fold: "#c3b7a8",
 };
 
-function moveItem<T extends { id: string }>(items: T[], id: string, direction: "forward" | "backward") {
+function moveItem<T extends { id: string; pageId?: string }>(items: T[], id: string, direction: "forward" | "backward") {
   const index = items.findIndex((item) => item.id === id);
-  const target = direction === "forward" ? index + 1 : index - 1;
-  if (index < 0 || target < 0 || target >= items.length) return items;
+  if (index < 0) return items;
+  const step = direction === "forward" ? 1 : -1;
+  let target = index + step;
+  while (target >= 0 && target < items.length && items[target].pageId !== items[index].pageId) target += step;
+  if (target < 0 || target >= items.length) return items;
   const next = [...items];
   [next[index], next[target]] = [next[target], next[index]];
   return next;
@@ -23,8 +26,11 @@ export const initialState: AppState = {
     heightMm: 60,
     paperThicknessMm: 0.27,
     glueFlapMm: 12,
+    lidDepthMm: 40,
+    lidClearanceMm: 0.6,
   },
-  backgroundColor: "#fffdf9",
+  activePageId: "main",
+  backgroundColors: { main: "#fffdf9", lid: "#fffdf9", base: "#fffdf9" },
   artworkLayers: [],
   stamps: [],
   selectedArtworkId: null,
@@ -42,11 +48,43 @@ export function appReducer(state: AppState, action: AppAction): AppState {
     case "go":
       return { ...state, screen: action.screen, selectedArtworkId: null, selectedStampId: null, selectedTextId: null };
     case "set-box-type":
-      return { ...state, box: { ...state.box, type: action.boxType }, selectedArtworkId: null, selectedStampId: null, selectedTextId: null };
+      return {
+        ...state,
+        box: action.boxType === "two-piece-gift-box-v1"
+          ? {
+              ...state.box,
+              type: action.boxType,
+              widthMm: 100,
+              heightMm: 80,
+              depthMm: 40,
+              paperThicknessMm: 0.4,
+              glueFlapMm: 12,
+              lidDepthMm: 40,
+              lidClearanceMm: 0.6,
+            }
+          : { ...state.box, type: action.boxType },
+        activePageId: action.boxType === "two-piece-gift-box-v1" ? "lid" : "main",
+        selectedArtworkId: null,
+        selectedStampId: null,
+        selectedTextId: null,
+      };
+    case "set-active-page":
+      return { ...state, activePageId: action.pageId, selectedArtworkId: null, selectedStampId: null, selectedTextId: null };
     case "update-box":
-      return { ...state, box: { ...state.box, [action.field]: action.value } };
+      return {
+        ...state,
+        box: {
+          ...state.box,
+          [action.field]: action.value,
+          ...(action.field === "depthMm"
+            && state.box.type === "two-piece-gift-box-v1"
+            && (state.box.lidDepthMm ?? state.box.depthMm) > action.value
+            ? { lidDepthMm: action.value }
+            : {}),
+        },
+      };
     case "set-background-color":
-      return { ...state, backgroundColor: action.color };
+      return { ...state, backgroundColors: { ...state.backgroundColors, [action.pageId]: action.color } };
     case "add-artwork":
       return { ...state, artworkLayers: [...state.artworkLayers, action.item], selectedArtworkId: action.item.id, selectedStampId: null, selectedTextId: null };
     case "select-artwork":

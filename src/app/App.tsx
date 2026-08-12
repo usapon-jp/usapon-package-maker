@@ -2,8 +2,8 @@ import { useEffect, useMemo, useReducer, useRef, useState, type ChangeEvent, typ
 
 import { A4ExportSvg, A4PreviewSvg, CalibrationSvg } from "../components/dieline/A4ExportSvg";
 import { DielineSvg } from "../components/dieline/DielineSvg";
-import { generateDieline } from "../domain/boxes/registry";
-import type { BoxType, DielineGeometry } from "../domain/boxes/types";
+import { generateDielineDocument } from "../domain/boxes/registry";
+import type { BoxType, DielineGeometry, DielinePage, DielinePageId } from "../domain/boxes/types";
 import { evaluateA4Fit, type A4FitResult, type FitStatus } from "../domain/paper/a4";
 import { roundMm } from "../domain/units";
 import { exportA4Pdf } from "../lib/pdf/export-a4-pdf";
@@ -60,6 +60,11 @@ const BOX_TYPE_COPY: Record<BoxType, { name: string; description: string; struct
     description: "折り返しロックで組み立てる、のり不要の浅型ギフト箱",
     structure: "n-style-gift-box-v1（N式一体型）",
   },
+  "two-piece-gift-box-v1": {
+    name: "ツーピースギフトBOX",
+    description: "蓋と本体をA4 2枚で作る、配送向けの四隅接着箱",
+    structure: "two-piece-gift-box-v1（蓋・本体分離型）",
+  },
 };
 
 const LINE_COLOR_PRESETS: Array<{ label: string; colors: DielineLineColors }> = [
@@ -69,7 +74,38 @@ const LINE_COLOR_PRESETS: Array<{ label: string; colors: DielineLineColors }> = 
 ];
 
 function isShallowBox(type: BoxType) {
-  return type === "gift-box-v1" || type === "n-style-gift-box-v1";
+  return type === "gift-box-v1" || type === "n-style-gift-box-v1" || type === "two-piece-gift-box-v1";
+}
+
+type DielinePageView = DielinePage & { fit: A4FitResult };
+
+function pageDesign(state: AppState, pageId: DielinePageId) {
+  return {
+    backgroundColor: state.backgroundColors[pageId],
+    artworkLayers: state.artworkLayers.filter((item) => item.pageId === pageId),
+    stamps: state.stamps.filter((item) => item.pageId === pageId),
+    texts: state.texts.filter((item) => item.pageId === pageId),
+  };
+}
+
+function PageTabs({ pages, activePageId, dispatch }: { pages: DielinePageView[]; activePageId: DielinePageId; dispatch: React.Dispatch<AppAction> }) {
+  if (pages.length < 2) return null;
+  return (
+    <div className="page-part-tabs" role="tablist" aria-label="編集する箱パーツ">
+      {pages.map((page) => (
+        <button
+          key={page.id}
+          type="button"
+          role="tab"
+          aria-selected={page.id === activePageId}
+          className={page.id === activePageId ? "is-selected" : ""}
+          onClick={() => dispatch({ type: "set-active-page", pageId: page.id })}
+        >
+          {page.id === "lid" ? "蓋" : page.id === "base" ? "本体" : page.label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 function mm(value: number) {
@@ -117,13 +153,13 @@ function HeroIllustration() {
   );
 }
 
-function FitNotice({ geometry, fit, compact = false }: { geometry: DielineGeometry; fit: A4FitResult; compact?: boolean }) {
+function FitNotice({ geometry, fit, compact = false, label }: { geometry: DielineGeometry; fit: A4FitResult; compact?: boolean; label?: string }) {
   const copy = FIT_COPY[fit.status];
   return (
     <div className={`fit-notice fit-${fit.status} ${compact ? "is-compact" : ""}`} role="status">
       <span className="fit-icon" aria-hidden="true">{fit.status === "safe" ? "✓" : fit.status === "paper-only" ? "!" : "×"}</span>
       <div>
-        <strong>{copy.title}</strong>
+        <strong>{label ? `${label}：${copy.title}` : copy.title}</strong>
         {!compact && <p>{copy.description}</p>}
         <small>
           展開図 {mm(geometry.bounds.widthMm)} × {mm(geometry.bounds.heightMm)} ／ A4 {fit.orientation === "portrait" ? "縦" : "横"}
@@ -310,10 +346,53 @@ function DesignColorControl({
   );
 }
 
-function SizeScreen({ state, dispatch, geometry, fit }: ScreenProps) {
+function BoxTypeIllustration({ type }: { type: BoxType }) {
+  const common = {
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+
+  return (
+    <svg viewBox="0 0 64 44" aria-hidden="true">
+      {type === "straight-tuck-carton-v1" && (
+        <g {...common}>
+          <path d="M20 8h24l5 5v23l-5 4H20l-5-4V13z" />
+          <path d="m15 13 5 4h24l5-4M20 17v23M44 17v23M20 8l-5 5M44 8l5 5" />
+        </g>
+      )}
+      {type === "gift-box-v1" && (
+        <g {...common}>
+          <path d="m11 25 20-10 23 9-20 12z" />
+          <path d="m11 25 1 8 22 8 20-10v-7M34 36v5" />
+          <path d="m15 21-1-10 21-7 19 9v10M14 11l20 8 20-6" />
+        </g>
+      )}
+      {type === "n-style-gift-box-v1" && (
+        <g {...common}>
+          <path d="m9 23 20-11 26 10-20 12z" />
+          <path d="m9 23 2 9 24 9 20-11v-8M35 34v7" />
+          <path d="m15 19 2-11 23-4 15 10v8M17 8l22 9 16-3" />
+          <path d="m17 26 18 7 13-7" strokeDasharray="2.5 2.5" />
+        </g>
+      )}
+      {type === "two-piece-gift-box-v1" && (
+        <g {...common}>
+          <path d="m12 10 18-7 23 7-19 8zM12 10v7l22 8 19-8v-7M34 18v7" />
+          <path d="m9 29 20-8 27 9-21 10zM9 29v5l26 8 21-7v-5M35 40v2" />
+        </g>
+      )}
+    </svg>
+  );
+}
+
+function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   const boxCopy = BOX_TYPE_COPY[state.box.type];
   const shallowBox = isShallowBox(state.box.type);
   const nStyle = state.box.type === "n-style-gift-box-v1";
+  const twoPiece = state.box.type === "two-piece-gift-box-v1";
   return (
     <main className="tool-page size-page">
       <div className="page-heading">
@@ -335,7 +414,7 @@ function SizeScreen({ state, dispatch, geometry, fit }: ScreenProps) {
                 aria-pressed={state.box.type === type}
                 onClick={() => dispatch({ type: "set-box-type", boxType: type })}
               >
-                <span aria-hidden="true">{type === "straight-tuck-carton-v1" ? "▯" : type === "gift-box-v1" ? "▭" : "⌑"}</span>
+                <span aria-hidden="true"><BoxTypeIllustration type={type} /></span>
                 <strong>{copy.name}</strong>
                 <small>{copy.description}</small>
               </button>
@@ -348,7 +427,7 @@ function SizeScreen({ state, dispatch, geometry, fit }: ScreenProps) {
             {shallowBox ? (
               <>
                 <NumberField label="高さ" shortLabel="H" value={state.box.heightMm} min={10} max={500} onChange={(value) => dispatch({ type: "update-box", field: "heightMm", value })} />
-                <NumberField label="深さ" shortLabel="D" value={state.box.depthMm} min={5} max={300} onChange={(value) => dispatch({ type: "update-box", field: "depthMm", value })} />
+                <NumberField label="深さ" shortLabel="D" value={state.box.depthMm} min={twoPiece ? 10 : 5} max={300} onChange={(value) => dispatch({ type: "update-box", field: "depthMm", value })} />
               </>
             ) : (
               <>
@@ -359,16 +438,28 @@ function SizeScreen({ state, dispatch, geometry, fit }: ScreenProps) {
           </div>
           <div className="form-divider" />
           <div className="option-grid">
-            <NumberField label="紙の厚み" value={state.box.paperThicknessMm} min={0.1} max={2} step={0.01} onChange={(value) => dispatch({ type: "update-box", field: "paperThicknessMm", value })} hint="コピー用紙の目安：0.09mm／厚紙：0.2〜0.4mm" />
+            <NumberField label="紙の厚み" value={state.box.paperThicknessMm} min={0.1} max={2} step={0.01} onChange={(value) => dispatch({ type: "update-box", field: "paperThicknessMm", value })} hint={twoPiece ? "300gsm厚紙の試作目安：0.4mm（プリンター対応を確認）" : "コピー用紙の目安：0.09mm／厚紙：0.2〜0.4mm"} />
             {nStyle ? (
               <div className="no-glue-field"><span>接着</span><strong>のり不要</strong><small>折り返しと差し込みロックで固定</small></div>
             ) : (
-              <NumberField label="のりしろ幅" value={state.box.glueFlapMm} min={5} max={40} step={0.5} onChange={(value) => dispatch({ type: "update-box", field: "glueFlapMm", value })} hint={state.box.type === "gift-box-v1" ? "前後の壁と左右の壁を固定する幅" : "接着しやすい12〜15mmがおすすめ"} />
+              <NumberField label="のりしろ幅" value={state.box.glueFlapMm} min={5} max={40} step={0.5} onChange={(value) => dispatch({ type: "update-box", field: "glueFlapMm", value })} hint={twoPiece ? "四隅に8〜10mm幅の強粘着両面テープを貼れる12mm推奨" : state.box.type === "gift-box-v1" ? "前後の壁と左右の壁を固定する幅" : "接着しやすい12〜15mmがおすすめ"} />
             )}
           </div>
+          {twoPiece && (
+            <>
+              <div className="form-divider" />
+              <div className="form-section-heading"><h3>蓋の調整</h3><p>本体寸法は変えず、蓋だけの深さと嵌合余裕を調整</p></div>
+              <div className="option-grid">
+                <NumberField label="蓋の深さ" value={state.box.lidDepthMm ?? state.box.depthMm} min={10} max={state.box.depthMm} step={1} onChange={(value) => dispatch({ type: "update-box", field: "lidDepthMm", value })} hint="全かぶせは本体深さと同じ40mm。浅蓋にも変更できます" />
+                <NumberField label="蓋の片側余裕" value={state.box.lidClearanceMm ?? 0.6} min={0.1} max={2} step={0.1} onChange={(value) => dispatch({ type: "update-box", field: "lidClearanceMm", value })} hint="試作初期値0.6mm。きつい時0.8mm、緩い時0.4mm" />
+              </div>
+            </>
+          )}
           <div className="measurement-note">
-            <strong>{shallowBox ? "1枚で組み立て" : "寸法の考え方"}</strong>
-            <p>{nStyle
+            <strong>{twoPiece ? "A4 2枚で組み立て" : shallowBox ? "1枚で組み立て" : "寸法の考え方"}</strong>
+            <p>{twoPiece
+              ? "1ページ目が蓋、2ページ目が本体です。両方の四隅を接着して別々のトレーを作ります。蓋内寸には紙厚と片側余裕を加えています。"
+              : nStyle
               ? "底面の上下側壁を立て、角ロックを内側へ折って側面を固定します。前面の折り返しを2つのノッチで留め、最後にフタの舌を差し込みます。"
               : state.box.type === "gift-box-v1"
                 ? "底面・4側面・ヒンジフタはすべてつながっています。4つののりしろで浅いトレーを作り、左右フラップを内側へ折ってフタの舌を前面へ差し込みます。"
@@ -377,24 +468,32 @@ function SizeScreen({ state, dispatch, geometry, fit }: ScreenProps) {
         </section>
 
         <section className="panel-card size-preview-card">
-          <div className="preview-card-head"><div><p className="eyebrow">LIVE PREVIEW</p><h2>A4配置プレビュー</h2></div><span>A4 {fit.orientation === "portrait" ? "縦" : "横"}</span></div>
-          <div className="size-paper-stage">
-            <div className={`size-paper-preview ${fit.orientation} fit-${fit.status}`}>
-              <A4PreviewSvg
-              geometry={geometry}
-              fit={fit}
-              backgroundColor={state.backgroundColor}
-              artworkLayers={state.artworkLayers}
-              stamps={state.stamps}
-              texts={state.texts}
-              lineColors={state.lineColors}
-              showGuides={state.showGuides}
-              />
-            </div>
+          <div className="preview-card-head"><div><p className="eyebrow">LIVE PREVIEW</p><h2>A4配置プレビュー</h2></div><span>A4 {pages.length}枚</span></div>
+          <div className={`size-page-preview-grid ${pages.length > 1 ? "is-multiple" : ""}`}>
+            {pages.map((page) => {
+              const design = pageDesign(state, page.id);
+              return (
+                <div className="size-page-preview-item" key={page.id}>
+                  <strong>{page.label}</strong>
+                  <div className="size-paper-stage">
+                    <div className={`size-paper-preview ${page.fit.orientation} fit-${page.fit.status}`}>
+                      <A4PreviewSvg
+                        geometry={page.geometry}
+                        fit={page.fit}
+                        {...design}
+                        lineColors={state.lineColors}
+                        showGuides={state.showGuides}
+                      />
+                    </div>
+                  </div>
+                  <small>A4 {page.fit.orientation === "portrait" ? "縦" : "横"}／{mm(page.geometry.bounds.widthMm)} × {mm(page.geometry.bounds.heightMm)}</small>
+                </div>
+              );
+            })}
           </div>
-          <p className="size-paper-caption">A4 {fit.orientation === "portrait" ? "縦 210 × 297mm" : "横 297 × 210mm"}との比率で表示。画面表示のみ縮小し、PDFの展開図は100%実寸です。</p>
-          <LineLegend geometry={geometry} lineColors={state.lineColors} />
-          <FitNotice geometry={geometry} fit={fit} />
+          <p className="size-paper-caption">A4用紙との比率で表示。画面表示のみ縮小し、PDFの展開図は100%実寸です。</p>
+          <LineLegend geometry={activePage.geometry} lineColors={state.lineColors} />
+          <div className="fit-notice-stack">{pages.map((page) => <FitNotice key={page.id} geometry={page.geometry} fit={page.fit} label={page.label} />)}</div>
         </section>
       </div>
 
@@ -409,8 +508,8 @@ function SizeScreen({ state, dispatch, geometry, fit }: ScreenProps) {
 type ScreenProps = {
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
-  geometry: DielineGeometry;
-  fit: A4FitResult;
+  pages: DielinePageView[];
+  activePage: DielinePageView;
 };
 
 function AccordionSection({
@@ -444,7 +543,13 @@ function AccordionSection({
   );
 }
 
-function DesignScreen({ state, dispatch, geometry, fit }: ScreenProps) {
+function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
+  const geometry = activePage.geometry;
+  const fit = activePage.fit;
+  const design = pageDesign(state, activePage.id);
+  const pageArtworkLayers = design.artworkLayers;
+  const pageStamps = design.stamps;
+  const pageTexts = design.texts;
   const artworkFileInput = useRef<HTMLInputElement>(null);
   const stampFileInput = useRef<HTMLInputElement>(null);
   const [artworkUploadError, setArtworkUploadError] = useState("");
@@ -458,9 +563,9 @@ function DesignScreen({ state, dispatch, geometry, fit }: ScreenProps) {
       return [];
     }
   });
-  const selectedArtwork = state.artworkLayers.find((item) => item.id === state.selectedArtworkId) ?? null;
-  const selectedStamp = state.stamps.find((item) => item.id === state.selectedStampId) ?? null;
-  const selectedText = state.texts.find((item) => item.id === state.selectedTextId) ?? null;
+  const selectedArtwork = pageArtworkLayers.find((item) => item.id === state.selectedArtworkId) ?? null;
+  const selectedStamp = pageStamps.find((item) => item.id === state.selectedStampId) ?? null;
+  const selectedText = pageTexts.find((item) => item.id === state.selectedTextId) ?? null;
 
   useEffect(() => {
     try {
@@ -482,7 +587,7 @@ function DesignScreen({ state, dispatch, geometry, fit }: ScreenProps) {
     const errors: string[] = [];
     for (const file of files) {
       try {
-        dispatch({ type: "add-artwork", item: createUploadedArtwork(await readPatternFile(file), geometry) });
+        dispatch({ type: "add-artwork", item: createUploadedArtwork(await readPatternFile(file), geometry, activePage.id) });
       } catch (error) {
         errors.push(`${file.name}: ${error instanceof Error ? error.message : "読み込めませんでした。"}`);
       }
@@ -500,7 +605,7 @@ function DesignScreen({ state, dispatch, geometry, fit }: ScreenProps) {
     const errors: string[] = [];
     for (const file of files) {
       try {
-        dispatch({ type: "add-stamp", item: createStamp(await readPatternFile(file), geometry) });
+        dispatch({ type: "add-stamp", item: createStamp(await readPatternFile(file), geometry, file.name, activePage.id) });
       } catch (error) {
         errors.push(`${file.name}: ${error instanceof Error ? error.message : "読み込めませんでした。"}`);
       }
@@ -516,7 +621,7 @@ function DesignScreen({ state, dispatch, geometry, fit }: ScreenProps) {
       const response = await fetch(`${import.meta.env.BASE_URL}assets/stamps/${POFUMOFU_STAMP_FILE}`);
       if (!response.ok) throw new Error("プリセット画像を読み込めませんでした。");
       const file = new File([await response.blob()], POFUMOFU_STAMP_FILE, { type: "image/png" });
-      dispatch({ type: "add-stamp", item: createStamp(await readPatternFile(file), geometry, "Pofumofu friends") });
+      dispatch({ type: "add-stamp", item: createStamp(await readPatternFile(file), geometry, "Pofumofu friends", activePage.id) });
     } catch (error) {
       setStampUploadError(error instanceof Error ? error.message : "プリセット画像を読み込めませんでした。");
     } finally {
@@ -529,6 +634,7 @@ function DesignScreen({ state, dispatch, geometry, fit }: ScreenProps) {
     const item: TextItem = {
       id: crypto.randomUUID(),
       kind: "text",
+      pageId: activePage.id,
       text: "ありがとう",
       xMm: front.x + front.width / 2,
       yMm: front.y + front.height / 2,
@@ -544,22 +650,23 @@ function DesignScreen({ state, dispatch, geometry, fit }: ScreenProps) {
         <div><button className="back-button" type="button" onClick={() => dispatch({ type: "go", screen: "size" })}>← サイズ設定</button><p className="eyebrow">STEP 2</p><h1>デザイン編集</h1></div>
         <FitNotice geometry={geometry} fit={fit} compact />
       </div>
+      <PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} />
 
       <div className="editor-layout">
         <aside className="editor-controls panel-card">
-          <AccordionSection section="artwork" openSection={state.openEditorSection} title="背景・柄" icon="▧" count={state.artworkLayers.length} onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
-            <DesignColorControl className="background-color-control" label="基本背景色" value={state.backgroundColor} favoriteColors={favoriteColors} onChange={(color) => dispatch({ type: "set-background-color", color })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
+          <AccordionSection section="artwork" openSection={state.openEditorSection} title="背景・柄" icon="▧" count={pageArtworkLayers.length} onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
+            <DesignColorControl className="background-color-control" label="基本背景色" value={design.backgroundColor} favoriteColors={favoriteColors} onChange={(color) => dispatch({ type: "set-background-color", pageId: activePage.id, color })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
             <div className="preset-grid" aria-label="基本柄プリセット">
-              <button type="button" onClick={() => dispatch({ type: "add-artwork", item: createStripePattern(crypto.randomUUID(), state.artworkLayers.filter((item) => item.kind === "stripe-pattern").length + 1) })}><i className="stripe-preview" /><strong>ストライプ</strong><small>幅・間隔・向きを調整</small></button>
-              <button type="button" onClick={() => dispatch({ type: "add-artwork", item: createDotPattern(crypto.randomUUID(), state.artworkLayers.filter((item) => item.kind === "dot-pattern").length + 1) })}><i className="dot-preview" /><strong>水玉</strong><small>色・大きさ・間隔を調整</small></button>
+              <button type="button" onClick={() => dispatch({ type: "add-artwork", item: createStripePattern(crypto.randomUUID(), pageArtworkLayers.filter((item) => item.kind === "stripe-pattern").length + 1, activePage.id) })}><i className="stripe-preview" /><strong>ストライプ</strong><small>幅・間隔・向きを調整</small></button>
+              <button type="button" onClick={() => dispatch({ type: "add-artwork", item: createDotPattern(crypto.randomUUID(), pageArtworkLayers.filter((item) => item.kind === "dot-pattern").length + 1, activePage.id) })}><i className="dot-preview" /><strong>水玉</strong><small>色・大きさ・間隔を調整</small></button>
             </div>
             <input ref={artworkFileInput} type="file" accept="image/png,image/svg+xml,.png,.svg" multiple hidden onChange={handleArtworkFiles} />
             <button className="upload-button compact-upload" type="button" disabled={uploadingArtwork} onClick={() => artworkFileInput.current?.click()}><span>↑</span>{uploadingArtwork ? "読み込み中…" : "自分の画像を追加"}</button>
             {artworkUploadError && <p className="field-error preserve-lines">{artworkUploadError}</p>}
 
-            {state.artworkLayers.length > 0 && (
+            {pageArtworkLayers.length > 0 && (
               <div className="layer-list" aria-label="背景・柄レイヤー">
-                {state.artworkLayers.map((item) => (
+                {pageArtworkLayers.map((item) => (
                   <div key={item.id} className={`layer-row ${state.selectedArtworkId === item.id ? "is-selected" : ""}`}>
                     <button className="layer-select" type="button" onClick={() => dispatch({ type: "select-artwork", id: item.id })}><span>{artworkKindLabel(item)}</span><b>{item.name}</b></button>
                     <button className="visibility-button" type="button" aria-label={`${item.name}を${item.visible ? "非表示" : "表示"}`} onClick={() => dispatch({ type: "update-artwork", id: item.id, patch: { visible: !item.visible } })}>{item.visible ? "●" : "○"}</button>
@@ -599,12 +706,12 @@ function DesignScreen({ state, dispatch, geometry, fit }: ScreenProps) {
             )}
           </AccordionSection>
 
-          <AccordionSection section="stamps" openSection={state.openEditorSection} title="スタンプ" icon="★" count={state.stamps.length} onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
+          <AccordionSection section="stamps" openSection={state.openEditorSection} title="スタンプ" icon="★" count={pageStamps.length} onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
             <button className="stamp-preset-card" type="button" disabled={uploadingStamp} onClick={addPresetStamp}><img src={`${import.meta.env.BASE_URL}assets/stamps/${POFUMOFU_STAMP_FILE}`} alt="Pofumofu friends" /><span><strong>Pofumofu friends</strong><small>プリセットを追加</small></span><b>＋</b></button>
             <input ref={stampFileInput} type="file" accept="image/png,image/svg+xml,.png,.svg" multiple hidden onChange={handleStampFiles} />
             <button className="upload-button compact-upload" type="button" disabled={uploadingStamp} onClick={() => stampFileInput.current?.click()}><span>↑</span>{uploadingStamp ? "読み込み中…" : "自分のスタンプを追加"}</button>
             {stampUploadError && <p className="field-error preserve-lines">{stampUploadError}</p>}
-            {state.stamps.length > 0 && <div className="layer-list" aria-label="スタンプレイヤー">{state.stamps.map((item) => <div key={item.id} className={`layer-row ${state.selectedStampId === item.id ? "is-selected" : ""}`}><button className="layer-select" type="button" onClick={() => dispatch({ type: "select-stamp", id: item.id })}><span>STAMP</span><b>{item.name}</b></button><button className="visibility-button" type="button" aria-label={`${item.name}を${item.visible ? "非表示" : "表示"}`} onClick={() => dispatch({ type: "update-stamp", id: item.id, patch: { visible: !item.visible } })}>{item.visible ? "●" : "○"}</button></div>)}</div>}
+            {pageStamps.length > 0 && <div className="layer-list" aria-label="スタンプレイヤー">{pageStamps.map((item) => <div key={item.id} className={`layer-row ${state.selectedStampId === item.id ? "is-selected" : ""}`}><button className="layer-select" type="button" onClick={() => dispatch({ type: "select-stamp", id: item.id })}><span>STAMP</span><b>{item.name}</b></button><button className="visibility-button" type="button" aria-label={`${item.name}を${item.visible ? "非表示" : "表示"}`} onClick={() => dispatch({ type: "update-stamp", id: item.id, patch: { visible: !item.visible } })}>{item.visible ? "●" : "○"}</button></div>)}</div>}
             {selectedStamp && (
               <div className="selected-layer-controls">
                 <strong className="selected-layer-title">{selectedStamp.name}</strong>
@@ -618,11 +725,11 @@ function DesignScreen({ state, dispatch, geometry, fit }: ScreenProps) {
             )}
           </AccordionSection>
 
-          <AccordionSection section="text" openSection={state.openEditorSection} title="テキスト" icon="T" count={state.texts.length} onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
+          <AccordionSection section="text" openSection={state.openEditorSection} title="テキスト" icon="T" count={pageTexts.length} onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
             <button className="outline-button full-button" type="button" onClick={addText}>＋ テキストを追加</button>
-            {state.texts.length > 0 && (
+            {pageTexts.length > 0 && (
               <div className="text-list">
-                {state.texts.map((item) => <button key={item.id} className={state.selectedTextId === item.id ? "is-selected" : ""} type="button" onClick={() => dispatch({ type: "select-text", id: item.id })}>{item.text || "（空のテキスト）"}</button>)}
+                {pageTexts.map((item) => <button key={item.id} className={state.selectedTextId === item.id ? "is-selected" : ""} type="button" onClick={() => dispatch({ type: "select-text", id: item.id })}>{item.text || "（空のテキスト）"}</button>)}
               </div>
             )}
             {selectedText && (
@@ -680,10 +787,7 @@ function DesignScreen({ state, dispatch, geometry, fit }: ScreenProps) {
           <div className="dieline-stage editor-stage">
             <DielineSvg
               geometry={geometry}
-              backgroundColor={state.backgroundColor}
-              artworkLayers={state.artworkLayers}
-              stamps={state.stamps}
-              texts={state.texts}
+              {...design}
               lineColors={state.lineColors}
               showGuides={state.showGuides}
               selectedArtworkId={state.selectedArtworkId}
@@ -695,7 +799,7 @@ function DesignScreen({ state, dispatch, geometry, fit }: ScreenProps) {
               onSelectStamp={(id) => { dispatch({ type: "select-stamp", id }); if (id) dispatch({ type: "set-open-editor-section", section: "stamps" }); }}
               onMoveStamp={(id, xMm, yMm) => dispatch({ type: "update-stamp", id, patch: { xMm, yMm } })}
               onRotateStamp={(id) => {
-                const stamp = state.stamps.find((item) => item.id === id);
+                const stamp = pageStamps.find((item) => item.id === id);
                 if (stamp) dispatch({ type: "update-stamp", id, patch: { rotationDeg: rotateQuarterTurn(stamp.rotationDeg) } });
               }}
               onSelectText={(id) => { dispatch({ type: "select-text", id }); if (id) dispatch({ type: "set-open-editor-section", section: "text" }); }}
@@ -714,23 +818,29 @@ function DesignScreen({ state, dispatch, geometry, fit }: ScreenProps) {
   );
 }
 
-function PrintScreen({ state, dispatch, geometry, fit }: ScreenProps) {
-  const dielineSvg = useRef<SVGSVGElement>(null);
+function PrintScreen({ state, dispatch, pages, activePage }: ScreenProps) {
+  const dielineSvgs = useRef<Record<string, SVGSVGElement | null>>({});
   const calibrationSvg = useRef<SVGSVGElement>(null);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const [exportSuccess, setExportSuccess] = useState("");
+  const hasOverflow = pages.some((page) => page.fit.status === "overflow");
+  const calibrationPageNumber = pages.length + 1;
+  const twoPiece = state.box.type === "two-piece-gift-box-v1";
 
   const handleExport = async () => {
-    if (!dielineSvg.current) return;
+    const exportPages = pages.flatMap((page) => {
+      const svg = dielineSvgs.current[page.id];
+      return svg ? [{ svg, fit: page.fit }] : [];
+    });
+    if (exportPages.length !== pages.length) return;
     setExporting(true);
     setExportError("");
     setExportSuccess("");
     try {
       const result = await exportA4Pdf({
-        dielineSvg: dielineSvg.current,
+        pages: exportPages,
         calibrationSvg: state.includeCalibrationPage ? calibrationSvg.current : null,
-        fit,
         fileName: `usapon-${state.box.type}-${state.box.widthMm}x${state.box.heightMm}x${state.box.depthMm}mm.pdf`,
       });
       setExportSuccess(`PDFを作成しました（${result.pageCount}ページ／${Math.max(1, Math.round(result.byteLength / 1024))}KB）`);
@@ -745,41 +855,58 @@ function PrintScreen({ state, dispatch, geometry, fit }: ScreenProps) {
     <main className="tool-page print-page">
       <div className="page-heading horizontal-heading">
         <div><button className="back-button" type="button" onClick={() => dispatch({ type: "go", screen: "design" })}>← デザイン編集</button><p className="eyebrow">STEP 3</p><h1>印刷プレビュー</h1><p>A4実寸PDFを作成します。展開図の自動縮小は行いません。</p></div>
-        <FitNotice geometry={geometry} fit={fit} compact />
+        <FitNotice geometry={activePage.geometry} fit={activePage.fit} compact />
       </div>
 
       <div className="print-layout">
-        <section className={`paper-preview-wrap ${fit.orientation}`}>
-          <div className="paper-label">A4 {fit.orientation === "portrait" ? "縦 210 × 297mm" : "横 297 × 210mm"}</div>
-          <div className="paper-preview">
-            <A4ExportSvg
-              ref={dielineSvg}
-              geometry={geometry}
-              fit={fit}
-              backgroundColor={state.backgroundColor}
-              artworkLayers={state.artworkLayers}
-              stamps={state.stamps}
-              texts={state.texts}
-              lineColors={state.lineColors}
-            />
-          </div>
-        </section>
+        <div className={`print-page-grid ${pages.length > 1 ? "is-multiple" : ""}`}>
+          {pages.map((page) => {
+            const design = pageDesign(state, page.id);
+            return (
+              <section className={`paper-preview-wrap ${page.fit.orientation}`} key={page.id}>
+                <div className="paper-label">{page.label}／A4 {page.fit.orientation === "portrait" ? "縦 210 × 297mm" : "横 297 × 210mm"}</div>
+                <div className="paper-preview">
+                  <A4ExportSvg
+                    ref={(element) => { dielineSvgs.current[page.id] = element; }}
+                    pageId={page.id}
+                    geometry={page.geometry}
+                    fit={page.fit}
+                    {...design}
+                    lineColors={state.lineColors}
+                  />
+                </div>
+              </section>
+            );
+          })}
+        </div>
 
         <aside className="print-settings panel-card">
           <h2>A4 PDF出力</h2>
-          <FitNotice geometry={geometry} fit={fit} />
+          <div className="fit-notice-stack">{pages.map((page) => <FitNotice key={page.id} geometry={page.geometry} fit={page.fit} label={page.label} />)}</div>
           <div className="print-instruction">
             <span aria-hidden="true">!</span>
             <div><strong>印刷設定が重要です</strong><p>プリンター設定で<strong>「100%／実際のサイズ」</strong>を選び、<strong>「用紙に合わせる」をOFF</strong>にしてください。</p></div>
           </div>
-          <label className="toggle-row calibration-toggle"><span><strong>50mm検寸ページを追加</strong><small>PDFの2ページ目で印刷倍率を確認できます</small></span><input type="checkbox" checked={state.includeCalibrationPage} onChange={(event) => dispatch({ type: "set-calibration", value: event.target.checked })} /></label>
-          <div className="calibration-explanation"><b>実寸の確認方法</b><ol><li>2ページ目も同じ設定で印刷</li><li>検寸線を定規で測る</li><li>ちょうど50mmなら正しい倍率です</li></ol></div>
+          <label className="toggle-row calibration-toggle"><span><strong>50mm検寸ページを追加</strong><small>PDFの{calibrationPageNumber}ページ目で印刷倍率を確認できます</small></span><input type="checkbox" checked={state.includeCalibrationPage} onChange={(event) => dispatch({ type: "set-calibration", value: event.target.checked })} /></label>
+          <div className="calibration-explanation"><b>実寸の確認方法</b><ol><li>{calibrationPageNumber}ページ目も同じ設定で印刷</li><li>検寸線を定規で測る</li><li>ちょうど50mmなら正しい倍率です</li></ol></div>
+          {twoPiece && (
+            <div className="two-piece-shipping-guide">
+              <h3>組み立て・茶封筒配送ガイド</h3>
+              <ol>
+                <li>切る前に全折り線へ筋入れし、蓋と本体の四隅を強粘着両面テープで固定</li>
+                <li>商品を薄紙で動かないようにし、蓋を対向する2か所の剥がせるシールで固定</li>
+                <li>箱を厚さ約3mmの気泡緩衝材で一周包む</li>
+                <li>内寸160×120mm以上・マチ約50mmのクラフト封筒へ入れ、封入口を梱包テープで補強</li>
+              </ol>
+              <p>軽く壊れにくい内容物向けです。水濡れ対策が必要な場合は、箱を透明袋へ入れてから包んでください。</p>
+            </div>
+          )}
           {exportError && <p className="export-error">{exportError}</p>}
           {exportSuccess && <p className="export-success" role="status">{exportSuccess}</p>}
-          <button className="pdf-button" type="button" disabled={fit.status === "overflow" || exporting} onClick={handleExport}>
+          <button className="pdf-button" type="button" disabled={hasOverflow || exporting} onClick={handleExport}>
             <span aria-hidden="true">⇩</span>{exporting ? "PDFを作成中…" : "A4 PDFをダウンロード"}
           </button>
-          {fit.status === "overflow" && <p className="blocked-copy">A4に収まらないため出力を停止しています。サイズ設定へ戻って寸法を小さくしてください。</p>}
+          {hasOverflow && <p className="blocked-copy">蓋または本体がA4に収まらないため出力を停止しています。サイズ設定へ戻って寸法を小さくしてください。</p>}
           <p className="privacy-copy">画像・スタンプ・文字はサーバーへ送信されず、この端末内だけで処理されます。</p>
         </aside>
       </div>
@@ -792,16 +919,20 @@ function PrintScreen({ state, dispatch, geometry, fit }: ScreenProps) {
 
 export function App() {
   const [state, dispatch] = useReducer(appReducer, initialState);
-  const geometry = useMemo(() => generateDieline(state.box), [state.box]);
-  const fit = useMemo(() => evaluateA4Fit(geometry.bounds.widthMm, geometry.bounds.heightMm), [geometry.bounds.heightMm, geometry.bounds.widthMm]);
+  const document = useMemo(() => generateDielineDocument(state.box), [state.box]);
+  const pages = useMemo<DielinePageView[]>(() => document.pages.map((page) => ({
+    ...page,
+    fit: evaluateA4Fit(page.geometry.bounds.widthMm, page.geometry.bounds.heightMm),
+  })), [document]);
+  const activePage = pages.find((page) => page.id === state.activePageId) ?? pages[0];
 
   return (
     <div className="app-shell">
       <AppHeader screen={state.screen} onGo={(screen) => dispatch({ type: "go", screen })} />
       {state.screen === "home" && <HomeScreen onStart={() => dispatch({ type: "go", screen: "size" })} />}
-      {state.screen === "size" && <SizeScreen state={state} dispatch={dispatch} geometry={geometry} fit={fit} />}
-      {state.screen === "design" && <DesignScreen state={state} dispatch={dispatch} geometry={geometry} fit={fit} />}
-      {state.screen === "print" && <PrintScreen state={state} dispatch={dispatch} geometry={geometry} fit={fit} />}
+      {state.screen === "size" && <SizeScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
+      {state.screen === "design" && <DesignScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
+      {state.screen === "print" && <PrintScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
       <footer className="app-footer"><strong>うさぽん パッケージメーカー</strong><span>MVP — データは端末内で処理されます</span></footer>
     </div>
   );

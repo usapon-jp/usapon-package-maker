@@ -31,7 +31,7 @@ describe("展開図の線色", () => {
       <A4ExportSvg
         geometry={geometry}
         fit={fit}
-        backgroundColor={initialState.backgroundColor}
+        backgroundColor={initialState.backgroundColors.main}
         artworkLayers={[]}
         stamps={[]}
         texts={[]}

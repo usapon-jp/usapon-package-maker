@@ -7,7 +7,7 @@ import type {
   UploadedArtworkLayer,
   UploadedAsset,
 } from "./app-types";
-import type { DielineGeometry } from "../domain/boxes/types";
+import type { DielineGeometry, DielinePageId } from "../domain/boxes/types";
 
 export const POFUMOFU_STAMP_FILE = "pofumofu-friends.png";
 
@@ -20,12 +20,13 @@ export function rotateQuarterTurn(rotation: QuarterTurn): QuarterTurn {
   return ((rotation + 90) % 360) as QuarterTurn;
 }
 
-export function createUploadedArtwork(asset: UploadedAsset, geometry: DielineGeometry): UploadedArtworkLayer {
+export function createUploadedArtwork(asset: UploadedAsset, geometry: DielineGeometry, pageId: DielinePageId = "main"): UploadedArtworkLayer {
   const center = panelCenter(geometry);
   const widthMm = Math.min(50, Math.max(20, center.panel.width * 0.72));
   return {
     ...asset,
     kind: "uploaded-artwork",
+    pageId,
     name: asset.fileName,
     widthMm,
     offsetXmm: center.x,
@@ -37,10 +38,11 @@ export function createUploadedArtwork(asset: UploadedAsset, geometry: DielineGeo
   };
 }
 
-export function createStripePattern(id: string, number: number): StripePatternLayer {
+export function createStripePattern(id: string, number: number, pageId: DielinePageId = "main"): StripePatternLayer {
   return {
     id,
     kind: "stripe-pattern",
+    pageId,
     name: `ストライプ ${number}`,
     color: "#f6d96f",
     stripeWidthMm: 5,
@@ -53,10 +55,11 @@ export function createStripePattern(id: string, number: number): StripePatternLa
   };
 }
 
-export function createDotPattern(id: string, number: number): DotPatternLayer {
+export function createDotPattern(id: string, number: number, pageId: DielinePageId = "main"): DotPatternLayer {
   return {
     id,
     kind: "dot-pattern",
+    pageId,
     name: `水玉 ${number}`,
     color: "#f6d96f",
     dotDiameterMm: 8,
@@ -68,11 +71,12 @@ export function createDotPattern(id: string, number: number): DotPatternLayer {
   };
 }
 
-export function createStamp(asset: UploadedAsset, geometry: DielineGeometry, name = asset.fileName): StampItem {
+export function createStamp(asset: UploadedAsset, geometry: DielineGeometry, name = asset.fileName, pageId: DielinePageId = "main"): StampItem {
   const center = panelCenter(geometry);
   return {
     ...asset,
     kind: "stamp",
+    pageId,
     name,
     xMm: center.x,
     yMm: center.y,

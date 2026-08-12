@@ -50,12 +50,12 @@ describe("背景・柄・スタンプのSVG描画", () => {
 
   it("スタンプとテキストを箱形状でクリップし、固定の重なり順で描画する", () => {
     const stamp = { ...createStamp({ ...asset, id: "stamp-1" }, geometry, "Pofumofu friends"), xMm: 44, yMm: 58, widthMm: 36, rotationDeg: 90 as const, opacity: 0.7 };
-    const text: TextItem = { id: "text-1", kind: "text", text: "ありがとう", xMm: 50, yMm: 60, fontSizeMm: 6, color: "#55443f" };
+    const text: TextItem = { id: "text-1", kind: "text", pageId: "main", text: "ありがとう", xMm: 50, yMm: 60, fontSizeMm: 6, color: "#55443f" };
     const markup = renderToStaticMarkup(
       <A4ExportSvg
         geometry={geometry}
         fit={fit}
-        backgroundColor={initialState.backgroundColor}
+        backgroundColor={initialState.backgroundColors.main}
         artworkLayers={[createDotPattern("dots-1", 1)]}
         stamps={[stamp]}
         texts={[text]}
@@ -86,7 +86,7 @@ describe("背景・柄・スタンプのSVG描画", () => {
     const preview = renderToStaticMarkup(
       <DielineSvg
         geometry={geometry}
-        backgroundColor={initialState.backgroundColor}
+        backgroundColor={initialState.backgroundColors.main}
         artworkLayers={[]}
         stamps={[stamp]}
         texts={[]}
@@ -109,7 +109,7 @@ describe("背景・柄・スタンプのSVG描画", () => {
       <A4ExportSvg
         geometry={geometry}
         fit={fit}
-        backgroundColor={initialState.backgroundColor}
+        backgroundColor={initialState.backgroundColors.main}
         artworkLayers={[]}
         stamps={[stamp]}
         texts={[]}

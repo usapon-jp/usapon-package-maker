@@ -1,4 +1,4 @@
-import type { BoxInput, BoxType } from "../domain/boxes/types";
+import type { BoxInput, BoxType, DielinePageId } from "../domain/boxes/types";
 
 export type Screen = "home" | "size" | "design" | "print";
 
@@ -15,6 +15,7 @@ export type UploadedAsset = {
 
 type ArtworkBase = {
   id: string;
+  pageId: DielinePageId;
   name: string;
   visible: boolean;
   opacity: number;
@@ -48,6 +49,7 @@ export type ArtworkLayer = UploadedArtworkLayer | StripePatternLayer | DotPatter
 
 export type StampItem = UploadedAsset & {
   kind: "stamp";
+  pageId: DielinePageId;
   name: string;
   xMm: number;
   yMm: number;
@@ -60,6 +62,7 @@ export type StampItem = UploadedAsset & {
 export type TextItem = {
   id: string;
   kind: "text";
+  pageId: DielinePageId;
   text: string;
   xMm: number;
   yMm: number;
@@ -77,7 +80,8 @@ export type EditorSection = "artwork" | "stamps" | "text" | "display" | "lines";
 export type AppState = {
   screen: Screen;
   box: BoxInput;
-  backgroundColor: string;
+  activePageId: DielinePageId;
+  backgroundColors: Record<DielinePageId, string>;
   artworkLayers: ArtworkLayer[];
   stamps: StampItem[];
   selectedArtworkId: string | null;
@@ -93,8 +97,9 @@ export type AppState = {
 export type AppAction =
   | { type: "go"; screen: Screen }
   | { type: "set-box-type"; boxType: BoxType }
+  | { type: "set-active-page"; pageId: DielinePageId }
   | { type: "update-box"; field: keyof Omit<BoxInput, "type">; value: number }
-  | { type: "set-background-color"; color: string }
+  | { type: "set-background-color"; pageId: DielinePageId; color: string }
   | { type: "add-artwork"; item: ArtworkLayer }
   | { type: "select-artwork"; id: string | null }
   | { type: "update-artwork"; id: string; patch: Partial<ArtworkLayer> }

@@ -57,17 +57,19 @@ async function cloneForPdf(source: SVGSVGElement, font: opentype.Font) {
 }
 
 export async function exportA4Pdf(options: {
-  dielineSvg: SVGSVGElement;
+  pages: Array<{ svg: SVGSVGElement; fit: A4FitResult }>;
   calibrationSvg?: SVGSVGElement | null;
-  fit: A4FitResult;
   fileName?: string;
 }) {
-  if (options.fit.status === "overflow") {
+  if (options.pages.length === 0) {
+    throw new Error("PDFへ出力する展開図がありません。");
+  }
+  if (options.pages.some(({ fit }) => fit.status === "overflow")) {
     throw new Error("A4に収まらない展開図は縮小せず、PDF出力を停止します。");
   }
   const font = await loadJapaneseFont();
-  const dieline = await cloneForPdf(options.dielineSvg, font);
-  const orientation = options.fit.orientation === "landscape" ? "landscape" : "portrait";
+  const firstFit = options.pages[0].fit;
+  const orientation = firstFit.orientation === "landscape" ? "landscape" : "portrait";
   const pdf = new jsPDF({
     orientation,
     unit: "mm",
@@ -77,12 +79,16 @@ export async function exportA4Pdf(options: {
     hotfixes: ["px_scaling"],
   });
 
-  await pdf.svg(dieline, {
-    x: 0,
-    y: 0,
-    width: options.fit.pageWidthMm,
-    height: options.fit.pageHeightMm,
-  });
+  for (const [index, page] of options.pages.entries()) {
+    if (index > 0) pdf.addPage("a4", page.fit.orientation === "landscape" ? "landscape" : "portrait");
+    const dieline = await cloneForPdf(page.svg, font);
+    await pdf.svg(dieline, {
+      x: 0,
+      y: 0,
+      width: page.fit.pageWidthMm,
+      height: page.fit.pageHeightMm,
+    });
+  }
 
   if (options.calibrationSvg) {
     const calibration = await cloneForPdf(options.calibrationSvg, font);
@@ -103,6 +109,6 @@ export async function exportA4Pdf(options: {
 
   return {
     byteLength: blob.size,
-    pageCount: options.calibrationSvg ? 2 : 1,
+    pageCount: options.pages.length + (options.calibrationSvg ? 1 : 0),
   };
 }

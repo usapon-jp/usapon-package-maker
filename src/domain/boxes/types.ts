@@ -1,6 +1,12 @@
 import type { Millimeters } from "../units";
 
-export type BoxType = "straight-tuck-carton-v1" | "gift-box-v1" | "n-style-gift-box-v1";
+export type BoxType =
+  | "straight-tuck-carton-v1"
+  | "gift-box-v1"
+  | "n-style-gift-box-v1"
+  | "two-piece-gift-box-v1";
+
+export type DielinePageId = "main" | "lid" | "base";
 
 export type Point = { x: Millimeters; y: Millimeters };
 export type Line = { id: string; from: Point; to: Point };
@@ -14,6 +20,8 @@ export type BoxInput = {
   heightMm: Millimeters;
   paperThicknessMm: Millimeters;
   glueFlapMm: Millimeters;
+  lidDepthMm?: Millimeters;
+  lidClearanceMm?: Millimeters;
 };
 
 export type Panel = {
@@ -49,3 +57,15 @@ export type DielineGeometry = {
 };
 
 export type BoxGenerator = (input: BoxInput) => DielineGeometry;
+
+export type DielinePage = {
+  id: DielinePageId;
+  label: string;
+  geometry: DielineGeometry;
+};
+
+export type DielineDocument = {
+  type: BoxType;
+  input: BoxInput;
+  pages: DielinePage[];
+};
