@@ -330,8 +330,80 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 
 .app-footer { width: min(1180px, calc(100% - 36px)); margin: 0 auto; padding: 26px 0 34px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; color: #9d8780; font-size: 9px; }
 .app-footer strong { color: #7a5d56; }
+.app-footer a { color: #9b5964; }
+
+.cloud-header-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-width: 0; }
+.save-indicator { max-width: 175px; overflow: hidden; color: #8f7a74; font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.save-indicator.is-error, .save-indicator.is-conflict { color: var(--red); }
+.save-indicator.is-saved { color: var(--green); }
+.my-boxes-button, .cloud-save-button, .google-login-button { min-height: 38px; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; background: white; font-size: 9px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.cloud-save-button { color: white; border-color: var(--pink); background: var(--pink); }
+.cloud-save-button.is-saved { border-color: var(--green); background: var(--green); }
+.cloud-save-button.is-error, .cloud-save-button.is-conflict { border-color: var(--red); background: var(--red); }
+.google-login-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; color: #4d4542; }
+.google-login-button b { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; color: #4285f4; background: white; box-shadow: 0 0 0 1px #ddd; font-family: Arial, sans-serif; font-size: 12px; }
+.account-menu { position: relative; }
+.account-menu > summary { display: grid; place-items: center; width: 38px; height: 38px; overflow: hidden; border: 1px solid var(--line); border-radius: 50%; background: white; cursor: pointer; list-style: none; }
+.account-menu > summary::-webkit-details-marker { display: none; }
+.account-menu > summary img { width: 100%; height: 100%; object-fit: cover; }
+.account-menu > summary span { font-size: 12px; font-weight: 900; }
+.account-menu > div { position: absolute; z-index: 20; top: calc(100% + 10px); right: 0; width: 245px; padding: 16px; border: 1px solid var(--line); border-radius: 16px; background: white; box-shadow: var(--shadow); }
+.account-menu strong, .account-menu small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-menu strong { font-size: 11px; }
+.account-menu small { margin: 4px 0 12px; color: var(--muted); font-size: 8px; }
+.account-menu button { width: 100%; margin-top: 7px; padding: 9px; border: 1px solid var(--line); border-radius: 10px; background: #fff; font-size: 8px; cursor: pointer; }
+.account-menu button.danger { color: var(--red); border-color: #ecc6c6; background: var(--red-soft); }
+
+.choice-grid { width: min(1060px, 100%); grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cloud-choice-card { background: linear-gradient(145deg, #fff, #f4fbff); }
+.cloud-choice-card .choice-icon { color: #4d82a3; background: #eaf6fc; }
+.cloud-data-notice { margin: 0 auto 70px; padding: 22px 25px; border: 1px solid #d9e7ed; border-radius: 20px; color: #536b77; background: #f4fbfe; }
+.cloud-data-notice strong { font-size: 11px; }
+.cloud-data-notice p { margin: 7px 0; font-size: 9px; line-height: 1.8; }
+.cloud-data-notice a { color: #347596; font-size: 9px; font-weight: 800; }
+
+.my-boxes-heading { align-items: center; }
+.my-boxes-new { min-width: 190px; }
+.cloud-quota-note { display: flex; justify-content: space-between; gap: 12px; margin: -10px 0 20px; padding: 10px 15px; border-radius: 12px; color: #637880; background: #edf7fa; font-size: 9px; font-weight: 700; }
+.my-boxes-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.my-box-card { min-width: 0; padding: 20px; }
+.my-box-open { display: flex; align-items: center; gap: 12px; width: 100%; padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.my-box-icon { display: grid; place-items: center; flex: none; width: 48px; height: 48px; border-radius: 14px; color: #a75465; background: var(--pink-soft); font-size: 24px; }
+.my-box-open > span:last-child { min-width: 0; }
+.my-box-open strong, .my-box-open small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.my-box-open strong { font-size: 14px; }
+.my-box-open small { margin-top: 5px; color: var(--muted); font-size: 8px; }
+.my-box-card dl { margin: 17px 0 0; padding: 12px 0; border-block: 1px solid #f0e5e1; }
+.my-box-card dl div { display: grid; grid-template-columns: 42px 1fr; gap: 8px; margin: 5px 0; font-size: 8px; }
+.my-box-card dt { color: #9a837d; }
+.my-box-card dd { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.my-box-actions { display: flex; gap: 6px; margin-top: 13px; }
+.my-box-actions button { flex: 1; min-width: 0; padding: 8px 4px; border: 1px solid var(--line); border-radius: 9px; background: white; font-size: 7px; cursor: pointer; }
+.my-box-actions button.danger { color: var(--red); }
+.cloud-signin-card, .cloud-empty-card { max-width: 560px; margin: 45px auto; padding: 45px; text-align: center; }
+.cloud-signin-card > span, .cloud-empty-card > span { display: block; color: #6b9bb2; font-size: 48px; }
+.cloud-signin-card h2, .cloud-empty-card h2 { margin: 14px 0 0; }
+.cloud-signin-card p, .cloud-empty-card p { margin: 10px auto 20px; color: var(--muted); font-size: 10px; line-height: 1.8; }
+.cloud-signin-card .google-login-button { min-height: 48px; padding-inline: 20px; }
+.cloud-loading { padding: 70px 0; color: var(--muted); font-size: 11px; text-align: center; }
+.cloud-page-error { padding: 12px 15px; border: 1px solid #ebbbbb; border-radius: 12px; color: var(--red); background: var(--red-soft); font-size: 9px; }
+
+.modal-backdrop { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(54, 39, 36, .45); backdrop-filter: blur(5px); }
+.app-modal { width: min(440px, 100%); padding: 28px; border: 1px solid var(--line); border-radius: 24px; background: white; box-shadow: 0 24px 80px rgba(44, 31, 28, .25); }
+.app-modal h2 { margin: 0; font-size: 22px; }
+.app-modal > p:not(.eyebrow) { color: var(--muted); font-size: 10px; line-height: 1.8; }
+.app-modal label { display: block; margin-top: 18px; font-size: 9px; font-weight: 800; }
+.app-modal input { width: 100%; height: 46px; margin-top: 7px; padding: 0 12px; border: 1px solid #dfcfca; border-radius: 12px; font-size: 13px; }
+.app-modal > small { display: block; margin-top: 5px; color: var(--muted); font-size: 8px; text-align: right; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 22px; }
+.modal-actions button { min-width: 110px; min-height: 42px; padding: 0 14px; border: 1px solid var(--line); border-radius: 11px; background: white; font-size: 9px; font-weight: 800; cursor: pointer; }
+.modal-actions .primary-button { color: white; border: 0; background: var(--pink); box-shadow: none; }
+.modal-actions.stacked { flex-direction: column; }
+.modal-actions.stacked button { width: 100%; }
 
 @media (max-width: 920px) {
+  .save-indicator { display: none; }
+  .my-boxes-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .size-layout { grid-template-columns: 1fr; }
   .editor-layout { grid-template-columns: 250px minmax(0, 1fr); }
   .print-layout { grid-template-columns: 1fr 330px; gap: 22px; }
@@ -339,7 +411,7 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 }
 
 @media (max-width: 720px) {
-  .app-header { min-height: 70px; }
+  .app-header { min-height: 70px; flex-wrap: wrap; gap: 6px 12px; padding: 8px 0; }
   .brand-icon-frame { width: 42px; height: 42px; }
   .brand-icon { width: 60px; height: 60px; }
   .brand-button strong { font-size: 14px; }
@@ -347,6 +419,11 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
   .step-nav { gap: 2px; }
   .step-nav button { padding: 7px; font-size: 0; }
   .step-nav button span { font-size: 9px; }
+  .cloud-header-actions { margin-left: auto; gap: 5px; }
+  .my-boxes-button, .cloud-save-button, .google-login-button { min-height: 34px; padding-inline: 9px; }
+  .header-login span, .my-boxes-button span { display: none; }
+  .account-menu > summary { width: 34px; height: 34px; }
+  .step-nav { order: 3; width: 100%; justify-content: center; }
   .home-hero { min-height: 485px; padding-top: 48px; }
   .hero-illustration { top: 34px; }
   .hero-card { margin-top: 145px; padding: 34px 22px 27px; border-radius: 27px; }
@@ -390,11 +467,22 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
   .sticky-actions button { flex: 1; min-width: 0; padding-inline: 10px; }
   .app-footer { display: block; text-align: center; }
   .app-footer span { display: block; margin-top: 6px; }
+  .app-footer a { display: inline-block; margin-top: 8px; }
+  .my-boxes-grid { grid-template-columns: 1fr; }
+  .my-boxes-heading .my-boxes-new { width: 100%; margin-top: 18px; }
+  .cloud-quota-note { display: grid; }
+  .cloud-signin-card, .cloud-empty-card { padding: 30px 20px; }
 }
 
 @media (max-width: 390px) {
   .app-header, .home-screen, .tool-page, .app-footer { width: min(100% - 24px, 1180px); }
   .brand-button small { letter-spacing: .04em; }
+  .brand-button > span:last-child { display: none; }
+  .brand-icon-frame { width: 38px; height: 38px; }
+  .cloud-save-button { font-size: 8px; }
+  .app-modal { padding: 22px; }
+  .modal-actions { flex-direction: column; }
+  .modal-actions button { width: 100%; }
   .hero-card h1 { font-size: 31px; }
   .hero-points { gap: 5px; }
   .hero-points span { padding-inline: 8px; font-size: 8px; }

@@ -45,6 +45,8 @@ export const initialState: AppState = {
 
 export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
+    case "replace-state":
+      return action.state;
     case "go":
       return { ...state, screen: action.screen, selectedArtworkId: null, selectedStampId: null, selectedTextId: null };
     case "set-box-type":

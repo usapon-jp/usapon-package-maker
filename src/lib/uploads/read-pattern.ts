@@ -1,6 +1,6 @@
 import DOMPurify from "dompurify";
 
-import type { UploadedAsset } from "../../app/app-types";
+import type { AssetRef, ImageSourceType, UploadedAsset } from "../../app/app-types";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 
@@ -72,6 +72,34 @@ async function readPng(file: File): Promise<{ dataUrl: string; aspectRatio: numb
   return { dataUrl, aspectRatio: image.naturalWidth / image.naturalHeight };
 }
 
+export function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("画像を読み取れませんでした。"));
+    reader.onload = () => resolve(String(reader.result));
+    reader.readAsDataURL(blob);
+  });
+}
+
+export async function readStoredPatternBlob(
+  blob: Blob,
+  fileName: string,
+  sourceType: ImageSourceType,
+  id: string,
+  assetRef: AssetRef = { kind: "user", assetId: id },
+): Promise<UploadedAsset> {
+  if (blob.size > MAX_FILE_BYTES) throw new Error("柄ファイルは10MB以下にしてください。");
+  if (sourceType === "svg") {
+    const { svg, aspectRatio } = sanitizeSvg(await blob.text());
+    const cleanBlob = new Blob([svg], { type: "image/svg+xml" });
+    return { id, assetRef, fileName, sourceType, dataUrl: svgDataUrl(svg), aspectRatio, blob: cleanBlob };
+  }
+
+  const file = new File([blob], fileName, { type: "image/png" });
+  const { dataUrl, aspectRatio } = await readPng(file);
+  return { id, assetRef, fileName, sourceType, dataUrl, aspectRatio, blob: file };
+}
+
 export async function readPatternFile(file: File): Promise<UploadedAsset> {
   if (file.size > MAX_FILE_BYTES) throw new Error("柄ファイルは10MB以下にしてください。");
   const svgFile = file.type === "image/svg+xml" || file.name.toLowerCase().endsWith(".svg");
@@ -79,22 +107,8 @@ export async function readPatternFile(file: File): Promise<UploadedAsset> {
   if (!svgFile && !pngFile) throw new Error("PNGまたはSVGファイルを選択してください。");
 
   if (svgFile) {
-    const { svg, aspectRatio } = sanitizeSvg(await file.text());
-    return {
-      id: crypto.randomUUID(),
-      fileName: file.name,
-      sourceType: "svg",
-      dataUrl: svgDataUrl(svg),
-      aspectRatio,
-    };
+    return readStoredPatternBlob(file, file.name, "svg", crypto.randomUUID());
   }
 
-  const { dataUrl, aspectRatio } = await readPng(file);
-  return {
-    id: crypto.randomUUID(),
-    fileName: file.name,
-    sourceType: "png",
-    dataUrl,
-    aspectRatio,
-  };
+  return readStoredPatternBlob(file, file.name, "png", crypto.randomUUID());
 }

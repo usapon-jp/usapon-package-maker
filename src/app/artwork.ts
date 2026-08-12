@@ -10,6 +10,22 @@ import type {
 import type { DielineGeometry, DielinePageId } from "../domain/boxes/types";
 
 export const POFUMOFU_STAMP_FILE = "pofumofu-friends.png";
+export const POFUMOFU_STAMP_KEY = "pofumofu-friends" as const;
+
+function runtimeAsset(asset: UploadedAsset) {
+  const { id, assetRef, ...runtime } = asset;
+  return {
+    id,
+    asset: {
+      ...runtime,
+      assetRef: assetRef ?? { kind: "user" as const, assetId: id },
+    },
+  };
+}
+
+export function markAsBuiltInStamp(asset: UploadedAsset): UploadedAsset {
+  return { ...asset, assetRef: { kind: "builtin", key: POFUMOFU_STAMP_KEY } };
+}
 
 function panelCenter(geometry: DielineGeometry) {
   const panel = geometry.panels[0];
@@ -23,8 +39,10 @@ export function rotateQuarterTurn(rotation: QuarterTurn): QuarterTurn {
 export function createUploadedArtwork(asset: UploadedAsset, geometry: DielineGeometry, pageId: DielinePageId = "main"): UploadedArtworkLayer {
   const center = panelCenter(geometry);
   const widthMm = Math.min(50, Math.max(20, center.panel.width * 0.72));
+  const runtime = runtimeAsset(asset);
   return {
-    ...asset,
+    ...runtime.asset,
+    id: runtime.id,
     kind: "uploaded-artwork",
     pageId,
     name: asset.fileName,
@@ -73,8 +91,10 @@ export function createDotPattern(id: string, number: number, pageId: DielinePage
 
 export function createStamp(asset: UploadedAsset, geometry: DielineGeometry, name = asset.fileName, pageId: DielinePageId = "main"): StampItem {
   const center = panelCenter(geometry);
+  const runtime = runtimeAsset(asset);
   return {
-    ...asset,
+    ...runtime.asset,
+    id: runtime.id,
     kind: "stamp",
     pageId,
     name,

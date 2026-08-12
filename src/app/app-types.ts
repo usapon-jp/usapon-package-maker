@@ -1,16 +1,26 @@
 import type { BoxInput, BoxType, DielinePageId } from "../domain/boxes/types";
 
-export type Screen = "home" | "size" | "design" | "print";
+export type Screen = "home" | "size" | "design" | "print" | "my-boxes";
 
 export type ImageSourceType = "png" | "svg";
 export type QuarterTurn = 0 | 90 | 180 | 270;
 
+export type AssetRef =
+  | { kind: "user"; assetId: string }
+  | { kind: "builtin"; key: "pofumofu-friends" };
+
 export type UploadedAsset = {
   id: string;
+  assetRef?: AssetRef;
   fileName: string;
   sourceType: ImageSourceType;
   dataUrl: string;
   aspectRatio: number;
+  blob?: Blob;
+};
+
+export type RuntimeAsset = Omit<UploadedAsset, "id" | "assetRef"> & {
+  assetRef: AssetRef;
 };
 
 type ArtworkBase = {
@@ -23,7 +33,7 @@ type ArtworkBase = {
   offsetYmm: number;
 };
 
-export type UploadedArtworkLayer = ArtworkBase & UploadedAsset & {
+export type UploadedArtworkLayer = ArtworkBase & RuntimeAsset & {
   kind: "uploaded-artwork";
   widthMm: number;
   repeat: boolean;
@@ -47,7 +57,8 @@ export type DotPatternLayer = ArtworkBase & {
 
 export type ArtworkLayer = UploadedArtworkLayer | StripePatternLayer | DotPatternLayer;
 
-export type StampItem = UploadedAsset & {
+export type StampItem = RuntimeAsset & {
+  id: string;
   kind: "stamp";
   pageId: DielinePageId;
   name: string;
@@ -95,6 +106,7 @@ export type AppState = {
 };
 
 export type AppAction =
+  | { type: "replace-state"; state: AppState }
   | { type: "go"; screen: Screen }
   | { type: "set-box-type"; boxType: BoxType }
   | { type: "set-active-page"; pageId: DielinePageId }
