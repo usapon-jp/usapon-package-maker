@@ -66,6 +66,7 @@ function UploadedArtwork({
             width={tileWidth}
             height={tileHeight}
             patternUnits="userSpaceOnUse"
+            patternContentUnits="userSpaceOnUse"
           >
             <g transform={`translate(${tileWidth / 2} ${tileHeight / 2}) rotate(${item.rotationDeg})`}>
               <image href={item.dataUrl} x={-sourceWidth / 2} y={-sourceHeight / 2} width={sourceWidth} height={sourceHeight} preserveAspectRatio="xMidYMid meet" />
@@ -117,7 +118,7 @@ export function ArtworkLayer({
             return (
               <g key={item.id} data-artwork-id={item.id} opacity={item.opacity}>
                 <defs>
-                  <pattern id={patternId} width={period} height={period} patternUnits="userSpaceOnUse" patternTransform={`translate(${item.offsetXmm} ${item.offsetYmm}) rotate(${item.angleDeg})`}>
+                  <pattern id={patternId} width={period} height={period} patternUnits="userSpaceOnUse" patternContentUnits="userSpaceOnUse" patternTransform={`translate(${item.offsetXmm} ${item.offsetYmm}) rotate(${item.angleDeg})`}>
                     <rect width={item.stripeWidthMm} height={period} fill={item.color} />
                   </pattern>
                 </defs>
@@ -130,7 +131,7 @@ export function ArtworkLayer({
             return (
               <g key={item.id} data-artwork-id={item.id} opacity={item.opacity}>
                 <defs>
-                  <pattern id={patternId} x={item.offsetXmm} y={item.offsetYmm} width={spacing} height={spacing * 2} patternUnits="userSpaceOnUse">
+                  <pattern id={patternId} x={item.offsetXmm} y={item.offsetYmm} width={spacing} height={spacing * 2} patternUnits="userSpaceOnUse" patternContentUnits="userSpaceOnUse">
                     <circle cx={spacing / 4} cy={spacing / 2} r={item.dotDiameterMm / 2} fill={item.color} />
                     <circle cx={spacing * 0.75} cy={spacing * 1.5} r={item.dotDiameterMm / 2} fill={item.color} />
                   </pattern>

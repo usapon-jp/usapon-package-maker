@@ -41,6 +41,8 @@ describe("背景・柄・スタンプのSVG描画", () => {
     expect(markup).toContain('patternTransform="translate(0 0) rotate(135)"');
     expect(markup).toContain('opacity="0.5"');
     expect(markup).toContain('fill="#f2cc55"');
+    expect(markup.match(/patternUnits="userSpaceOnUse"/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(markup.match(/patternContentUnits="userSpaceOnUse"/g)?.length).toBeGreaterThanOrEqual(3);
     expect(markup).toContain('r="5"');
     expect(markup).toContain('width="26" height="52"');
     expect(markup).toContain('<circle cx="6.5" cy="13" r="5" fill="#f2cc55"></circle>');

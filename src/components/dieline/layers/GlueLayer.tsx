@@ -15,7 +15,7 @@ export function GlueLayer({ geometry, patternId, exportMode }: Props) {
   return (
     <g data-layer="glue">
       <defs>
-        <pattern id={patternId} width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
+        <pattern id={patternId} width="4" height="4" patternUnits="userSpaceOnUse" patternContentUnits="userSpaceOnUse" patternTransform="rotate(35)">
           <line x1="0" y1="0" x2="0" y2="4" stroke="#dc8795" strokeWidth="0.6" opacity="0.45" />
         </pattern>
       </defs>

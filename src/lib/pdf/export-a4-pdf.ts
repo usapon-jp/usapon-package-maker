@@ -6,6 +6,12 @@ import type { A4FitResult } from "../../domain/paper/a4";
 
 let fontPromise: Promise<opentype.Font> | null = null;
 
+export const PDF_POINTS_PER_MM = 72 / 25.4;
+
+export function mmToPdfPoints(valueMm: number) {
+  return valueMm * PDF_POINTS_PER_MM;
+}
+
 function loadJapaneseFont(): Promise<opentype.Font> {
   if (!fontPromise) {
     fontPromise = fetch(`${import.meta.env.BASE_URL}fonts/NotoSansJP-Regular.otf`)
@@ -72,28 +78,33 @@ export async function exportA4Pdf(options: {
   const orientation = firstFit.orientation === "landscape" ? "landscape" : "portrait";
   const pdf = new jsPDF({
     orientation,
-    unit: "mm",
-    format: "a4",
+    unit: "pt",
+    format: [mmToPdfPoints(firstFit.pageWidthMm), mmToPdfPoints(firstFit.pageHeightMm)],
     compress: true,
     putOnlyUsedFonts: true,
-    hotfixes: ["px_scaling"],
   });
 
   for (const [index, page] of options.pages.entries()) {
-    if (index > 0) pdf.addPage("a4", page.fit.orientation === "landscape" ? "landscape" : "portrait");
+    const pageWidthPt = mmToPdfPoints(page.fit.pageWidthMm);
+    const pageHeightPt = mmToPdfPoints(page.fit.pageHeightMm);
+    if (index > 0) {
+      pdf.addPage([pageWidthPt, pageHeightPt], page.fit.orientation === "landscape" ? "landscape" : "portrait");
+    }
     const dieline = await cloneForPdf(page.svg, font);
     await pdf.svg(dieline, {
       x: 0,
       y: 0,
-      width: page.fit.pageWidthMm,
-      height: page.fit.pageHeightMm,
+      width: pageWidthPt,
+      height: pageHeightPt,
     });
   }
 
   if (options.calibrationSvg) {
     const calibration = await cloneForPdf(options.calibrationSvg, font);
-    pdf.addPage("a4", "portrait");
-    await pdf.svg(calibration, { x: 0, y: 0, width: 210, height: 297 });
+    const calibrationWidthPt = mmToPdfPoints(210);
+    const calibrationHeightPt = mmToPdfPoints(297);
+    pdf.addPage([calibrationWidthPt, calibrationHeightPt], "portrait");
+    await pdf.svg(calibration, { x: 0, y: 0, width: calibrationWidthPt, height: calibrationHeightPt });
   }
 
   const blob = pdf.output("blob");

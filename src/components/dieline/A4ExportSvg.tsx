@@ -1,11 +1,11 @@
-import { forwardRef, useId } from "react";
+import { forwardRef } from "react";
 
 import type { ArtworkLayer, DielineLineColors, StampItem, TextItem } from "../../app/app-types";
 import type { DielineGeometry } from "../../domain/boxes/types";
 import type { A4FitResult } from "../../domain/paper/a4";
 import { DielineLayers } from "./DielineSvg";
 
-type Props = {
+export type A4PageSvgProps = {
   pageId?: string;
   geometry: DielineGeometry;
   fit: A4FitResult;
@@ -16,71 +16,7 @@ type Props = {
   lineColors: DielineLineColors;
 };
 
-type PreviewProps = Props & {
-  showGuides: boolean;
-};
-
-export function A4PreviewSvg({ geometry, fit, backgroundColor, artworkLayers, stamps, texts, lineColors, showGuides }: PreviewProps) {
-  const rawId = useId();
-  const idPrefix = `size-page-${rawId.replaceAll(":", "")}`;
-  const gridId = `${idPrefix}-paper-grid`;
-  const overflow = fit.status === "overflow";
-
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox={`0 0 ${fit.pageWidthMm} ${fit.pageHeightMm}`}
-      role="img"
-      aria-label={`A4${fit.orientation === "portrait" ? "縦" : "横"}用紙上の箱展開図`}
-      data-fit-status={fit.status}
-    >
-      <defs>
-        <pattern id={gridId} width="10" height="10" patternUnits="userSpaceOnUse">
-          <path d="M 10 0 L 0 0 0 10" fill="none" stroke="#f1ece8" strokeWidth="0.22" />
-        </pattern>
-      </defs>
-      <rect width={fit.pageWidthMm} height={fit.pageHeightMm} fill="#ffffff" />
-      <rect width={fit.pageWidthMm} height={fit.pageHeightMm} fill={`url(#${gridId})`} />
-      <rect
-        x={fit.safeMarginMm}
-        y={fit.safeMarginMm}
-        width={fit.pageWidthMm - fit.safeMarginMm * 2}
-        height={fit.pageHeightMm - fit.safeMarginMm * 2}
-        fill="none"
-        stroke={overflow ? "#d97575" : "#d8c8c4"}
-        strokeWidth="0.3"
-        strokeDasharray="2 1.5"
-      />
-      <g transform={`translate(${fit.offsetXmm} ${fit.offsetYmm})`}>
-        <DielineLayers
-          geometry={geometry}
-          backgroundColor={backgroundColor}
-          artworkLayers={artworkLayers}
-          stamps={stamps}
-          texts={texts}
-          lineColors={lineColors}
-          showGuides={showGuides}
-          selectedArtworkId={null}
-          selectedStampId={null}
-          selectedTextId={null}
-          exportMode={false}
-          idPrefix={idPrefix}
-        />
-      </g>
-      <rect
-        x="0.35"
-        y="0.35"
-        width={fit.pageWidthMm - 0.7}
-        height={fit.pageHeightMm - 0.7}
-        fill="none"
-        stroke={overflow ? "#c84e51" : "#d6ccc8"}
-        strokeWidth={overflow ? "0.7" : "0.35"}
-      />
-    </svg>
-  );
-}
-
-export const A4ExportSvg = forwardRef<SVGSVGElement, Props>(function A4ExportSvg(
+export const A4PageSvg = forwardRef<SVGSVGElement, A4PageSvgProps>(function A4PageSvg(
   { pageId = "main", geometry, fit, backgroundColor, artworkLayers, stamps, texts, lineColors },
   ref,
 ) {
@@ -91,7 +27,11 @@ export const A4ExportSvg = forwardRef<SVGSVGElement, Props>(function A4ExportSvg
       width={`${fit.pageWidthMm}mm`}
       height={`${fit.pageHeightMm}mm`}
       viewBox={`0 0 ${fit.pageWidthMm} ${fit.pageHeightMm}`}
+      role="img"
+      aria-label={`A4${fit.orientation === "portrait" ? "縦" : "横"}用紙上の箱展開図`}
+      data-fit-status={fit.status}
       data-export-document="dieline"
+      data-coordinate-unit="mm"
     >
       <rect width={fit.pageWidthMm} height={fit.pageHeightMm} fill="#ffffff" />
       <g transform={`translate(${fit.offsetXmm} ${fit.offsetYmm})`}>
@@ -113,6 +53,10 @@ export const A4ExportSvg = forwardRef<SVGSVGElement, Props>(function A4ExportSvg
     </svg>
   );
 });
+
+// WebのA4プレビューとPDF生成は、同じmm基準SVGコンポーネントを使う。
+export const A4PreviewSvg = A4PageSvg;
+export const A4ExportSvg = A4PageSvg;
 
 export const CalibrationSvg = forwardRef<SVGSVGElement>(function CalibrationSvg(_, ref) {
   return (

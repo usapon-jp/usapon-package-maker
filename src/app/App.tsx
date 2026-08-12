@@ -437,11 +437,11 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
                   <div className="size-paper-stage">
                     <div className={`size-paper-preview ${page.fit.orientation} fit-${page.fit.status}`}>
                       <A4PreviewSvg
+                        pageId={page.id}
                         geometry={page.geometry}
                         fit={page.fit}
                         {...design}
                         lineColors={state.lineColors}
-                        showGuides={state.showGuides}
                       />
                     </div>
                   </div>
