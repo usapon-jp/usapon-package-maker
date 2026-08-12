@@ -104,8 +104,8 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .card-title p { margin: 4px 0 0; color: var(--muted); font-size: 9px; }
 .box-type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .box-type-button { min-width: 0; padding: 14px; border: 1px solid #e8d8d3; border-radius: 14px; background: #fff; text-align: left; cursor: pointer; transition: border-color .2s, background .2s, box-shadow .2s; }
-.box-type-button > span { display: grid; place-items: center; width: 58px; height: 43px; margin-bottom: 9px; border-radius: 11px; color: #a06a72; background: #f8efed; }
-.box-type-button > span svg { width: 50px; height: 35px; }
+.box-type-button > span { display: grid; place-items: center; width: 60px; height: 48px; margin-bottom: 9px; border-radius: 11px; color: #a06a72; background: #f8efed; }
+.box-type-icon { display: block; width: 52px; height: 39px; }
 .box-type-button strong { display: block; font-size: 10px; line-height: 1.45; }
 .box-type-button small { display: block; margin-top: 5px; color: var(--muted); font-size: 8px; line-height: 1.55; }
 .box-type-button.is-selected { border-color: #ed9eaa; background: var(--pink-soft); box-shadow: 0 0 0 2px rgba(239,112,133,.1); }
@@ -369,8 +369,8 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
   .form-card, .size-preview-card { padding: 21px; }
   .box-type-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .box-type-button { display: block; min-height: 132px; padding: 12px; }
-  .box-type-button > span { width: 52px; height: 40px; margin: 0 0 8px; }
-  .box-type-button > span svg { width: 46px; height: 32px; }
+  .box-type-button > span { width: 54px; height: 43px; margin: 0 0 8px; }
+  .box-type-icon { width: 46px; height: 34.5px; }
   .dimension-grid { gap: 7px; }
   .number-field input { height: 42px; padding-left: 9px; font-size: 13px; }
   .option-grid { grid-template-columns: 1fr; }

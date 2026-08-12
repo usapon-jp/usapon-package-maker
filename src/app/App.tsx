@@ -2,6 +2,7 @@ import { useEffect, useMemo, useReducer, useRef, useState, type ChangeEvent, typ
 
 import { A4ExportSvg, A4PreviewSvg, CalibrationSvg } from "../components/dieline/A4ExportSvg";
 import { DielineSvg } from "../components/dieline/DielineSvg";
+import { BoxTypeIcon } from "../components/icons/BoxTypeIcon";
 import { generateDielineDocument } from "../domain/boxes/registry";
 import type { BoxType, DielineGeometry, DielinePage, DielinePageId } from "../domain/boxes/types";
 import { evaluateA4Fit, type A4FitResult, type FitStatus } from "../domain/paper/a4";
@@ -346,48 +347,6 @@ function DesignColorControl({
   );
 }
 
-function BoxTypeIllustration({ type }: { type: BoxType }) {
-  const common = {
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 1.8,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-  };
-
-  return (
-    <svg viewBox="0 0 64 44" aria-hidden="true">
-      {type === "straight-tuck-carton-v1" && (
-        <g {...common}>
-          <path d="M20 8h24l5 5v23l-5 4H20l-5-4V13z" />
-          <path d="m15 13 5 4h24l5-4M20 17v23M44 17v23M20 8l-5 5M44 8l5 5" />
-        </g>
-      )}
-      {type === "gift-box-v1" && (
-        <g {...common}>
-          <path d="m11 25 20-10 23 9-20 12z" />
-          <path d="m11 25 1 8 22 8 20-10v-7M34 36v5" />
-          <path d="m15 21-1-10 21-7 19 9v10M14 11l20 8 20-6" />
-        </g>
-      )}
-      {type === "n-style-gift-box-v1" && (
-        <g {...common}>
-          <path d="m9 23 20-11 26 10-20 12z" />
-          <path d="m9 23 2 9 24 9 20-11v-8M35 34v7" />
-          <path d="m15 19 2-11 23-4 15 10v8M17 8l22 9 16-3" />
-          <path d="m17 26 18 7 13-7" strokeDasharray="2.5 2.5" />
-        </g>
-      )}
-      {type === "two-piece-gift-box-v1" && (
-        <g {...common}>
-          <path d="m12 10 18-7 23 7-19 8zM12 10v7l22 8 19-8v-7M34 18v7" />
-          <path d="m9 29 20-8 27 9-21 10zM9 29v5l26 8 21-7v-5M35 40v2" />
-        </g>
-      )}
-    </svg>
-  );
-}
-
 function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   const boxCopy = BOX_TYPE_COPY[state.box.type];
   const shallowBox = isShallowBox(state.box.type);
@@ -414,7 +373,7 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
                 aria-pressed={state.box.type === type}
                 onClick={() => dispatch({ type: "set-box-type", boxType: type })}
               >
-                <span aria-hidden="true"><BoxTypeIllustration type={type} /></span>
+                <span aria-hidden="true"><BoxTypeIcon className="box-type-icon" type={type} /></span>
                 <strong>{copy.name}</strong>
                 <small>{copy.description}</small>
               </button>
