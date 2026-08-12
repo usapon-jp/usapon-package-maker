@@ -72,7 +72,11 @@ Deno.serve(async (request) => {
       if (reservedPath) await admin.storage.from("box-assets").remove([reservedPath]);
       await admin.from("box_assets").delete().eq("id", reservedId).eq("status", "pending");
     }
-    const message = error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error
+      ? error.message
+      : typeof error === "object" && error
+        ? JSON.stringify(error)
+        : String(error);
     return json(request, { error: message.includes("STORAGE_LIMIT_REACHED") ? "STORAGE_LIMIT_REACHED" : message }, message === "AUTH_REQUIRED" ? 401 : 400);
   }
 });
