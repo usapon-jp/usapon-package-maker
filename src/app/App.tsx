@@ -994,6 +994,7 @@ export function App() {
   const [draftReady, setDraftReady] = useState(false);
   const [nameDialogOpen, setNameDialogOpen] = useState(false);
   const pendingSaveHandled = useRef(false);
+  const oauthRedirecting = useRef(false);
   const lastSavedSignature = useRef(JSON.stringify(serializeBoxDocument(initialState)));
   const documentSignature = useMemo(() => JSON.stringify(serializeBoxDocument(state)), [state]);
   const document = useMemo(() => generateDielineDocument(state.box), [state.box]);
@@ -1044,6 +1045,7 @@ export function App() {
 
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
+      if (oauthRedirecting.current) return;
       if (saveState === "dirty" || saveState === "error" || saveState === "conflict") event.preventDefault();
     };
     window.addEventListener("beforeunload", warn);
@@ -1059,8 +1061,10 @@ export function App() {
     try {
       if (!isCloudConfigured) throw new Error("クラウド接続がまだ設定されていません。");
       await saveLocalDraft(state, workspace);
+      oauthRedirecting.current = true;
       await signInWithGoogle();
     } catch (error) {
+      oauthRedirecting.current = false;
       setSaveState("error");
       setSaveMessage(cloudErrorMessage(error));
     }
