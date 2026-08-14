@@ -5,9 +5,12 @@ export type Screen = "home" | "size" | "design" | "print" | "my-boxes";
 export type ImageSourceType = "png" | "svg";
 export type QuarterTurn = 0 | 90 | 180 | 270;
 
+export const BUILT_IN_STAMP_KEYS = ["pofumofu-friends", "usapon-box-rabbits"] as const;
+export type BuiltInStampKey = (typeof BUILT_IN_STAMP_KEYS)[number];
+
 export type AssetRef =
   | { kind: "user"; assetId: string }
-  | { kind: "builtin"; key: "pofumofu-friends" };
+  | { kind: "builtin"; key: BuiltInStampKey };
 
 export type UploadedAsset = {
   id: string;

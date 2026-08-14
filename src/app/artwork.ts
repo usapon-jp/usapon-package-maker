@@ -1,5 +1,6 @@
 import type {
   ArtworkLayer,
+  BuiltInStampKey,
   DotPatternLayer,
   QuarterTurn,
   StampItem,
@@ -12,6 +13,25 @@ import type { DielineGeometry, DielinePageId } from "../domain/boxes/types";
 export const POFUMOFU_STAMP_FILE = "pofumofu-friends.png";
 export const POFUMOFU_STAMP_KEY = "pofumofu-friends" as const;
 
+export const BUILT_IN_STAMPS = [
+  {
+    key: "usapon-box-rabbits",
+    fileName: "usapon-box-rabbits.png",
+    name: "うさぽんBOX",
+  },
+  {
+    key: POFUMOFU_STAMP_KEY,
+    fileName: POFUMOFU_STAMP_FILE,
+    name: "Pofumofu friends",
+  },
+] as const satisfies ReadonlyArray<{ key: BuiltInStampKey; fileName: string; name: string }>;
+
+export function builtInStampForKey(key: BuiltInStampKey) {
+  const preset = BUILT_IN_STAMPS.find((item) => item.key === key);
+  if (!preset) throw new Error("内蔵スタンプが見つかりません。");
+  return preset;
+}
+
 function runtimeAsset(asset: UploadedAsset) {
   const { id, assetRef, ...runtime } = asset;
   return {
@@ -23,8 +43,8 @@ function runtimeAsset(asset: UploadedAsset) {
   };
 }
 
-export function markAsBuiltInStamp(asset: UploadedAsset): UploadedAsset {
-  return { ...asset, assetRef: { kind: "builtin", key: POFUMOFU_STAMP_KEY } };
+export function markAsBuiltInStamp(asset: UploadedAsset, key: BuiltInStampKey = POFUMOFU_STAMP_KEY): UploadedAsset {
+  return { ...asset, assetRef: { kind: "builtin", key } };
 }
 
 function panelCenter(geometry: DielineGeometry) {

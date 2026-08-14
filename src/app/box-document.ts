@@ -10,13 +10,14 @@ import type {
   TextItem,
   UploadedArtworkLayer,
 } from "./app-types";
+import { BUILT_IN_STAMP_KEYS } from "./app-types";
 import { initialState } from "./app-state";
 
 const pageIdSchema = z.enum(["main", "lid", "base"]);
 const quarterTurnSchema = z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]);
 const assetRefSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("user"), assetId: z.string().uuid() }),
-  z.object({ kind: z.literal("builtin"), key: z.literal("pofumofu-friends") }),
+  z.object({ kind: z.literal("builtin"), key: z.enum(BUILT_IN_STAMP_KEYS) }),
 ]);
 const artworkBaseSchema = z.object({
   id: z.string().min(1),

@@ -2,7 +2,7 @@ import type { User } from "@supabase/supabase-js";
 
 import { collectUserAssetIds, hydrateBoxDocument, parseBoxDocument, serializeBoxDocument, type AssetResolver, type BoxDocumentV1 } from "../app/box-document";
 import type { AppState, AssetRef, RuntimeAsset } from "../app/app-types";
-import { POFUMOFU_STAMP_FILE } from "../app/artwork";
+import { builtInStampForKey } from "../app/artwork";
 import { readStoredPatternBlob } from "../lib/uploads/read-pattern";
 import { authRedirectUrl, requireSupabase } from "./supabase-client";
 import type { CloudProject, CloudProjectSummary, ProjectWorkspace } from "./types";
@@ -85,8 +85,8 @@ async function assetRows(ids: string[]): Promise<Map<string, AssetRow>> {
   return new Map((data as AssetRow[]).map((row) => [row.id, row]));
 }
 
-function builtInAssetUrl() {
-  return `${import.meta.env.BASE_URL}assets/stamps/${POFUMOFU_STAMP_FILE}`;
+function builtInAssetUrl(ref: Extract<AssetRef, { kind: "builtin" }>) {
+  return `${import.meta.env.BASE_URL}assets/stamps/${builtInStampForKey(ref.key).fileName}`;
 }
 
 async function createAssetResolver(document: BoxDocumentV1): Promise<AssetResolver> {
@@ -98,7 +98,7 @@ async function createAssetResolver(document: BoxDocumentV1): Promise<AssetResolv
     if (existing) return existing;
     const loading = (async () => {
       if (ref.kind === "builtin") {
-        const response = await fetch(builtInAssetUrl());
+        const response = await fetch(builtInAssetUrl(ref));
         if (!response.ok) throw new Error("内蔵スタンプを読み込めませんでした。");
         const loaded = await readStoredPatternBlob(await response.blob(), metadata.fileName, metadata.sourceType, key, ref);
         return { dataUrl: loaded.dataUrl, blob: loaded.blob };

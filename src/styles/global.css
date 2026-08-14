@@ -230,6 +230,7 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .layer-action-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 12px; }
 .layer-action-row button { min-height: 30px; padding: 0 6px; border: 1px solid #dfd0ca; border-radius: 8px; color: #715a54; background: white; font-size: 7px; font-weight: 700; cursor: pointer; }
 .layer-action-row button.danger { color: #b84f57; border-color: #e8c2c4; }
+.stamp-preset-grid { display: grid; gap: 8px; }
 .stamp-preset-card { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%; padding: 8px; border: 1px solid #eadbd6; border-radius: 12px; background: white; text-align: left; cursor: pointer; }
 .stamp-preset-card img { width: 58px; height: 50px; object-fit: contain; border-radius: 8px; background: #fffdf9; }
 .stamp-preset-card span strong, .stamp-preset-card span small { display: block; }

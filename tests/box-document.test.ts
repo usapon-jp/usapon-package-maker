@@ -135,6 +135,25 @@ describe("BoxDocumentV1", () => {
     expect(document.design.stamps[0]).toMatchObject({ assetRef: { kind: "user", assetId: USER_ASSET_ID } });
   });
 
+  it("うさぽんBOXスタンプの内蔵参照を保存できる", () => {
+    const state = stateFor("straight-tuck-carton-v1");
+    state.stamps = [{
+      ...state.stamps[0],
+      name: "うさぽんBOX",
+      assetRef: { kind: "builtin", key: "usapon-box-rabbits" },
+      fileName: "usapon-box-rabbits.png",
+      aspectRatio: 865 / 1024,
+    }];
+
+    const document = serializeBoxDocument(state);
+    expect(document.design.stamps[0]).toMatchObject({
+      name: "うさぽんBOX",
+      assetRef: { kind: "builtin", key: "usapon-box-rabbits" },
+      fileName: "usapon-box-rabbits.png",
+    });
+    expect(() => parseBoxDocument(document)).not.toThrow();
+  });
+
   it("新しい折り返し項目がない既存V1作品も読み込める", async () => {
     const legacy = JSON.parse(JSON.stringify(serializeBoxDocument(stateFor("two-piece-gift-box-v1")))) as {
       box: { foldoverMm?: number };

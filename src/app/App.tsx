@@ -34,12 +34,12 @@ import {
 } from "./design-colors";
 import {
   artworkKindLabel,
+  BUILT_IN_STAMPS,
   createDotPattern,
   createStamp,
   createStripePattern,
   createUploadedArtwork,
   markAsBuiltInStamp,
-  POFUMOFU_STAMP_FILE,
   rotateQuarterTurn,
 } from "./artwork";
 import type { AppAction, AppState, DielineLineColors, EditorSection, Screen, TextItem } from "./app-types";
@@ -692,14 +692,14 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
     setUploadingStamp(false);
   };
 
-  const addPresetStamp = async () => {
+  const addPresetStamp = async (preset: (typeof BUILT_IN_STAMPS)[number]) => {
     setUploadingStamp(true);
     setStampUploadError("");
     try {
-      const response = await fetch(`${import.meta.env.BASE_URL}assets/stamps/${POFUMOFU_STAMP_FILE}`);
+      const response = await fetch(`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`);
       if (!response.ok) throw new Error("プリセット画像を読み込めませんでした。");
-      const file = new File([await response.blob()], POFUMOFU_STAMP_FILE, { type: "image/png" });
-      dispatch({ type: "add-stamp", item: createStamp(markAsBuiltInStamp(await readPatternFile(file)), geometry, "Pofumofu friends", activePage.id) });
+      const file = new File([await response.blob()], preset.fileName, { type: "image/png" });
+      dispatch({ type: "add-stamp", item: createStamp(markAsBuiltInStamp(await readPatternFile(file), preset.key), geometry, preset.name, activePage.id) });
     } catch (error) {
       setStampUploadError(error instanceof Error ? error.message : "プリセット画像を読み込めませんでした。");
     } finally {
@@ -795,7 +795,14 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
           </AccordionSection>
 
           <AccordionSection section="stamps" openSection={state.openEditorSection} title="スタンプ" icon="★" count={pageStamps.length} onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
-            <button className="stamp-preset-card" type="button" disabled={uploadingStamp} onClick={addPresetStamp}><img src={`${import.meta.env.BASE_URL}assets/stamps/${POFUMOFU_STAMP_FILE}`} alt="Pofumofu friends" /><span><strong>Pofumofu friends</strong><small>プリセットを追加</small></span><b>＋</b></button>
+            <div className="stamp-preset-grid">
+              {BUILT_IN_STAMPS.map((preset) => (
+                <button key={preset.key} className="stamp-preset-card" type="button" disabled={uploadingStamp} onClick={() => { void addPresetStamp(preset); }}>
+                  <img src={`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`} alt={preset.name} />
+                  <span><strong>{preset.name}</strong><small>プリセットを追加</small></span><b>＋</b>
+                </button>
+              ))}
+            </div>
             <input ref={stampFileInput} type="file" accept="image/png,image/svg+xml,.png,.svg" multiple hidden onChange={handleStampFiles} />
             <button className="upload-button compact-upload" type="button" disabled={uploadingStamp} onClick={() => stampFileInput.current?.click()}><span>↑</span>{uploadingStamp ? "読み込み中…" : "自分のスタンプを追加"}</button>
             {stampUploadError && <p className="field-error preserve-lines">{stampUploadError}</p>}
