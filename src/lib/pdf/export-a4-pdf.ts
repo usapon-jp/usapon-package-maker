@@ -119,6 +119,7 @@ export async function exportA4Pdf(options: {
   window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1500);
 
   return {
+    blob,
     byteLength: blob.size,
     pageCount: options.pages.length + (options.calibrationSvg ? 1 : 0),
   };

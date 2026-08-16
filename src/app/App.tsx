@@ -916,13 +916,30 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
 function PrintScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   const dielineSvgs = useRef<Record<string, SVGSVGElement | null>>({});
   const calibrationSvg = useRef<SVGSVGElement>(null);
+  const printablePdfUrl = useRef<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const [exportSuccess, setExportSuccess] = useState("");
+  const [printablePdf, setPrintablePdf] = useState<{ url: string; fileName: string } | null>(null);
   const hasOverflow = pages.some((page) => page.fit.status === "overflow");
   const calibrationPageNumber = pages.length + 1;
   const twoPiece = state.box.type === "two-piece-gift-box-v1";
   const hasFoldoverLines = pages.some((page) => page.geometry.layers.foldover.length > 0);
+
+  const clearPrintablePdf = useCallback(() => {
+    if (printablePdfUrl.current) URL.revokeObjectURL(printablePdfUrl.current);
+    printablePdfUrl.current = null;
+    setPrintablePdf(null);
+  }, []);
+
+  useEffect(() => () => {
+    if (printablePdfUrl.current) URL.revokeObjectURL(printablePdfUrl.current);
+  }, []);
+
+  useEffect(() => {
+    clearPrintablePdf();
+    setExportSuccess("");
+  }, [clearPrintablePdf, state.includeCalibrationPage, state.printFoldoverLines]);
 
   const handleExport = async () => {
     const exportPages = pages.flatMap((page) => {
@@ -933,12 +950,17 @@ function PrintScreen({ state, dispatch, pages, activePage }: ScreenProps) {
     setExporting(true);
     setExportError("");
     setExportSuccess("");
+    clearPrintablePdf();
     try {
+      const fileName = `usapon-${state.box.type}-${state.box.widthMm}x${state.box.heightMm}x${state.box.depthMm}mm.pdf`;
       const result = await exportA4Pdf({
         pages: exportPages,
         calibrationSvg: state.includeCalibrationPage ? calibrationSvg.current : null,
-        fileName: `usapon-${state.box.type}-${state.box.widthMm}x${state.box.heightMm}x${state.box.depthMm}mm.pdf`,
+        fileName,
       });
+      const url = URL.createObjectURL(result.blob);
+      printablePdfUrl.current = url;
+      setPrintablePdf({ url, fileName });
       setExportSuccess(`PDFを作成しました（${result.pageCount}ページ／${Math.max(1, Math.round(result.byteLength / 1024))}KB）`);
     } catch (error) {
       setExportError(error instanceof Error ? error.message : "PDFを作成できませんでした。");
@@ -1006,9 +1028,12 @@ function PrintScreen({ state, dispatch, pages, activePage }: ScreenProps) {
           )}
           {exportError && <p className="export-error">{exportError}</p>}
           {exportSuccess && <p className="export-success" role="status">{exportSuccess}</p>}
-          <button className="pdf-button" type="button" disabled={hasOverflow || exporting} onClick={handleExport}>
-            <span aria-hidden="true">⇩</span>{exporting ? "PDFを作成中…" : "PDFをダウンロード"}
-          </button>
+          <div className="pdf-action-stack">
+            <button className="pdf-button" type="button" disabled={hasOverflow || exporting} onClick={handleExport}>
+              <span aria-hidden="true">⇩</span>{exporting ? "PDFを作成中…" : "PDFをダウンロード"}
+            </button>
+            {printablePdf && <a className="outline-button print-pdf-button" href={printablePdf.url} target="_blank" rel="noopener noreferrer" onClick={() => setExportSuccess(`${printablePdf.fileName} を開きます。PDF画面の印刷ボタン、または共有メニューの「プリント」へ進んでください。`)}><span aria-hidden="true">▣</span>PDFを開いて印刷</a>}
+          </div>
           {hasOverflow && <p className="blocked-copy">蓋または本体がA4に収まらないため出力を停止しています。サイズ設定へ戻って寸法を小さくしてください。</p>}
           <p className="privacy-copy">PDFはこの端末内で作成します。作品をクラウド保存した場合だけ、作品JSONと追加画像を非公開のSupabaseへ送信します。</p>
         </aside>

@@ -83,6 +83,9 @@ describe("A4 Web/PDF SVG source", () => {
     expect(markup).toContain('cx="18" cy="36" r="4"');
     expect(markup).toContain('transform="translate(55 66) rotate(270)"');
     expect(markup).toContain('transform="translate(44 58) rotate(90)"');
+    expect(markup).toContain('data-layer="stamp"');
+    expect(markup).toContain('data-stamp-id="shared-stamp"');
+    expect(markup).toMatch(/data-stamp-id="shared-stamp"[\s\S]*?<image href="data:image\/svg\+xml/);
     expect(markup).toContain('data-text-id="shared-text" x="50" y="60"');
     expect(markup).toContain('font-size="6"');
   });
