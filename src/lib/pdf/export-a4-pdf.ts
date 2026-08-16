@@ -65,7 +65,6 @@ async function cloneForPdf(source: SVGSVGElement, font: opentype.Font) {
 export async function exportA4Pdf(options: {
   pages: Array<{ svg: SVGSVGElement; fit: A4FitResult }>;
   calibrationSvg?: SVGSVGElement | null;
-  fileName?: string;
 }) {
   if (options.pages.length === 0) {
     throw new Error("PDFへ出力する展開図がありません。");
@@ -108,19 +107,21 @@ export async function exportA4Pdf(options: {
   }
 
   const blob = pdf.output("blob");
-  const downloadUrl = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = downloadUrl;
-  anchor.download = options.fileName ?? "usapon-package-a4.pdf";
-  anchor.style.display = "none";
-  document.body.append(anchor);
-  anchor.click();
-  anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1500);
-
   return {
     blob,
     byteLength: blob.size,
     pageCount: options.pages.length + (options.calibrationSvg ? 1 : 0),
   };
+}
+
+export function downloadPdfBlob(blob: Blob, fileName = "usapon-package-a4.pdf") {
+  const downloadUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = downloadUrl;
+  anchor.download = fileName;
+  anchor.style.display = "none";
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1500);
 }

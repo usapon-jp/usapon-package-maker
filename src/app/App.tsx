@@ -9,7 +9,9 @@ import { generateDielineDocument } from "../domain/boxes/registry";
 import type { BoxType, DielineGeometry, DielinePage, DielinePageId } from "../domain/boxes/types";
 import { evaluateA4Fit, type A4FitResult, type FitStatus } from "../domain/paper/a4";
 import { clamp, roundMm } from "../domain/units";
-import { exportA4Pdf } from "../lib/pdf/export-a4-pdf";
+import { downloadPdfBlob, exportA4Pdf } from "../lib/pdf/export-a4-pdf";
+import { canSharePdfFile, createPdfShareFile, sharePdfFile } from "../lib/pdf/share-pdf";
+import { detectClientContext, type ClientContext } from "../lib/browser/client-context";
 import { readPatternFile } from "../lib/uploads/read-pattern";
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from "../lib/drafts/local-draft";
 import {
@@ -200,6 +202,18 @@ function AppHeader({
         )}
       </div>
     </header>
+  );
+}
+
+function InstagramBrowserNotice() {
+  return (
+    <aside className="instagram-browser-notice" role="alert">
+      <span aria-hidden="true">!</span>
+      <div>
+        <strong>Instagram内ブラウザで開いています。Safariで開いてください</strong>
+        <p>右上の「•••」から「外部ブラウザーで開く」または「Safariで開く」を選んでください。すでにデザイン中の場合はこの画面を閉じず、PDF作成後にiPhoneの共有画面へ進んでください。</p>
+      </div>
+    </aside>
   );
 }
 
@@ -913,14 +927,14 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   );
 }
 
-function PrintScreen({ state, dispatch, pages, activePage }: ScreenProps) {
+function PrintScreen({ state, dispatch, pages, activePage, clientContext }: ScreenProps & { clientContext: ClientContext }) {
   const dielineSvgs = useRef<Record<string, SVGSVGElement | null>>({});
   const calibrationSvg = useRef<SVGSVGElement>(null);
   const printablePdfUrl = useRef<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const [exportSuccess, setExportSuccess] = useState("");
-  const [printablePdf, setPrintablePdf] = useState<{ url: string; fileName: string } | null>(null);
+  const [printablePdf, setPrintablePdf] = useState<{ url: string; file: File; fileName: string; canShare: boolean } | null>(null);
   const hasOverflow = pages.some((page) => page.fit.status === "overflow");
   const calibrationPageNumber = pages.length + 1;
   const twoPiece = state.box.type === "two-piece-gift-box-v1";
@@ -956,12 +970,12 @@ function PrintScreen({ state, dispatch, pages, activePage }: ScreenProps) {
       const result = await exportA4Pdf({
         pages: exportPages,
         calibrationSvg: state.includeCalibrationPage ? calibrationSvg.current : null,
-        fileName,
       });
       const url = URL.createObjectURL(result.blob);
+      const file = createPdfShareFile(result.blob, fileName);
       printablePdfUrl.current = url;
-      setPrintablePdf({ url, fileName });
-      setExportSuccess(`PDFを作成しました（${result.pageCount}ページ／${Math.max(1, Math.round(result.byteLength / 1024))}KB）`);
+      setPrintablePdf({ url, file, fileName, canShare: canSharePdfFile(file) });
+      setExportSuccess(`PDFを作成しました（${result.pageCount}ページ／${Math.max(1, Math.round(result.byteLength / 1024))}KB）。下のボタンから共有・印刷または保存へ進んでください。`);
     } catch (error) {
       setExportError(error instanceof Error ? error.message : "PDFを作成できませんでした。");
     } finally {
@@ -969,10 +983,21 @@ function PrintScreen({ state, dispatch, pages, activePage }: ScreenProps) {
     }
   };
 
+  const handleShare = async () => {
+    if (!printablePdf) return;
+    setExportError("");
+    try {
+      await sharePdfFile(printablePdf.file);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setExportError(error instanceof Error ? error.message : "共有画面を開けませんでした。下のダウンロードをお試しください。");
+    }
+  };
+
   return (
     <main className="tool-page print-page">
       <div className="page-heading horizontal-heading">
-        <div><button className="back-button" type="button" onClick={() => dispatch({ type: "go", screen: "design" })}>← デザイン編集</button><p className="eyebrow">STEP 3</p><h1>PDFレビュー</h1><p>下のレビューが保存されるPDFと同じ内容です。確認後、その下の設定からダウンロードできます。</p></div>
+        <div><button className="back-button" type="button" onClick={() => dispatch({ type: "go", screen: "design" })}>← デザイン編集</button><p className="eyebrow">STEP 3</p><h1>PDFレビュー</h1><p>下のレビューが保存されるPDFと同じ内容です。確認後、その下の設定から共有・印刷またはダウンロードできます。</p></div>
         <FitNotice geometry={activePage.geometry} fit={activePage.fit} compact />
       </div>
 
@@ -1030,9 +1055,23 @@ function PrintScreen({ state, dispatch, pages, activePage }: ScreenProps) {
           {exportSuccess && <p className="export-success" role="status">{exportSuccess}</p>}
           <div className="pdf-action-stack">
             <button className="pdf-button" type="button" disabled={hasOverflow || exporting} onClick={handleExport}>
-              <span aria-hidden="true">⇩</span>{exporting ? "PDFを作成中…" : "PDFをダウンロード"}
+              <span aria-hidden="true">▣</span>{exporting ? "PDFを作成中…" : printablePdf ? "PDFを作り直す" : "PDFを作成"}
             </button>
+            {printablePdf?.canShare && <button className="pdf-button share-pdf-button" type="button" onClick={() => { void handleShare(); }}><span aria-hidden="true">↗</span>{clientContext.isIPhone ? "iPhoneの共有画面を開く" : "共有・印刷"}</button>}
+            {printablePdf && <button className="outline-button download-pdf-button" type="button" onClick={() => downloadPdfBlob(printablePdf.file, printablePdf.fileName)}><span aria-hidden="true">⇩</span>PDFをダウンロード</button>}
             {printablePdf && <a className="outline-button print-pdf-button" href={printablePdf.url} target="_blank" rel="noopener noreferrer" onClick={() => setExportSuccess(`${printablePdf.fileName} を開きます。PDF画面の印刷ボタン、または共有メニューの「プリント」へ進んでください。`)}><span aria-hidden="true">▣</span>PDFを開いて印刷</a>}
+            {clientContext.isIPhone && (
+              <div className="iphone-print-guide">
+                <strong>iPhoneで印刷する手順</strong>
+                <ol>
+                  <li>「PDFを作成」を押す</li>
+                  <li>表示された「iPhoneの共有画面を開く」を押す</li>
+                  <li>共有画面を下へスクロールし「プリント」を選ぶ</li>
+                </ol>
+                <small>保存する場合は、共有画面の「“ファイル”に保存」を選んでください。</small>
+              </div>
+            )}
+            {!clientContext.isIPhone && printablePdf?.canShare && <small className="pdf-share-help">共有画面が開いたら「プリント」または「“ファイル”に保存」を選んでください。</small>}
           </div>
           {hasOverflow && <p className="blocked-copy">蓋または本体がA4に収まらないため出力を停止しています。サイズ設定へ戻って寸法を小さくしてください。</p>}
           <p className="privacy-copy">PDFはこの端末内で作成します。作品をクラウド保存した場合だけ、作品JSONと追加画像を非公開のSupabaseへ送信します。</p>
@@ -1091,6 +1130,7 @@ export function App() {
   const [saveMessage, setSaveMessage] = useState("");
   const [draftReady, setDraftReady] = useState(false);
   const [nameDialogOpen, setNameDialogOpen] = useState(false);
+  const clientContext = useMemo(() => detectClientContext(), []);
   const pendingSaveHandled = useRef(false);
   const oauthRedirecting = useRef(false);
   const lastSavedSignature = useRef(JSON.stringify(serializeBoxDocument(initialState)));
@@ -1290,10 +1330,11 @@ export function App() {
         onLogout={() => { void logout(); }}
         onDeleteAccount={() => { void deleteAccount(); }}
       />
+      {clientContext.shouldRecommendSafari && <InstagramBrowserNotice />}
       {state.screen === "home" && <HomeScreen onStart={startNew} onMyBoxes={() => dispatch({ type: "go", screen: "my-boxes" })} />}
       {state.screen === "size" && <SizeScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
       {state.screen === "design" && <DesignScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
-      {state.screen === "print" && <PrintScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
+      {state.screen === "print" && <PrintScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} clientContext={clientContext} />}
       {state.screen === "my-boxes" && (
         <MyBoxesScreen
           user={user}
