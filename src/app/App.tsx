@@ -48,6 +48,9 @@ import type { AppAction, AppState, DielineLineColors, EditorSection, Screen, Tex
 import { serializeBoxDocument } from "./box-document";
 import { parseNumberDraft } from "./number-input";
 
+// 一旦、端末内の自動保存だけで運用する。クラウド実装は再開できるよう残す。
+const CLOUD_SYNC_UI_ENABLED = false;
+
 const FIT_COPY: Record<FitStatus, { title: string; description: string }> = {
   safe: {
     title: "A4に安全余白込みで収まります",
@@ -174,7 +177,7 @@ function AppHeader({
           ))}
         </nav>
       )}
-      <div className="cloud-header-actions">
+      {CLOUD_SYNC_UI_ENABLED && <div className="cloud-header-actions">
         {saveMessage && <small className={`save-indicator is-${saveState}`} role="status">{saveMessage}</small>}
         <button className="my-boxes-button" type="button" onClick={() => onGo("my-boxes")}>▦ <span>マイボックス</span></button>
         {screen !== "home" && screen !== "my-boxes" && (
@@ -195,7 +198,7 @@ function AppHeader({
         ) : (
           <button className="google-login-button header-login" type="button" onClick={onLogin}><b>G</b> <span>Googleでログイン</span></button>
         )}
-      </div>
+      </div>}
     </header>
   );
 }
@@ -265,7 +268,7 @@ function HomeScreen({ onStart, onMyBoxes }: { onStart: () => void; onMyBoxes: ()
           <h1>うさぽん<br /><span>パッケージメーカー</span></h1>
           <p>箱のサイズを入力するだけで、実寸の展開図を作れます。柄と文字をのせて、A4 PDFで印刷しましょう。</p>
           <div className="hero-points">
-            <span>実寸mm設計</span><span>A4自動判定</span><span>クラウド保存対応</span>
+            <span>実寸mm設計</span><span>A4自動判定</span><span>端末内に自動保存</span>
           </div>
         </div>
       </section>
@@ -282,12 +285,12 @@ function HomeScreen({ onStart, onMyBoxes }: { onStart: () => void; onMyBoxes: ()
             <p>W・D・Hをmmで入力して、ぴったりの展開図を作成</p>
             <b>この方法ではじめる　→</b>
           </button>
-          <button className="choice-card cloud-choice-card" type="button" onClick={onMyBoxes}>
+          {CLOUD_SYNC_UI_ENABLED && <button className="choice-card cloud-choice-card" type="button" onClick={onMyBoxes}>
             <span className="choice-icon" aria-hidden="true">☁</span>
             <strong>保存した箱を開く</strong>
             <p>Googleログインして、別の端末で作った作品を続きから編集</p>
             <b>マイボックスを見る　→</b>
-          </button>
+          </button>}
           <div className="choice-card is-disabled" aria-disabled="true">
             <span className="coming-soon">準備中</span>
             <span className="choice-icon" aria-hidden="true">▦</span>
@@ -297,11 +300,11 @@ function HomeScreen({ onStart, onMyBoxes }: { onStart: () => void; onMyBoxes: ()
         </div>
       </section>
 
-      <section className="cloud-data-notice">
+      {CLOUD_SYNC_UI_ENABLED && <section className="cloud-data-notice">
         <strong>Googleログインとデータ保存について</strong>
         <p>ログインにはGoogleの氏名・メールアドレス・プロフィール画像だけを使用します。未保存の作品は端末内、保存した作品JSONとアップロード画像は非公開のSupabaseへ保存します。Google DriveやGmailにはアクセスしません。</p>
         <a href={`${import.meta.env.BASE_URL}privacy.html`}>プライバシーポリシー</a>
-      </section>
+      </section>}
 
       <section className="flow-strip" aria-label="完成までの流れ">
         <div><span>1</span><strong>サイズを指定</strong><small>mmで正確に入力</small></div>
@@ -1062,7 +1065,6 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext }: Scre
             {!clientContext.isIPhone && printablePdf?.canShare && <small className="pdf-share-help">共有画面が開いたら「プリント」または「“ファイル”に保存」を選んでください。</small>}
           </div>
           {hasOverflow && <p className="blocked-copy">蓋または本体がA4に収まらないため出力を停止しています。サイズ設定へ戻って寸法を小さくしてください。</p>}
-          <p className="privacy-copy">PDFはこの端末内で作成します。作品をクラウド保存した場合だけ、作品JSONと追加画像を非公開のSupabaseへ送信します。</p>
         </aside>
       </div>
 
@@ -1132,16 +1134,19 @@ export function App() {
 
   useEffect(() => {
     let mounted = true;
-    if (isCloudConfigured) {
+    if (CLOUD_SYNC_UI_ENABLED && isCloudConfigured) {
       void currentUser().then((nextUser) => { if (mounted) setUser(nextUser); }).catch(() => undefined);
     }
-    const authSubscription = supabase?.auth.onAuthStateChange((_event, session) => {
+    const authSubscription = CLOUD_SYNC_UI_ENABLED ? supabase?.auth.onAuthStateChange((_event, session) => {
       if (mounted) setUser(session?.user ?? null);
-    }).data.subscription;
+    }).data.subscription : undefined;
     void loadLocalDraft()
       .then((draft) => {
         if (!mounted || !draft) return;
-        dispatch({ type: "replace-state", state: draft.state });
+        dispatch({ type: "replace-state", state: {
+          ...draft.state,
+          screen: !CLOUD_SYNC_UI_ENABLED && draft.state.screen === "my-boxes" ? "home" : draft.state.screen,
+        } });
         setWorkspace(draft.workspace);
         lastSavedSignature.current = "";
         setSaveState("dirty");
@@ -1170,6 +1175,7 @@ export function App() {
   }, [state, workspace, draftReady]);
 
   useEffect(() => {
+    if (!CLOUD_SYNC_UI_ENABLED) return;
     const warn = (event: BeforeUnloadEvent) => {
       if (oauthRedirecting.current) return;
       if (saveState === "dirty" || saveState === "error" || saveState === "conflict") event.preventDefault();
@@ -1180,6 +1186,7 @@ export function App() {
 
   const confirmDiscard = useCallback(() => {
     if (saveState !== "dirty" && saveState !== "error" && saveState !== "conflict") return true;
+    if (!CLOUD_SYNC_UI_ENABLED) return window.confirm("現在の端末内作業は、新しい作品で上書きされます。移動しますか？");
     return window.confirm("クラウドへ保存していない変更があります。今の編集内容から移動しますか？\n端末内の下書きは残ります。");
   }, [saveState]);
 
@@ -1323,7 +1330,7 @@ export function App() {
       {state.screen === "size" && <SizeScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
       {state.screen === "design" && <DesignScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
       {state.screen === "print" && <PrintScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} clientContext={clientContext} />}
-      {state.screen === "my-boxes" && (
+      {CLOUD_SYNC_UI_ENABLED && state.screen === "my-boxes" && (
         <MyBoxesScreen
           user={user}
           onLogin={() => { void login(); }}
@@ -1333,9 +1340,9 @@ export function App() {
           onWorkspaceChange={(updated) => { if (workspace?.id === updated.id) setWorkspace(updated); }}
         />
       )}
-      <footer className="app-footer"><strong>うさぽん パッケージメーカー</strong><span>未保存は端末内／保存作品は非公開クラウド</span><a href={`${import.meta.env.BASE_URL}privacy.html`}>プライバシーポリシー</a></footer>
-      {nameDialogOpen && <SaveNameDialog initialName={workspace?.name ?? "無題のボックス"} onCancel={() => setNameDialogOpen(false)} onSave={(name) => { setNameDialogOpen(false); void commitSave(name, null); }} />}
-      {saveState === "conflict" && workspace && (
+      <footer className="app-footer"><strong>うさぽん パッケージメーカー</strong><span>作業内容はこの端末内に自動保存</span><a href={`${import.meta.env.BASE_URL}privacy.html`}>プライバシーポリシー</a></footer>
+      {CLOUD_SYNC_UI_ENABLED && nameDialogOpen && <SaveNameDialog initialName={workspace?.name ?? "無題のボックス"} onCancel={() => setNameDialogOpen(false)} onSave={(name) => { setNameDialogOpen(false); void commitSave(name, null); }} />}
+      {CLOUD_SYNC_UI_ENABLED && saveState === "conflict" && workspace && (
         <ConflictDialog
           onLoadLatest={() => { setSaveState("dirty"); void openProject(workspace, true); }}
           onSaveCopy={() => { setSaveState("dirty"); void commitSave(`${workspace.name.slice(0, 76)} コピー`, null); }}
