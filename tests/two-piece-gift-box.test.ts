@@ -93,7 +93,6 @@ describe("two-piece-gift-box-v1", () => {
   it("ドキュメントレジストリで既存形式は1ページ、蓋身箱は2ページを維持する", () => {
     expect(generateDielineDocument(input).pages).toHaveLength(2);
     expect(generateDielineDocument({ ...input, type: "gift-box-v1", depthMm: 30 }).pages).toHaveLength(1);
-    expect(generateDielineDocument({ ...input, type: "n-style-gift-box-v1", depthMm: 30 }).pages).toHaveLength(1);
     expect(generateDielineDocument({ ...input, type: "straight-tuck-carton-v1", widthMm: 40, heightMm: 60, depthMm: 25 }).pages).toHaveLength(1);
   });
 

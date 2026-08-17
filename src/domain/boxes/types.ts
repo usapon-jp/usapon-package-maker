@@ -3,7 +3,6 @@ import type { Millimeters } from "../units";
 export type BoxType =
   | "straight-tuck-carton-v1"
   | "gift-box-v1"
-  | "n-style-gift-box-v1"
   | "two-piece-gift-box-v1";
 
 export type DielinePageId = "main" | "lid" | "base";

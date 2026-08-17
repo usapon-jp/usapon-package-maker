@@ -75,11 +75,16 @@ const textSchema = z.object({
   fontSizeMm: z.number().positive().finite(),
   color: z.string(),
 });
+const persistedBoxTypeSchema = z.union([
+  z.enum(["straight-tuck-carton-v1", "gift-box-v1", "two-piece-gift-box-v1"]),
+  z.literal("n-style-gift-box-v1"),
+]).transform((type) => type === "n-style-gift-box-v1" ? "gift-box-v1" : type);
 
 export const boxDocumentV1Schema = z.object({
   schemaVersion: z.literal(1),
   box: z.object({
-    type: z.enum(["straight-tuck-carton-v1", "gift-box-v1", "n-style-gift-box-v1", "two-piece-gift-box-v1"]),
+    // Existing N-style projects are kept, but open as the supported shallow gift box.
+    type: persistedBoxTypeSchema,
     widthMm: z.number().positive().finite(),
     depthMm: z.number().positive().finite(),
     heightMm: z.number().positive().finite(),

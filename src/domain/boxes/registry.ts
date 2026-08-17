@@ -1,13 +1,11 @@
 import type { BoxGenerator, BoxInput, DielineDocument } from "./types";
 import { generateGiftBox } from "./gift-box";
-import { generateNStyleGiftBox } from "./n-style-gift-box";
 import { generateStraightTuckCarton } from "./straight-tuck-carton";
 import { generateTwoPieceGiftBox } from "./two-piece-gift-box";
 
 const boxGenerators: Record<Exclude<BoxInput["type"], "two-piece-gift-box-v1">, BoxGenerator> = {
   "straight-tuck-carton-v1": generateStraightTuckCarton,
   "gift-box-v1": generateGiftBox,
-  "n-style-gift-box-v1": generateNStyleGiftBox,
 };
 
 export function generateDieline(input: BoxInput) {

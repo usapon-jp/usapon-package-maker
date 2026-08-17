@@ -90,7 +90,6 @@ describe("BoxDocumentV1", () => {
   it.each<BoxType>([
     "straight-tuck-carton-v1",
     "gift-box-v1",
-    "n-style-gift-box-v1",
     "two-piece-gift-box-v1",
   ])("%s をJSONへ往復できる", async (type) => {
     const source = stateFor(type);
@@ -121,6 +120,15 @@ describe("BoxDocumentV1", () => {
     expect(restored.includeCalibrationPage).toBe(false);
     expect(restored.activePageId).toBe(type === "two-piece-gift-box-v1" ? "lid" : "main");
     expect(resolveAsset).toHaveBeenCalledTimes(2);
+  });
+
+  it("保存済みのN式ギフト箱は浅型差し込みギフト箱として開く", async () => {
+    const legacy = serializeBoxDocument(stateFor("gift-box-v1")) as { box: { type: string } };
+    legacy.box.type = "n-style-gift-box-v1";
+
+    const restored = await hydrateBoxDocument(legacy, async () => ({ dataUrl: "data:image/png;base64,RESTORED" }));
+
+    expect(restored.box.type).toBe("gift-box-v1");
   });
 
   it("ユーザー画像を複数レイヤーで使っても参照だけを保持する", () => {

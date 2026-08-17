@@ -74,11 +74,6 @@ const BOX_TYPE_COPY: Record<BoxType, { name: string; description: string; struct
     description: "4か所を接着して組み立てる、シンプルな浅型ギフト箱",
     structure: "gift-box-v1（接着式一体型）",
   },
-  "n-style-gift-box-v1": {
-    name: "N式ギフト箱",
-    description: "折り返しロックで組み立てる、のり不要の浅型ギフト箱",
-    structure: "n-style-gift-box-v1（N式一体型）",
-  },
   "two-piece-gift-box-v1": {
     name: "ツーピースギフトBOX",
     description: "蓋と本体をA4 2枚で作る、上端二重の四隅接着箱",
@@ -93,7 +88,7 @@ const LINE_COLOR_PRESETS: Array<{ label: string; colors: DielineLineColors }> = 
 ];
 
 function isShallowBox(type: BoxType) {
-  return type === "gift-box-v1" || type === "n-style-gift-box-v1" || type === "two-piece-gift-box-v1";
+  return type === "gift-box-v1" || type === "two-piece-gift-box-v1";
 }
 
 type DielinePageView = DielinePage & { fit: A4FitResult };
@@ -464,7 +459,6 @@ function DesignColorControl({
 function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   const boxCopy = BOX_TYPE_COPY[state.box.type];
   const shallowBox = isShallowBox(state.box.type);
-  const nStyle = state.box.type === "n-style-gift-box-v1";
   const twoPiece = state.box.type === "two-piece-gift-box-v1";
   return (
     <main className="tool-page size-page">
@@ -517,11 +511,7 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
           <div className="form-divider" />
           <div className="option-grid">
             <NumberField label="紙の厚み" value={state.box.paperThicknessMm} min={0.1} max={2} step={0.01} onChange={(value) => dispatch({ type: "update-box", field: "paperThicknessMm", value })} hint={twoPiece ? "300gsm厚紙の試作目安：0.4mm（プリンター対応を確認）" : "コピー用紙の目安：0.09mm／厚紙：0.2〜0.4mm"} />
-            {nStyle ? (
-              <div className="no-glue-field"><span>接着</span><strong>のり不要</strong><small>折り返しと差し込みロックで固定</small></div>
-            ) : (
-              <NumberField label="のりしろ幅" value={state.box.glueFlapMm} min={5} max={40} step={0.5} onChange={(value) => dispatch({ type: "update-box", field: "glueFlapMm", value })} hint={twoPiece ? "四隅に8〜10mm幅の強粘着両面テープを貼れる12mm推奨" : state.box.type === "gift-box-v1" ? "前後の壁と左右の壁を固定する幅" : "接着しやすい12〜15mmがおすすめ"} />
-            )}
+            <NumberField label="のりしろ幅" value={state.box.glueFlapMm} min={5} max={40} step={0.5} onChange={(value) => dispatch({ type: "update-box", field: "glueFlapMm", value })} hint={twoPiece ? "四隅に8〜10mm幅の強粘着両面テープを貼れる12mm推奨" : state.box.type === "gift-box-v1" ? "前後の壁と左右の壁を固定する幅" : "接着しやすい12〜15mmがおすすめ"} />
           </div>
           {twoPiece && (
             <>
@@ -542,8 +532,6 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
             <strong>{twoPiece ? "A4 2枚で組み立て" : shallowBox ? "1枚で組み立て" : "寸法の考え方"}</strong>
             <p>{twoPiece
               ? "1ページ目が蓋、2ページ目が本体です。両方の四隅を接着し、側面上端を内側へ折り返して切断面を隠します。蓋内寸には紙厚と片側余裕を加えています。"
-              : nStyle
-              ? "底面の上下側壁を立て、角ロックを内側へ折って側面を固定します。前面の折り返しを2つのノッチで留め、最後にフタの舌を差し込みます。"
               : state.box.type === "gift-box-v1"
                 ? "底面・4側面・ヒンジフタはすべてつながっています。4つののりしろで浅いトレーを作り、左右フラップを内側へ折ってフタの舌を前面へ差し込みます。"
                 : "紙厚は差し込み部の逃げに反映します。印刷後は実際の紙で一度試作してください。"}</p>

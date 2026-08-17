@@ -20,16 +20,6 @@ function GiftBoxIcon() {
   );
 }
 
-function NStyleGiftBoxIcon() {
-  return (
-    <>
-      <path d="M9 18 32 7l23 10-23 11L9 18Z" />
-      <path d="M9 18v11l23 10 23-12V17M32 28v11" />
-      <path d="m14 18 18 7 18-8M27 32l5 3 5-3" />
-    </>
-  );
-}
-
 function TwoPieceGiftBoxIcon() {
   return (
     <>
@@ -44,7 +34,6 @@ function TwoPieceGiftBoxIcon() {
 const ICON_DRAWINGS: Record<BoxType, () => React.JSX.Element> = {
   "straight-tuck-carton-v1": StraightTuckCartonIcon,
   "gift-box-v1": GiftBoxIcon,
-  "n-style-gift-box-v1": NStyleGiftBoxIcon,
   "two-piece-gift-box-v1": TwoPieceGiftBoxIcon,
 };
 

@@ -14,7 +14,6 @@ import type { BoxType } from "../../domain/boxes/types";
 const BOX_NAMES: Record<BoxType, string> = {
   "straight-tuck-carton-v1": "キャラメル箱",
   "gift-box-v1": "浅型差し込みギフト箱",
-  "n-style-gift-box-v1": "N式ギフト箱",
   "two-piece-gift-box-v1": "ツーピースギフトBOX",
 };
 

@@ -7,7 +7,6 @@ import type { BoxType } from "../src/domain/boxes/types";
 const BOX_TYPES: BoxType[] = [
   "straight-tuck-carton-v1",
   "gift-box-v1",
-  "n-style-gift-box-v1",
   "two-piece-gift-box-v1",
 ];
 
@@ -23,7 +22,7 @@ describe("箱形式アイコン", () => {
     expect(markup).toContain('stroke-linejoin="round"');
   });
 
-  it("4形式をそれぞれ異なる線画で描き分ける", () => {
+  it("3形式をそれぞれ異なる線画で描き分ける", () => {
     const markups = BOX_TYPES.map((type) => renderToStaticMarkup(<BoxTypeIcon type={type} />));
 
     expect(new Set(markups).size).toBe(BOX_TYPES.length);
