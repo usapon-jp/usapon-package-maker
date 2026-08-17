@@ -55,9 +55,79 @@ function replaceTextWithPaths(svg: SVGSVGElement, font: opentype.Font) {
   });
 }
 
+const ARTWORK_EXPORT_DPI = 300;
+
+function svgViewBoxSize(svg: SVGSVGElement) {
+  const viewBox = svg.viewBox.baseVal;
+  if (viewBox.width > 0 && viewBox.height > 0) return { width: viewBox.width, height: viewBox.height };
+  return {
+    width: numericAttribute(svg, "width", 210),
+    height: numericAttribute(svg, "height", 297),
+  };
+}
+
+function loadSvgImage(svgMarkup: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    const url = URL.createObjectURL(new Blob([svgMarkup], { type: "image/svg+xml;charset=utf-8" }));
+    image.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("模様をPDF用の画像に変換できませんでした。"));
+    };
+    image.src = url;
+  });
+}
+
+/**
+ * svg2pdf.js cannot reliably paint SVG <pattern> definitions.  Render the
+ * artwork layer with the browser's SVG engine first, then embed that one
+ * layer as a print-resolution PNG. Dielines, labels, and text remain vector.
+ */
+async function rasterizeArtworkForPdf(svg: SVGSVGElement) {
+  const artwork = svg.querySelector<SVGGElement>('[data-layer="artwork"]');
+  if (!artwork) return;
+
+  const { width, height } = svgViewBoxSize(svg);
+  const renderSource = svg.cloneNode(true) as SVGSVGElement;
+  renderSource.querySelectorAll('[data-layer]').forEach((layer) => {
+    if (layer.getAttribute("data-layer") !== "artwork") layer.setAttribute("display", "none");
+  });
+  // The first rect is the white A4 paper. Keeping the PNG transparent outside
+  // the box avoids covering the vector line work with an opaque bitmap.
+  renderSource.querySelector(':scope > rect')?.remove();
+  renderSource.setAttribute("width", `${width}`);
+  renderSource.setAttribute("height", `${height}`);
+
+  const image = await loadSvgImage(new XMLSerializer().serializeToString(renderSource));
+  const pixelsPerMm = ARTWORK_EXPORT_DPI / 25.4;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.ceil(width * pixelsPerMm);
+  canvas.height = Math.ceil(height * pixelsPerMm);
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("PDF用の画像を作成できませんでした。");
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  const raster = document.createElementNS("http://www.w3.org/2000/svg", "image");
+  raster.setAttribute("x", "0");
+  raster.setAttribute("y", "0");
+  raster.setAttribute("width", `${width}`);
+  raster.setAttribute("height", `${height}`);
+  raster.setAttribute("preserveAspectRatio", "none");
+  raster.setAttribute("href", canvas.toDataURL("image/png"));
+  raster.setAttribute("data-rasterized-artwork", "true");
+  const paper = svg.querySelector(':scope > rect');
+  svg.insertBefore(raster, paper?.nextSibling ?? svg.firstChild);
+  artwork.remove();
+}
+
 async function cloneForPdf(source: SVGSVGElement, font: opentype.Font) {
   const clone = source.cloneNode(true) as SVGSVGElement;
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  await rasterizeArtworkForPdf(clone);
   replaceTextWithPaths(clone, font);
   return clone;
 }
