@@ -37,12 +37,14 @@ function selectedOutline(width: number, height: number) {
 
 function UploadedArtwork({
   item,
+  geometry,
   patternId,
   selected,
   exportMode,
   onPointerDown,
 }: {
   item: UploadedArtworkLayer;
+  geometry: DielineGeometry;
   patternId: string;
   selected: boolean;
   exportMode: boolean;
@@ -56,6 +58,22 @@ function UploadedArtwork({
   const tileHeight = quarterTurn ? sourceWidth : sourceHeight;
 
   if (item.repeat) {
+    if (exportMode) {
+      const positiveModulo = (value: number, divisor: number) => ((value % divisor) + divisor) % divisor;
+      const firstX = positiveModulo(item.offsetXmm, tileWidth) - tileWidth;
+      const firstY = positiveModulo(item.offsetYmm, tileHeight) - tileHeight;
+      const tiles = [];
+      for (let y = firstY; y < geometry.bounds.heightMm; y += tileHeight) {
+        for (let x = firstX; x < geometry.bounds.widthMm; x += tileWidth) {
+          tiles.push(
+            <g key={`${x}-${y}`} transform={`translate(${x + tileWidth / 2} ${y + tileHeight / 2}) rotate(${item.rotationDeg})`}>
+              <image href={item.dataUrl} x={-sourceWidth / 2} y={-sourceHeight / 2} width={sourceWidth} height={sourceHeight} preserveAspectRatio="xMidYMid meet" />
+            </g>,
+          );
+        }
+      }
+      return <g data-artwork-id={item.id} data-pdf-repeat-images="true" opacity={item.opacity}>{tiles}</g>;
+    }
     return (
       <g data-artwork-id={item.id} opacity={item.opacity}>
         <defs>
@@ -144,6 +162,7 @@ export function ArtworkLayer({
             <UploadedArtwork
               key={item.id}
               item={item}
+              geometry={geometry}
               patternId={patternId}
               selected={selectedArtworkId === item.id}
               exportMode={exportMode}

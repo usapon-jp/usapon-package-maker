@@ -83,6 +83,31 @@ describe("背景・柄・スタンプのSVG描画", () => {
     expect(foldIndex).toBeLessThan(cutIndex);
   });
 
+  it("リピート画像はPDF用SVGではpatternを使わず、画像を並べて出力する", () => {
+    const repeated = {
+      ...createUploadedArtwork(asset, geometry),
+      repeat: true,
+      widthMm: 24,
+      offsetXmm: 7,
+      offsetYmm: 11,
+    };
+    const markup = renderToStaticMarkup(
+      <A4ExportSvg
+        geometry={geometry}
+        fit={fit}
+        backgroundColor={initialState.backgroundColors.main}
+        artworkLayers={[repeated]}
+        stamps={[]}
+        texts={[]}
+        lineColors={initialState.lineColors}
+      />,
+    );
+
+    expect(markup).toContain('data-pdf-repeat-images="true"');
+    expect(markup).not.toContain(`id="export-dieline-main-artwork-${repeated.id}"`);
+    expect(markup.match(/href="data:image\/svg\+xml/g)?.length).toBeGreaterThan(1);
+  });
+
   it("選択中スタンプの右上に回転ハンドルを表示し、PDFには含めない", () => {
     const stamp = { ...createStamp({ ...asset, id: "stamp-rotate" }, geometry, "Pofumofu friends"), rotationDeg: 90 as const };
     const preview = renderToStaticMarkup(
