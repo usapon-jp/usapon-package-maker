@@ -83,11 +83,12 @@ describe("背景・柄・スタンプのSVG描画", () => {
     expect(foldIndex).toBeLessThan(cutIndex);
   });
 
-  it("リピート画像はPDF用SVGではpatternを使わず、画像を並べて出力する", () => {
+  it("リピート画像は要素数が増えないpatternとしてPDF用SVGへ渡す", () => {
     const repeated = {
       ...createUploadedArtwork(asset, geometry),
+      aspectRatio: 1000,
       repeat: true,
-      widthMm: 24,
+      widthMm: 2,
       offsetXmm: 7,
       offsetYmm: 11,
     };
@@ -103,9 +104,10 @@ describe("背景・柄・スタンプのSVG描画", () => {
       />,
     );
 
-    expect(markup).toContain('data-pdf-repeat-images="true"');
-    expect(markup).not.toContain(`id="export-dieline-main-artwork-${repeated.id}"`);
-    expect(markup.match(/href="data:image\/svg\+xml/g)?.length).toBeGreaterThan(1);
+    expect(markup).toContain(`id="export-dieline-main-artwork-${repeated.id}"`);
+    expect(markup).toContain('patternUnits="userSpaceOnUse"');
+    expect(markup.match(/href="data:image\/svg\+xml/g)).toHaveLength(1);
+    expect(markup).not.toContain('data-pdf-repeat-images="true"');
   });
 
   it("選択中スタンプの右上に回転ハンドルを表示し、PDFには含めない", () => {
