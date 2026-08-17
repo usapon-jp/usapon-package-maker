@@ -48,8 +48,8 @@ import type { AppAction, AppState, DielineLineColors, EditorSection, Screen, Tex
 import { serializeBoxDocument } from "./box-document";
 import { parseNumberDraft } from "./number-input";
 
-// 一旦、端末内の自動保存だけで運用する。クラウド実装は再開できるよう残す。
-const CLOUD_SYNC_UI_ENABLED = false;
+// 既存のクラウド保存利用者がいるため、端末内下書き保存と併用して提供する。
+const CLOUD_SYNC_UI_ENABLED = true;
 
 const FIT_COPY: Record<FitStatus, { title: string; description: string }> = {
   safe: {
@@ -268,7 +268,7 @@ function HomeScreen({ onStart, onMyBoxes }: { onStart: () => void; onMyBoxes: ()
           <h1>うさぽん<br /><span>パッケージメーカー</span></h1>
           <p>箱のサイズを入力するだけで、実寸の展開図を作れます。柄と文字をのせて、A4 PDFで印刷しましょう。</p>
           <div className="hero-points">
-            <span>実寸mm設計</span><span>A4自動判定</span><span>端末内に自動保存</span>
+            <span>実寸mm設計</span><span>A4自動判定</span><span>クラウド保存対応</span>
           </div>
         </div>
       </section>
@@ -1064,6 +1064,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext }: Scre
             )}
             {!clientContext.isIPhone && printablePdf?.canShare && <small className="pdf-share-help">共有画面が開いたら「プリント」または「“ファイル”に保存」を選んでください。</small>}
           </div>
+          <p className="privacy-copy">PDFはこの端末内で作成します。作品をクラウド保存した場合だけ、作品JSONと追加画像を非公開のSupabaseへ送信します。</p>
           {hasOverflow && <p className="blocked-copy">蓋または本体がA4に収まらないため出力を停止しています。サイズ設定へ戻って寸法を小さくしてください。</p>}
         </aside>
       </div>
@@ -1340,7 +1341,7 @@ export function App() {
           onWorkspaceChange={(updated) => { if (workspace?.id === updated.id) setWorkspace(updated); }}
         />
       )}
-      <footer className="app-footer"><strong>うさぽん パッケージメーカー</strong><span>作業内容はこの端末内に自動保存</span><a href={`${import.meta.env.BASE_URL}privacy.html`}>プライバシーポリシー</a></footer>
+      <footer className="app-footer"><strong>うさぽん パッケージメーカー</strong><span>未保存は端末内／保存作品は非公開クラウド</span><a href={`${import.meta.env.BASE_URL}privacy.html`}>プライバシーポリシー</a></footer>
       {CLOUD_SYNC_UI_ENABLED && nameDialogOpen && <SaveNameDialog initialName={workspace?.name ?? "無題のボックス"} onCancel={() => setNameDialogOpen(false)} onSave={(name) => { setNameDialogOpen(false); void commitSave(name, null); }} />}
       {CLOUD_SYNC_UI_ENABLED && saveState === "conflict" && workspace && (
         <ConflictDialog
