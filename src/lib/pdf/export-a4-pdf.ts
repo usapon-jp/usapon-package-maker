@@ -55,7 +55,8 @@ function replaceTextWithPaths(svg: SVGSVGElement, font: opentype.Font) {
   });
 }
 
-const ARTWORK_EXPORT_DPI = 300;
+const ARTWORK_EXPORT_DPI = 200;
+const MAX_ARTWORK_RASTER_PIXELS = 3_000_000;
 
 function svgViewBoxSize(svg: SVGSVGElement) {
   const viewBox = svg.viewBox.baseVal;
@@ -83,13 +84,14 @@ function loadSvgImage(svgMarkup: string) {
 }
 
 /**
- * svg2pdf.js cannot reliably paint SVG <pattern> definitions.  Render the
- * artwork layer with the browser's SVG engine first, then embed that one
- * layer as a print-resolution PNG. Dielines, labels, and text remain vector.
+ * svg2pdf.js cannot reliably paint SVG <pattern> definitions. Render the
+ * artwork layer with the browser's SVG engine first and return its canvas.
+ * The canvas is added directly to jsPDF instead of being embedded back into
+ * SVG, which avoids recursive SVG image processing on memory-limited phones.
  */
 async function rasterizeArtworkForPdf(svg: SVGSVGElement) {
   const artwork = svg.querySelector<SVGGElement>('[data-layer="artwork"]');
-  if (!artwork) return;
+  if (!artwork) return null;
 
   const { width, height } = svgViewBoxSize(svg);
   const renderSource = svg.cloneNode(true) as SVGSVGElement;
@@ -103,31 +105,34 @@ async function rasterizeArtworkForPdf(svg: SVGSVGElement) {
   renderSource.setAttribute("height", `${height}`);
 
   const image = await loadSvgImage(new XMLSerializer().serializeToString(renderSource));
-  const pixelsPerMm = ARTWORK_EXPORT_DPI / 25.4;
+  const targetPixelsPerMm = ARTWORK_EXPORT_DPI / 25.4;
+  const pixelLimitScale = Math.sqrt(MAX_ARTWORK_RASTER_PIXELS / (width * height));
+  const pixelsPerMm = Math.min(targetPixelsPerMm, pixelLimitScale);
   const canvas = document.createElement("canvas");
   canvas.width = Math.ceil(width * pixelsPerMm);
   canvas.height = Math.ceil(height * pixelsPerMm);
   const context = canvas.getContext("2d");
   if (!context) throw new Error("PDF用の画像を作成できませんでした。");
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-  const raster = document.createElementNS("http://www.w3.org/2000/svg", "image");
-  raster.setAttribute("x", "0");
-  raster.setAttribute("y", "0");
-  raster.setAttribute("width", `${width}`);
-  raster.setAttribute("height", `${height}`);
-  raster.setAttribute("preserveAspectRatio", "none");
-  raster.setAttribute("href", canvas.toDataURL("image/png"));
-  raster.setAttribute("data-rasterized-artwork", "true");
-  const paper = svg.querySelector(':scope > rect');
-  svg.insertBefore(raster, paper?.nextSibling ?? svg.firstChild);
   artwork.remove();
+  svg.querySelector(':scope > rect')?.remove();
+  return canvas;
 }
 
-async function cloneForPdf(source: SVGSVGElement, font: opentype.Font) {
+async function prepareDielineForPdf(source: SVGSVGElement, font: opentype.Font) {
   const clone = source.cloneNode(true) as SVGSVGElement;
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-  await rasterizeArtworkForPdf(clone);
+  const artworkCanvas = await rasterizeArtworkForPdf(clone);
+  replaceTextWithPaths(clone, font);
+  return { vectorSvg: clone, artworkCanvas };
+}
+
+function cloneVectorForPdf(source: SVGSVGElement, font: opentype.Font) {
+  const clone = source.cloneNode(true) as SVGSVGElement;
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
   replaceTextWithPaths(clone, font);
   return clone;
 }
@@ -159,8 +164,13 @@ export async function exportA4Pdf(options: {
     if (index > 0) {
       pdf.addPage([pageWidthPt, pageHeightPt], page.fit.orientation === "landscape" ? "landscape" : "portrait");
     }
-    const dieline = await cloneForPdf(page.svg, font);
-    await pdf.svg(dieline, {
+    const { vectorSvg, artworkCanvas } = await prepareDielineForPdf(page.svg, font);
+    pdf.setFillColor(255, 255, 255);
+    pdf.rect(0, 0, pageWidthPt, pageHeightPt, "F");
+    if (artworkCanvas) {
+      pdf.addImage(artworkCanvas, "JPEG", 0, 0, pageWidthPt, pageHeightPt, undefined, "FAST");
+    }
+    await pdf.svg(vectorSvg, {
       x: 0,
       y: 0,
       width: pageWidthPt,
@@ -169,7 +179,7 @@ export async function exportA4Pdf(options: {
   }
 
   if (options.calibrationSvg) {
-    const calibration = await cloneForPdf(options.calibrationSvg, font);
+    const calibration = cloneVectorForPdf(options.calibrationSvg, font);
     const calibrationWidthPt = mmToPdfPoints(210);
     const calibrationHeightPt = mmToPdfPoints(297);
     pdf.addPage([calibrationWidthPt, calibrationHeightPt], "portrait");
