@@ -33,6 +33,15 @@ describe("straight-tuck-carton-v1", () => {
     expect(thick.bounds.widthMm).toBe(thin.bounds.widthMm);
   });
 
+  it("フラップ間の逃げを紙厚に必要な最小限へ抑える", () => {
+    const result = generateStraightTuckCarton(input);
+    const dustFlap = result.clipPolygons.find((polygon) => polygon.id === "top-dust-1");
+    const tuckFlap = result.clipPolygons.find((polygon) => polygon.id === "top-tuck-0");
+
+    expect(dustFlap?.points[2].x).toBeCloseTo(76.26, 2);
+    expect(tuckFlap?.points[3].x).toBeCloseTo(49.46, 2);
+  });
+
   it("0以下の寸法を拒否する", () => {
     expect(() => generateStraightTuckCarton({ ...input, widthMm: 0 })).toThrow(RangeError);
   });

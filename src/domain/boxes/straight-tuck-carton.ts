@@ -52,8 +52,11 @@ function flapPolygon(
   tongueDepth: number,
   clearance: number,
 ): PolygonShape {
-  const sideInset = kind === "dust" ? Math.min(2.2, width * 0.12) : Math.min(1.8, width * 0.05);
-  const tipInset = kind === "tuck" ? clamp(width * 0.1 + clearance, 3, 10) : Math.min(width * 0.18, 5);
+  // フラップ間の逃げは紙厚ぶんだけ残し、柄が大きく白抜けして見えないよう最小限にする。
+  const sideInset = kind === "dust"
+    ? clamp(clearance + 0.2, 0.7, Math.min(1.2, width * 0.05))
+    : clamp(clearance, 0.7, Math.min(1.2, width * 0.035));
+  const tipInset = kind === "tuck" ? clamp(width * 0.05 + clearance, 2.2, 6) : Math.min(width * 0.1, 3);
   const coverY = baseY + direction * coverDepth;
   const tipY = coverY + direction * (kind === "tuck" ? tongueDepth : 0);
 

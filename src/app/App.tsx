@@ -1049,8 +1049,8 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext }: Scre
               <span aria-hidden="true">▣</span>{exporting ? "PDFを作成中…" : printablePdf ? "PDFを作り直す" : "PDFを作成"}
             </button>
             {printablePdf?.canShare && <button className="pdf-button share-pdf-button" type="button" onClick={() => { void handleShare(); }}><span aria-hidden="true">↗</span>{clientContext.isIPhone ? "iPhoneの共有画面を開く" : "共有・印刷"}</button>}
-            {printablePdf && <button className="outline-button download-pdf-button" type="button" onClick={() => downloadPdfBlob(printablePdf.file, printablePdf.fileName)}><span aria-hidden="true">⇩</span>PDFをダウンロード</button>}
-            {printablePdf && <a className="outline-button print-pdf-button" href={printablePdf.url} target="_blank" rel="noopener noreferrer" onClick={() => setExportSuccess(`${printablePdf.fileName} を開きます。PDF画面の印刷ボタン、または共有メニューの「プリント」へ進んでください。`)}><span aria-hidden="true">▣</span>PDFを開いて印刷</a>}
+            {printablePdf && <button className="outline-button download-pdf-button" type="button" onClick={() => downloadPdfBlob(printablePdf.file, printablePdf.fileName)}><span aria-hidden="true">⇩</span>{clientContext.isAndroid ? "PDFを保存" : "PDFをダウンロード"}</button>}
+            {printablePdf && !clientContext.isAndroid && <a className="outline-button print-pdf-button" href={printablePdf.url} target="_blank" rel="noopener noreferrer" onClick={() => setExportSuccess(`${printablePdf.fileName} を開きます。PDF画面の印刷ボタン、または共有メニューの「プリント」へ進んでください。`)}><span aria-hidden="true">▣</span>PDFを開いて印刷</a>}
             {clientContext.isIPhone && (
               <div className="iphone-print-guide">
                 <strong>iPhoneで印刷する手順</strong>
@@ -1062,7 +1062,8 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext }: Scre
                 <small>保存する場合は、共有画面の「“ファイル”に保存」を選んでください。</small>
               </div>
             )}
-            {!clientContext.isIPhone && printablePdf?.canShare && <small className="pdf-share-help">共有画面が開いたら「プリント」または「“ファイル”に保存」を選んでください。</small>}
+            {clientContext.isAndroid && printablePdf && <small className="pdf-share-help">Androidでは「共有・印刷」から「印刷」を選んでください。共有画面が開かない場合はPDFを保存し、「ダウンロード」から開いて印刷できます。</small>}
+            {!clientContext.isIPhone && !clientContext.isAndroid && printablePdf?.canShare && <small className="pdf-share-help">共有画面が開いたら「プリント」または「“ファイル”に保存」を選んでください。</small>}
           </div>
           <p className="privacy-copy">PDFはこの端末内で作成します。作品をクラウド保存した場合だけ、作品JSONと追加画像を非公開のSupabaseへ送信します。</p>
           {hasOverflow && <p className="blocked-copy">蓋または本体がA4に収まらないため出力を停止しています。サイズ設定へ戻って寸法を小さくしてください。</p>}
