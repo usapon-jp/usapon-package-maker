@@ -10,7 +10,7 @@ import type { BoxType, DielineGeometry, DielinePage, DielinePageId } from "../do
 import { evaluateA4Fit, type A4FitResult, type FitStatus } from "../domain/paper/a4";
 import { clamp, roundMm } from "../domain/units";
 import { downloadPdfBlob, exportA4Pdf } from "../lib/pdf/export-a4-pdf";
-import { canSharePdfFile, createPdfShareFile, sharePdfFile } from "../lib/pdf/share-pdf";
+import { canSharePdfFile, createPdfShareFile, createTimestampedPdfFileName, sharePdfFile } from "../lib/pdf/share-pdf";
 import { detectClientContext, type ClientContext } from "../lib/browser/client-context";
 import { readPatternFile } from "../lib/uploads/read-pattern";
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from "../lib/drafts/local-draft";
@@ -47,6 +47,7 @@ import {
 import type { AppAction, AppState, DielineLineColors, EditorSection, Screen, TextItem } from "./app-types";
 import { serializeBoxDocument } from "./box-document";
 import { parseNumberDraft } from "./number-input";
+import { FAVORITE_SIZES_STORAGE_KEY, parseFavoriteSizes, registerFavoriteSize } from "./favorite-sizes";
 
 // 既存のクラウド保存利用者がいるため、端末内下書き保存と併用して提供する。
 const CLOUD_SYNC_UI_ENABLED = true;
@@ -469,6 +470,35 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   const boxCopy = BOX_TYPE_COPY[state.box.type];
   const shallowBox = isShallowBox(state.box.type);
   const twoPiece = state.box.type === "two-piece-gift-box-v1";
+  const [favoriteSizes, setFavoriteSizes] = useState(() => {
+    try {
+      return parseFavoriteSizes(window.localStorage.getItem(FAVORITE_SIZES_STORAGE_KEY));
+    } catch {
+      return [];
+    }
+  });
+  const [favoriteSizeName, setFavoriteSizeName] = useState("");
+  const [favoriteSizeMessage, setFavoriteSizeMessage] = useState("");
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(FAVORITE_SIZES_STORAGE_KEY, JSON.stringify(favoriteSizes));
+    } catch {
+      // 保存できない環境でも現在の画面内では利用できます。
+    }
+  }, [favoriteSizes]);
+
+  const saveFavoriteSize = () => {
+    const name = favoriteSizeName.trim();
+    if (!name) {
+      setFavoriteSizeMessage("寸法名を入力してください。");
+      return;
+    }
+    setFavoriteSizes((sizes) => registerFavoriteSize(sizes, name, state.box, crypto.randomUUID()));
+    setFavoriteSizeName("");
+    setFavoriteSizeMessage(`「${name.slice(0, 40)}」を登録しました。`);
+  };
+
   return (
     <main className="tool-page size-page">
       <div className="page-heading">
@@ -522,6 +552,28 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
             <NumberField label="紙の厚み" value={state.box.paperThicknessMm} min={0.1} max={2} step={0.01} onChange={(value) => dispatch({ type: "update-box", field: "paperThicknessMm", value })} hint={twoPiece ? "300gsm厚紙の試作目安：0.4mm（プリンター対応を確認）" : "コピー用紙の目安：0.09mm／厚紙：0.2〜0.4mm"} />
             <NumberField label="のりしろ幅" value={state.box.glueFlapMm} min={5} max={40} step={0.5} onChange={(value) => dispatch({ type: "update-box", field: "glueFlapMm", value })} hint={twoPiece ? "四隅に8〜10mm幅の強粘着両面テープを貼れる12mm推奨" : state.box.type === "gift-box-v1" ? "前後の壁と左右の壁を固定する幅" : "接着しやすい12〜15mmがおすすめ"} />
           </div>
+          <div className="form-divider" />
+          <section className="favorite-size-section" aria-labelledby="favorite-size-title">
+            <div className="form-section-heading"><h3 id="favorite-size-title">お気に入り寸法</h3><p>現在の箱形式と寸法一式を、名前を付けて端末内へ登録</p></div>
+            <div className="favorite-size-register">
+              <label>寸法名<input type="text" maxLength={40} value={favoriteSizeName} placeholder="例：プレゼント用の箱" onChange={(event) => setFavoriteSizeName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveFavoriteSize(); }} /></label>
+              <button type="button" onClick={saveFavoriteSize}>☆ 現在の寸法を登録</button>
+            </div>
+            {favoriteSizeMessage && <p className="favorite-size-message" role="status">{favoriteSizeMessage}</p>}
+            {favoriteSizes.length > 0 ? (
+              <div className="favorite-size-list">
+                {favoriteSizes.map((favorite) => (
+                  <article key={favorite.id}>
+                    <button type="button" className="favorite-size-apply" onClick={() => { dispatch({ type: "replace-box", box: favorite.box }); setFavoriteSizeMessage(`「${favorite.name}」を呼び出しました。`); }}>
+                      <strong>{favorite.name}</strong>
+                      <small>{BOX_TYPE_COPY[favorite.box.type].name}／W {favorite.box.widthMm} × D {favorite.box.depthMm} × H {favorite.box.heightMm}mm</small>
+                    </button>
+                    <button type="button" className="favorite-size-delete" aria-label={`${favorite.name}を削除`} onClick={() => { setFavoriteSizes((sizes) => sizes.filter((item) => item.id !== favorite.id)); setFavoriteSizeMessage(`「${favorite.name}」を削除しました。`); }}>×</button>
+                  </article>
+                ))}
+              </div>
+            ) : <p className="favorite-size-empty">よく使う寸法を登録すると、次回からワンタップで呼び出せます。</p>}
+          </section>
           {twoPiece && (
             <>
               <div className="form-divider" />
@@ -963,7 +1015,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext }: Scre
     setExportSuccess("");
     clearPrintablePdf();
     try {
-      const fileName = `usapon-${state.box.type}-${state.box.widthMm}x${state.box.heightMm}x${state.box.depthMm}mm.pdf`;
+      const fileName = createTimestampedPdfFileName(`usapon-${state.box.type}-${state.box.widthMm}x${state.box.heightMm}x${state.box.depthMm}mm.pdf`);
       const result = await exportA4Pdf({
         pages: exportPages,
         calibrationSvg: state.includeCalibrationPage ? calibrationSvg.current : null,
@@ -1054,8 +1106,8 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext }: Scre
             <button className="pdf-button" type="button" disabled={hasOverflow || exporting} onClick={handleExport}>
               <span aria-hidden="true">▣</span>{exporting ? "PDFを作成中…" : printablePdf ? "PDFを作り直す" : "PDFを作成"}
             </button>
-            {printablePdf?.canShare && <button className="pdf-button share-pdf-button" type="button" onClick={() => { void handleShare(); }}><span aria-hidden="true">↗</span>{clientContext.isIPhone ? "iPhoneの共有画面を開く" : "共有・印刷"}</button>}
-            {printablePdf && <button className="outline-button download-pdf-button" type="button" onClick={() => downloadPdfBlob(printablePdf.file, printablePdf.fileName)}><span aria-hidden="true">⇩</span>{clientContext.isAndroid ? "PDFを保存" : "PDFをダウンロード"}</button>}
+            {printablePdf?.canShare && <button className="pdf-button share-pdf-button" type="button" onClick={() => { void handleShare(); }}><span aria-hidden="true">↗</span>{clientContext.isIPhone ? "iPhoneの共有画面を開く" : clientContext.isAndroid ? "印刷アプリで開く" : "共有・印刷"}</button>}
+            {printablePdf && <button className="outline-button download-pdf-button" type="button" onClick={() => { downloadPdfBlob(printablePdf.file, printablePdf.fileName); setExportSuccess(`${printablePdf.fileName} を保存しました。エプソン印刷アプリでは、この新しいファイル名のPDFを選んでください。`); }}><span aria-hidden="true">⇩</span>{clientContext.isAndroid ? "新しいPDFを保存（確実）" : "PDFをダウンロード"}</button>}
             {printablePdf && !clientContext.isAndroid && <a className="outline-button print-pdf-button" href={printablePdf.url} target="_blank" rel="noopener noreferrer" onClick={() => setExportSuccess(`${printablePdf.fileName} を開きます。PDF画面の印刷ボタン、または共有メニューの「プリント」へ進んでください。`)}><span aria-hidden="true">▣</span>PDFを開いて印刷</a>}
             {clientContext.isIPhone && (
               <div className="iphone-print-guide">
@@ -1068,7 +1120,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext }: Scre
                 <small>保存する場合は、共有画面の「“ファイル”に保存」を選んでください。</small>
               </div>
             )}
-            {clientContext.isAndroid && printablePdf && <small className="pdf-share-help">Androidでは「共有・印刷」から「印刷」を選んでください。共有画面が開かない場合はPDFを保存し、「ダウンロード」から開いて印刷できます。</small>}
+            {clientContext.isAndroid && printablePdf && <div className="android-print-guide"><strong>エプソンで印刷する手順</strong><ol><li>まず「印刷アプリで開く」を試す</li><li>白紙になる場合は戻って「新しいPDFを保存（確実）」を押す</li><li>エプソン側のPDF／文書選択から、作成時刻入りの最新ファイルを選ぶ</li></ol><small>直接起動も残しつつ、同名の古いPDFや白紙表示を避ける保存方法を用意しています。</small></div>}
             {!clientContext.isIPhone && !clientContext.isAndroid && printablePdf?.canShare && <small className="pdf-share-help">共有画面が開いたら「プリント」または「“ファイル”に保存」を選んでください。</small>}
           </div>
           <p className="privacy-copy">PDFはこの端末内で作成します。作品をクラウド保存した場合だけ、作品JSONと追加画像を非公開のSupabaseへ送信します。</p>

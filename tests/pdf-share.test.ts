@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { canSharePdfFile, createPdfShareFile, sharePdfFile } from "../src/lib/pdf/share-pdf";
+import { canSharePdfFile, createPdfShareFile, createTimestampedPdfFileName, sharePdfFile } from "../src/lib/pdf/share-pdf";
 
 describe("PDF共有", () => {
   const blob = new Blob(["pdf"], { type: "application/pdf" });
@@ -11,6 +11,12 @@ describe("PDF共有", () => {
     expect(file.name).toBe("box.pdf");
     expect(file.type).toBe("application/pdf");
     expect(file.size).toBe(blob.size);
+  });
+
+  it("古いPDFと区別できる作成時刻入りファイル名を作る", () => {
+    const fileName = createTimestampedPdfFileName("usapon-box.pdf", new Date(2026, 7, 20, 15, 47, 9));
+
+    expect(fileName).toBe("usapon-box-20260820-154709.pdf");
   });
 
   it("PDFファイル共有に対応したブラウザだけを有効にする", () => {

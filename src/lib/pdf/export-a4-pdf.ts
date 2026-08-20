@@ -203,5 +203,6 @@ export function downloadPdfBlob(blob: Blob, fileName = "usapon-package-a4.pdf") 
   document.body.append(anchor);
   anchor.click();
   anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1500);
+  // Androidのダウンロード処理はブラウザ外へ渡るまで時間がかかることがある。
+  window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 60_000);
 }

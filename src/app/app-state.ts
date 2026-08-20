@@ -73,6 +73,15 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         selectedStampId: null,
         selectedTextId: null,
       };
+    case "replace-box":
+      return {
+        ...state,
+        box: { ...action.box },
+        activePageId: action.box.type === "two-piece-gift-box-v1" ? "lid" : "main",
+        selectedArtworkId: null,
+        selectedStampId: null,
+        selectedTextId: null,
+      };
     case "set-active-page":
       return { ...state, activePageId: action.pageId, selectedArtworkId: null, selectedStampId: null, selectedTextId: null };
     case "update-box":

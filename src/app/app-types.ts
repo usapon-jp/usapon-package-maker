@@ -113,6 +113,7 @@ export type AppAction =
   | { type: "replace-state"; state: AppState }
   | { type: "go"; screen: Screen }
   | { type: "set-box-type"; boxType: BoxType }
+  | { type: "replace-box"; box: BoxInput }
   | { type: "set-active-page"; pageId: DielinePageId }
   | { type: "update-box"; field: keyof Omit<BoxInput, "type">; value: number }
   | { type: "set-background-color"; pageId: DielinePageId; color: string }
