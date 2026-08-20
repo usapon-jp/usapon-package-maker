@@ -1128,6 +1128,7 @@ export function App() {
   const [saveMessage, setSaveMessage] = useState("");
   const [draftReady, setDraftReady] = useState(false);
   const [hasRestoredLocalDraft, setHasRestoredLocalDraft] = useState(false);
+  const [shouldPersistLocalDraft, setShouldPersistLocalDraft] = useState(false);
   const [nameDialogOpen, setNameDialogOpen] = useState(false);
   const clientContext = useMemo(() => detectClientContext(), []);
   const pendingSaveHandled = useRef(false);
@@ -1157,10 +1158,12 @@ export function App() {
           screen: !CLOUD_SYNC_UI_ENABLED && draft.state.screen === "my-boxes" ? "home" : draft.state.screen,
         } });
         setWorkspace(draft.workspace);
-        lastSavedSignature.current = "";
-        setSaveState("dirty");
-        setHasRestoredLocalDraft(true);
-        setSaveMessage("端末内の前回作業を復元しました");
+        setShouldPersistLocalDraft(true);
+        const hasEditedDocument = JSON.stringify(serializeBoxDocument(draft.state)) !== JSON.stringify(serializeBoxDocument(initialState));
+        lastSavedSignature.current = hasEditedDocument ? "" : JSON.stringify(serializeBoxDocument(initialState));
+        setHasRestoredLocalDraft(hasEditedDocument);
+        setSaveState(hasEditedDocument ? "dirty" : "idle");
+        setSaveMessage(hasEditedDocument ? "端末内の前回作業を復元しました" : "");
       })
       .catch(() => undefined)
       .finally(() => { if (mounted) setDraftReady(true); });
@@ -1179,7 +1182,7 @@ export function App() {
   }, [documentSignature, draftReady, saveState]);
 
   useEffect(() => {
-    if (!draftReady) return;
+    if (!draftReady || !shouldPersistLocalDraft) return;
     const timer = window.setTimeout(() => { void saveLocalDraft(state, workspace).catch(() => undefined); }, 400);
     return () => window.clearTimeout(timer);
   }, [state, workspace, draftReady]);
@@ -1266,6 +1269,7 @@ export function App() {
       const loaded = await openCloudProject(project.id);
       dispatch({ type: "replace-state", state: loaded.state });
       setHasRestoredLocalDraft(false);
+      setShouldPersistLocalDraft(true);
       const nextWorkspace = { id: loaded.project.id, name: loaded.project.name, revision: loaded.project.revision, updatedAt: loaded.project.updatedAt };
       setWorkspace(nextWorkspace);
       lastSavedSignature.current = JSON.stringify(serializeBoxDocument(loaded.state));
@@ -1283,6 +1287,7 @@ export function App() {
     const next = { ...initialState, screen: "size" as const };
     dispatch({ type: "replace-state", state: next });
     setHasRestoredLocalDraft(false);
+    setShouldPersistLocalDraft(true);
     setWorkspace(null);
     lastSavedSignature.current = "";
     setSaveState("dirty");

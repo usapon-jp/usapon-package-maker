@@ -30,7 +30,12 @@ function stripRenderUrl<T extends ArtworkLayer | StampItem>(item: T): T {
 
 async function restoreRenderUrl<T extends ArtworkLayer | StampItem>(item: T): Promise<T> {
   if (!("dataUrl" in item) || item.dataUrl || !("blob" in item) || !item.blob) return item;
-  return { ...item, dataUrl: await blobToDataUrl(item.blob) };
+  try {
+    return { ...item, dataUrl: await blobToDataUrl(item.blob) };
+  } catch {
+    // 一つの画像が壊れていても、下書き全体を初期状態へ戻してはいけない。
+    return item;
+  }
 }
 
 export async function saveLocalDraft(state: AppState, workspace: ProjectWorkspace | null): Promise<void> {
