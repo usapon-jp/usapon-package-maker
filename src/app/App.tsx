@@ -257,7 +257,7 @@ function LineLegend({ geometry, lineColors }: { geometry: DielineGeometry; lineC
   );
 }
 
-function HomeScreen({ onStart, onMyBoxes }: { onStart: () => void; onMyBoxes: () => void }) {
+function HomeScreen({ onStart, onResume, onMyBoxes }: { onStart: () => void; onResume: (() => void) | null; onMyBoxes: () => void }) {
   return (
     <main className="home-screen">
       <section className="home-hero">
@@ -279,6 +279,12 @@ function HomeScreen({ onStart, onMyBoxes }: { onStart: () => void; onMyBoxes: ()
           <h2 id="choice-title">つくりかたを選んでください</h2>
         </div>
         <div className="choice-grid">
+          {onResume && <button className="choice-card is-active resume-choice-card" type="button" onClick={onResume}>
+            <span className="choice-icon" aria-hidden="true">↩</span>
+            <strong>前回の作品を続ける</strong>
+            <p>この端末に復元した、未保存の編集内容を開きます</p>
+            <b>編集を再開する　→</b>
+          </button>}
           <button className="choice-card is-active" type="button" onClick={onStart}>
             <span className="choice-icon" aria-hidden="true">⌑</span>
             <strong>サイズから作る</strong>
@@ -1121,6 +1127,7 @@ export function App() {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [saveMessage, setSaveMessage] = useState("");
   const [draftReady, setDraftReady] = useState(false);
+  const [hasRestoredLocalDraft, setHasRestoredLocalDraft] = useState(false);
   const [nameDialogOpen, setNameDialogOpen] = useState(false);
   const clientContext = useMemo(() => detectClientContext(), []);
   const pendingSaveHandled = useRef(false);
@@ -1152,6 +1159,7 @@ export function App() {
         setWorkspace(draft.workspace);
         lastSavedSignature.current = "";
         setSaveState("dirty");
+        setHasRestoredLocalDraft(true);
         setSaveMessage("端末内の前回作業を復元しました");
       })
       .catch(() => undefined)
@@ -1257,6 +1265,7 @@ export function App() {
     try {
       const loaded = await openCloudProject(project.id);
       dispatch({ type: "replace-state", state: loaded.state });
+      setHasRestoredLocalDraft(false);
       const nextWorkspace = { id: loaded.project.id, name: loaded.project.name, revision: loaded.project.revision, updatedAt: loaded.project.updatedAt };
       setWorkspace(nextWorkspace);
       lastSavedSignature.current = JSON.stringify(serializeBoxDocument(loaded.state));
@@ -1273,6 +1282,7 @@ export function App() {
     if (!confirmDiscard()) return;
     const next = { ...initialState, screen: "size" as const };
     dispatch({ type: "replace-state", state: next });
+    setHasRestoredLocalDraft(false);
     setWorkspace(null);
     lastSavedSignature.current = "";
     setSaveState("dirty");
@@ -1328,7 +1338,7 @@ export function App() {
         onDeleteAccount={() => { void deleteAccount(); }}
       />
       {clientContext.shouldRecommendSafari && <InstagramBrowserNotice />}
-      {state.screen === "home" && <HomeScreen onStart={startNew} onMyBoxes={() => dispatch({ type: "go", screen: "my-boxes" })} />}
+      {state.screen === "home" && <HomeScreen onStart={startNew} onResume={hasRestoredLocalDraft ? () => dispatch({ type: "go", screen: "design" }) : null} onMyBoxes={() => dispatch({ type: "go", screen: "my-boxes" })} />}
       {state.screen === "size" && <SizeScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
       {state.screen === "design" && <DesignScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
       {state.screen === "print" && <PrintScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} clientContext={clientContext} />}
