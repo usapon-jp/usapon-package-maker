@@ -1107,6 +1107,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext }: Scre
               <span aria-hidden="true">▣</span>{exporting ? "PDFを作成中…" : printablePdf ? "PDFを作り直す" : "PDFを作成"}
             </button>
             {printablePdf?.canShare && <button className="pdf-button share-pdf-button" type="button" onClick={() => { void handleShare(); }}><span aria-hidden="true">↗</span>{clientContext.isIPhone ? "iPhoneの共有画面を開く" : clientContext.isAndroid ? "印刷アプリで開く" : "共有・印刷"}</button>}
+            {clientContext.isAndroid && printablePdf?.canShare && <small className="android-share-fallback">印刷画面が真っ白になる場合は、PDFを保存してから、印刷アプリの「文書印刷」で開いてください。</small>}
             {printablePdf && <button className="outline-button download-pdf-button" type="button" onClick={() => { downloadPdfBlob(printablePdf.file, printablePdf.fileName); setExportSuccess(`${printablePdf.fileName} を保存しました。エプソン印刷アプリでは、この新しいファイル名のPDFを選んでください。`); }}><span aria-hidden="true">⇩</span>{clientContext.isAndroid ? "新しいPDFを保存（確実）" : "PDFをダウンロード"}</button>}
             {printablePdf && !clientContext.isAndroid && <a className="outline-button print-pdf-button" href={printablePdf.url} target="_blank" rel="noopener noreferrer" onClick={() => setExportSuccess(`${printablePdf.fileName} を開きます。PDF画面の印刷ボタン、または共有メニューの「プリント」へ進んでください。`)}><span aria-hidden="true">▣</span>PDFを開いて印刷</a>}
             {clientContext.isIPhone && (
@@ -1120,7 +1121,6 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext }: Scre
                 <small>保存する場合は、共有画面の「“ファイル”に保存」を選んでください。</small>
               </div>
             )}
-            {clientContext.isAndroid && printablePdf && <div className="android-print-guide"><strong>エプソンで印刷する手順</strong><ol><li>まず「印刷アプリで開く」を試す</li><li>白紙になる場合は戻って「新しいPDFを保存（確実）」を押す</li><li>エプソン側のPDF／文書選択から、作成時刻入りの最新ファイルを選ぶ</li></ol><small>直接起動も残しつつ、同名の古いPDFや白紙表示を避ける保存方法を用意しています。</small></div>}
             {!clientContext.isIPhone && !clientContext.isAndroid && printablePdf?.canShare && <small className="pdf-share-help">共有画面が開いたら「プリント」または「“ファイル”に保存」を選んでください。</small>}
           </div>
           <p className="privacy-copy">PDFはこの端末内で作成します。作品をクラウド保存した場合だけ、作品JSONと追加画像を非公開のSupabaseへ送信します。</p>
