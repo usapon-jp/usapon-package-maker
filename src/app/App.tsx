@@ -1256,6 +1256,12 @@ export function App() {
   const activePage = pages.find((page) => page.id === state.activePageId) ?? pages[0];
 
   useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("install") === "1" && !installContext.isStandalone) {
+      setInstallGuideOpen(true);
+    }
+  }, [installContext.isStandalone]);
+
+  useEffect(() => {
     let mounted = true;
     if (CLOUD_SYNC_UI_ENABLED && isCloudConfigured) {
       void currentUser().then((nextUser) => { if (mounted) setUser(nextUser); }).catch(() => undefined);
