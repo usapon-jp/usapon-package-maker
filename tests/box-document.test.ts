@@ -97,6 +97,9 @@ describe("BoxDocumentV1", () => {
     "straight-tuck-carton-v1",
     "gift-box-v1",
     "two-piece-gift-box-v1",
+    "letter-paper-v1",
+    "envelope-v1",
+    "mini-card-v1",
   ])("%s をJSONへ往復できる", async (type) => {
     const source = stateFor(type);
     const document = serializeBoxDocument(source);
@@ -166,6 +169,34 @@ describe("BoxDocumentV1", () => {
       fileName: "usapon-box-rabbits.png",
     });
     expect(() => parseBoxDocument(document)).not.toThrow();
+  });
+
+  it("秋の便箋テンプレートと罫線設定と内蔵素材を保存して復元できる", async () => {
+    const state = stateFor("letter-paper-v1");
+    state.templateId = "autumn-letter-paper";
+    state.showWritingLines = true;
+    state.stamps = [{ ...state.stamps[0], assetRef: { kind: "builtin", key: "autumn-rabbit-acorn-hug" }, fileName: "autumn-rabbit-acorn-hug.png" }];
+
+    const document = serializeBoxDocument(state);
+    const restored = await hydrateBoxDocument(document, async () => ({ dataUrl: "data:image/png;base64,RESTORED" }));
+
+    expect(document.design).toMatchObject({ templateId: "autumn-letter-paper", showWritingLines: true });
+    expect(restored.templateId).toBe("autumn-letter-paper");
+    expect(restored.showWritingLines).toBe(true);
+    expect(restored.stamps[0].assetRef).toEqual({ kind: "builtin", key: "autumn-rabbit-acorn-hug" });
+  });
+
+  it("テンプレート項目がない既存作品に後方互換の初期値を補う", async () => {
+    const legacy = JSON.parse(JSON.stringify(serializeBoxDocument(stateFor("gift-box-v1")))) as {
+      design: { templateId?: string | null; showWritingLines?: boolean };
+    };
+    delete legacy.design.templateId;
+    delete legacy.design.showWritingLines;
+
+    const restored = await hydrateBoxDocument(legacy, async () => ({ dataUrl: "data:image/png;base64,RESTORED" }));
+
+    expect(restored.templateId).toBeNull();
+    expect(restored.showWritingLines).toBe(false);
   });
 
   it("新しい折り返し項目がない既存V1作品も読み込める", async () => {

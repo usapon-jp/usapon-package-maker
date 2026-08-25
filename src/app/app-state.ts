@@ -30,6 +30,8 @@ export const initialState: AppState = {
     lidClearanceMm: 0.6,
     foldoverMm: 25,
   },
+  templateId: null,
+  showWritingLines: false,
   activePageId: "main",
   backgroundColors: { main: "#fffdf9", lid: "#fffdf9", base: "#fffdf9" },
   artworkLayers: [],
@@ -69,6 +71,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
             }
           : { ...state.box, type: action.boxType },
         activePageId: action.boxType === "two-piece-gift-box-v1" ? "lid" : "main",
+        templateId: null,
+        showWritingLines: false,
         selectedArtworkId: null,
         selectedStampId: null,
         selectedTextId: null,
@@ -78,12 +82,16 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         box: { ...action.box },
         activePageId: action.box.type === "two-piece-gift-box-v1" ? "lid" : "main",
+        templateId: null,
+        showWritingLines: false,
         selectedArtworkId: null,
         selectedStampId: null,
         selectedTextId: null,
       };
     case "set-active-page":
       return { ...state, activePageId: action.pageId, selectedArtworkId: null, selectedStampId: null, selectedTextId: null };
+    case "set-writing-lines":
+      return { ...state, showWritingLines: action.value };
     case "update-box":
       return {
         ...state,

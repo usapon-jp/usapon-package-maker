@@ -90,8 +90,8 @@ function loadSvgImage(svgMarkup: string) {
  * SVG, which avoids recursive SVG image processing on memory-limited phones.
  */
 async function rasterizeArtworkForPdf(svg: SVGSVGElement) {
-  const artwork = svg.querySelector<SVGGElement>('[data-layer="artwork"]');
-  if (!artwork) return null;
+  const artworkLayers = [...svg.querySelectorAll<SVGGElement>('[data-layer="artwork"]')];
+  if (artworkLayers.length === 0) return null;
 
   const { width, height } = svgViewBoxSize(svg);
   const renderSource = svg.cloneNode(true) as SVGSVGElement;
@@ -117,7 +117,7 @@ async function rasterizeArtworkForPdf(svg: SVGSVGElement) {
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-  artwork.remove();
+  artworkLayers.forEach((artwork) => artwork.remove());
   svg.querySelector(':scope > rect')?.remove();
   return canvas;
 }

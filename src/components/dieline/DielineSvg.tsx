@@ -25,6 +25,7 @@ type LayersProps = {
   selectedTextId: string | null;
   exportMode: boolean;
   includeFoldoverLines?: boolean;
+  showWritingLines?: boolean;
   idPrefix: string;
   onArtworkPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
   onStampPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
@@ -45,6 +46,7 @@ export function DielineLayers({
   selectedTextId,
   exportMode,
   includeFoldoverLines = true,
+  showWritingLines = false,
   idPrefix,
   onArtworkPointerDown,
   onStampPointerDown,
@@ -77,6 +79,14 @@ export function DielineLayers({
         onStampRotate={onStampRotate}
       />
       <g clipPath={`url(#${clipId})`}>
+        {geometry.type === "letter-paper-v1" && showWritingLines && (
+          <g data-layer="writing-lines" fill="none" stroke="#c9b4a7" strokeWidth="0.22" opacity="0.72" pointerEvents="none">
+            {Array.from({ length: Math.max(0, Math.floor((geometry.bounds.heightMm - 48) / 11)) }, (_, index) => {
+              const y = 34 + index * 11;
+              return <line key={y} x1="17" y1={y} x2={geometry.bounds.widthMm - 17} y2={y} />;
+            })}
+          </g>
+        )}
         <TextLayer
           texts={texts}
           selectedTextId={selectedTextId}
@@ -117,6 +127,7 @@ export function DielineSvg({
   selectedTextId,
   exportMode,
   includeFoldoverLines = true,
+  showWritingLines = false,
   onSelectArtwork,
   onMoveArtwork,
   onSelectStamp,
@@ -216,6 +227,7 @@ export function DielineSvg({
         selectedTextId={selectedTextId}
         exportMode={exportMode}
         includeFoldoverLines={includeFoldoverLines}
+        showWritingLines={showWritingLines}
         idPrefix={idPrefix}
         onArtworkPointerDown={handleArtworkPointerDown}
         onStampPointerDown={handleStampPointerDown}

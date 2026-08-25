@@ -1,6 +1,6 @@
 import type { BoxInput, BoxType, DielinePageId } from "../domain/boxes/types";
 
-export type Screen = "home" | "size" | "design" | "print" | "my-boxes";
+export type Screen = "home" | "size" | "templates" | "design" | "print" | "my-boxes";
 
 export type ImageSourceType = "png" | "svg";
 export type QuarterTurn = 0 | 90 | 180 | 270;
@@ -8,7 +8,14 @@ export type DesignElementRole = "background" | "stamp" | "text" | "logoText";
 export type TextAlignment = "start" | "middle" | "end";
 export type TextFontWeight = 400 | 500 | 600 | 700 | 800 | 900;
 
-export const BUILT_IN_STAMP_KEYS = ["pofumofu-friends", "usapon-box-rabbits"] as const;
+export const BUILT_IN_STAMP_KEYS = [
+  "pofumofu-friends",
+  "usapon-box-rabbits",
+  "autumn-rabbit-sweet-potato-car",
+  "autumn-rabbit-acorn-hug",
+  "autumn-rabbit-sweet-potato",
+  "autumn-rabbit-chestnut",
+] as const;
 export type BuiltInStampKey = (typeof BUILT_IN_STAMP_KEYS)[number];
 
 export type AssetRef =
@@ -111,6 +118,8 @@ export type EditorSection = "auto-layout" | "artwork" | "stamps" | "text" | "dis
 export type AppState = {
   screen: Screen;
   box: BoxInput;
+  templateId: string | null;
+  showWritingLines: boolean;
   activePageId: DielinePageId;
   backgroundColors: Record<DielinePageId, string>;
   artworkLayers: ArtworkLayer[];
@@ -131,6 +140,7 @@ export type AppAction =
   | { type: "go"; screen: Screen }
   | { type: "set-box-type"; boxType: BoxType }
   | { type: "replace-box"; box: BoxInput }
+  | { type: "set-writing-lines"; value: boolean }
   | { type: "set-active-page"; pageId: DielinePageId }
   | { type: "update-box"; field: keyof Omit<BoxInput, "type">; value: number }
   | { type: "set-background-color"; pageId: DielinePageId; color: string }

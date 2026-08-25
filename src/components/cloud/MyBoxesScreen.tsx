@@ -15,6 +15,9 @@ const BOX_NAMES: Record<BoxType, string> = {
   "straight-tuck-carton-v1": "キャラメル箱",
   "gift-box-v1": "浅型差し込みギフト箱",
   "two-piece-gift-box-v1": "ツーピースギフトBOX",
+  "letter-paper-v1": "便箋",
+  "envelope-v1": "封筒",
+  "mini-card-v1": "ミニカード",
 };
 
 function errorMessage(error: unknown) {

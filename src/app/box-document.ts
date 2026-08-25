@@ -90,7 +90,7 @@ const textSchema = z.object({
   labelPaddingMm: z.number().nonnegative().finite().default(1.8),
 });
 const persistedBoxTypeSchema = z.union([
-  z.enum(["straight-tuck-carton-v1", "gift-box-v1", "two-piece-gift-box-v1"]),
+  z.enum(["straight-tuck-carton-v1", "gift-box-v1", "two-piece-gift-box-v1", "letter-paper-v1", "envelope-v1", "mini-card-v1"]),
   z.literal("n-style-gift-box-v1"),
 ]).transform((type) => type === "n-style-gift-box-v1" ? "gift-box-v1" : type);
 
@@ -116,6 +116,8 @@ export const boxDocumentV1Schema = z.object({
     lineColors: z.object({ cut: z.string(), fold: z.string() }),
     includeCalibrationPage: z.boolean(),
     printFoldoverLines: z.boolean().default(true),
+    templateId: z.string().max(120).nullable().default(null),
+    showWritingLines: z.boolean().default(false),
   }),
 });
 
@@ -151,6 +153,8 @@ export function serializeBoxDocument(state: AppState): BoxDocumentV1 {
       lineColors: { ...state.lineColors },
       includeCalibrationPage: state.includeCalibrationPage,
       printFoldoverLines: state.printFoldoverLines,
+      templateId: state.templateId ?? null,
+      showWritingLines: state.showWritingLines ?? false,
     },
   };
 }
@@ -190,6 +194,8 @@ export async function hydrateBoxDocument(value: unknown, resolveAsset: AssetReso
     lineColors: { ...document.design.lineColors },
     includeCalibrationPage: document.design.includeCalibrationPage,
     printFoldoverLines: document.design.printFoldoverLines,
+    templateId: document.design.templateId,
+    showWritingLines: document.design.showWritingLines,
   };
 }
 

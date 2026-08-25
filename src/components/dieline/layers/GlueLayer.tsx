@@ -4,7 +4,8 @@ import { pointsToString } from "../geometry-utils";
 type Props = { geometry: DielineGeometry; patternId: string; exportMode: boolean };
 
 export function GlueLayer({ geometry, patternId, exportMode }: Props) {
-  const giftGlueLabels = geometry.type === "gift-box-v1"
+  const printEnvelopeGlue = exportMode && geometry.type === "envelope-v1";
+  const giftGlueLabels = geometry.type === "gift-box-v1" || geometry.type === "envelope-v1"
     ? geometry.layers.glue.map((region) => ({
         id: `${region.id}-label`,
         x: region.points.reduce((sum, point) => sum + point.x, 0) / region.points.length,
@@ -23,7 +24,7 @@ export function GlueLayer({ geometry, patternId, exportMode }: Props) {
         <polygon
           key={region.id}
           points={pointsToString(region.points)}
-          fill={exportMode ? "none" : `url(#${patternId})`}
+          fill={printEnvelopeGlue ? "#f6e8e2" : exportMode ? "none" : `url(#${patternId})`}
           stroke="none"
         />
       ))}
@@ -40,7 +41,7 @@ export function GlueLayer({ geometry, patternId, exportMode }: Props) {
           のりしろ
         </text>
       )}
-      {!exportMode && giftGlueLabels.map((label) => (
+      {(!exportMode || printEnvelopeGlue) && giftGlueLabels.map((label) => (
         <text
           key={label.id}
           x={label.x}

@@ -16,10 +16,18 @@ describe("内蔵スタンプ", () => {
     expect(BUILT_IN_STAMPS.map((item) => item.key)).toEqual([
       "usapon-box-rabbits",
       "pofumofu-friends",
+      "autumn-rabbit-sweet-potato-car",
+      "autumn-rabbit-acorn-hug",
+      "autumn-rabbit-sweet-potato",
+      "autumn-rabbit-chestnut",
     ]);
     expect(builtInStampForKey("usapon-box-rabbits")).toMatchObject({
       fileName: "usapon-box-rabbits.png",
       name: "うさぽんBOX",
+    });
+    expect(builtInStampForKey("autumn-rabbit-acorn-hug")).toMatchObject({
+      fileName: "autumn-rabbit-acorn-hug.png",
+      name: "どんぐりぎゅっ",
     });
   });
 

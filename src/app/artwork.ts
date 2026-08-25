@@ -24,6 +24,10 @@ export const BUILT_IN_STAMPS = [
     fileName: POFUMOFU_STAMP_FILE,
     name: "Pofumofu friends",
   },
+  { key: "autumn-rabbit-sweet-potato-car", fileName: "autumn-rabbit-sweet-potato-car.png", name: "おいもの車" },
+  { key: "autumn-rabbit-acorn-hug", fileName: "autumn-rabbit-acorn-hug.png", name: "どんぐりぎゅっ" },
+  { key: "autumn-rabbit-sweet-potato", fileName: "autumn-rabbit-sweet-potato.png", name: "おいもをもぐもぐ" },
+  { key: "autumn-rabbit-chestnut", fileName: "autumn-rabbit-chestnut.png", name: "栗からこんにちは" },
 ] as const satisfies ReadonlyArray<{ key: BuiltInStampKey; fileName: string; name: string }>;
 
 export function builtInStampForKey(key: BuiltInStampKey) {

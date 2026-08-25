@@ -9,6 +9,7 @@ import { InstallGuide } from "../components/pwa/InstallGuide";
 import { generateDielineDocument } from "../domain/boxes/registry";
 import type { BoxType, DielineGeometry, DielinePage, DielinePageId } from "../domain/boxes/types";
 import { evaluateA4Fit, type A4FitResult, type FitStatus } from "../domain/paper/a4";
+import { printImposition } from "../domain/paper/imposition";
 import { clamp, roundMm } from "../domain/units";
 import { downloadPdfBlob } from "../lib/pdf/download-pdf";
 import { canSharePdfFile, createPdfShareFile, createTimestampedPdfFileName, sharePdfFile } from "../lib/pdf/share-pdf";
@@ -56,6 +57,8 @@ import { createTextItem } from "../features/auto-layout/text-layout";
 import { DEFAULT_AUTO_LAYOUT_SETTINGS, type AutoLayoutResult, type AutoLayoutSettings } from "../features/auto-layout/types";
 import { targetIncludesRole } from "../features/auto-layout/element-roles";
 import { canOfferInstallGuide, detectInstallContext, INSTALL_GUIDE_HIDDEN_KEY } from "../lib/pwa/install-guide";
+import { TemplateScreen } from "../features/templates/TemplateScreen";
+import { stampSetsForTemplate, templateById, type PackageTemplate } from "../features/templates/template-catalog";
 
 // 既存のクラウド保存利用者がいるため、端末内下書き保存と併用して提供する。
 const CLOUD_SYNC_UI_ENABLED = true;
@@ -91,7 +94,12 @@ const BOX_TYPE_COPY: Record<BoxType, { name: string; description: string; struct
     description: "蓋と本体をA4 2枚で作る、上端二重の四隅接着箱",
     structure: "two-piece-gift-box-v1（蓋・本体分離／側面二重型）",
   },
+  "letter-paper-v1": { name: "便箋", description: "A4で印刷できる便箋", structure: "letter-paper-v1" },
+  "envelope-v1": { name: "封筒", description: "A4で作る封筒展開図", structure: "envelope-v1" },
+  "mini-card-v1": { name: "ミニカード", description: "A4にまとめて印刷するカード", structure: "mini-card-v1" },
 };
+
+const SIZE_BOX_TYPES: BoxType[] = ["straight-tuck-carton-v1", "gift-box-v1", "two-piece-gift-box-v1"];
 
 const LINE_COLOR_PRESETS: Array<{ label: string; colors: DielineLineColors }> = [
   { label: "ベージュ", colors: DEFAULT_DIELINE_LINE_COLORS },
@@ -140,6 +148,7 @@ function mm(value: number) {
 
 function AppHeader({
   screen,
+  templateId,
   user,
   saveState,
   saveMessage,
@@ -150,6 +159,7 @@ function AppHeader({
   onDeleteAccount,
 }: {
   screen: Screen;
+  templateId: string | null;
   user: User | null;
   saveState: SaveState;
   saveMessage: string;
@@ -172,16 +182,16 @@ function AppHeader({
         </span>
         <span><strong>うさぽん</strong><small>パッケージメーカー</small></span>
       </button>
-      {screen !== "home" && screen !== "my-boxes" && (
+      {screen !== "home" && screen !== "my-boxes" && screen !== "templates" && (
         <nav className="step-nav" aria-label="作成ステップ">
-          {(["size", "design", "print"] as const).map((step, index) => (
+          {([templateId ? "templates" : "size", "design", "print"] as const).map((step, index) => (
             <button
               key={step}
               type="button"
               className={screen === step ? "is-current" : ""}
               onClick={() => onGo(step)}
             >
-              <span>{index + 1}</span>{step === "size" ? "サイズ" : step === "design" ? "デザイン" : "印刷"}
+              <span>{index + 1}</span>{step === "templates" ? "型を選ぶ" : step === "size" ? "サイズ" : step === "design" ? "デザイン" : "印刷"}
             </button>
           ))}
         </nav>
@@ -189,7 +199,7 @@ function AppHeader({
       {CLOUD_SYNC_UI_ENABLED && <div className="cloud-header-actions">
         {saveMessage && <small className={`save-indicator is-${saveState}`} role="status">{saveMessage}</small>}
         <button className="my-boxes-button" type="button" onClick={() => onGo("my-boxes")}>▦ <span>マイボックス</span></button>
-        {screen !== "home" && screen !== "my-boxes" && (
+        {screen !== "home" && screen !== "my-boxes" && screen !== "templates" && (
           <button className={`cloud-save-button is-${saveState}`} type="button" disabled={saveState === "saving"} onClick={onSave}>☁ {saveLabel}</button>
         )}
         {user ? (
@@ -258,7 +268,7 @@ function LineLegend({ geometry, lineColors }: { geometry: DielineGeometry; lineC
   return (
     <div className="line-legend">
       <span className="cut-swatch" style={cutStyle}>カット線</span>
-      <span className="fold-swatch" style={foldStyle}>折り線</span>
+      {geometry.layers.fold.length > 0 && <span className="fold-swatch" style={foldStyle}>折り線</span>}
       {geometry.layers.foldover.length > 0 && <span className="foldover-swatch" style={foldStyle}>折り返し補助線</span>}
       {geometry.layers.glue.length > 0
         ? <span className="glue-swatch">のりしろ</span>
@@ -267,7 +277,7 @@ function LineLegend({ geometry, lineColors }: { geometry: DielineGeometry; lineC
   );
 }
 
-function HomeScreen({ onStart, onResume, onMyBoxes }: { onStart: () => void; onResume: (() => void) | null; onMyBoxes: () => void }) {
+function HomeScreen({ onStart, onTemplates, onResume, onMyBoxes }: { onStart: () => void; onTemplates: () => void; onResume: (() => void) | null; onMyBoxes: () => void }) {
   return (
     <main className="home-screen">
       <section className="home-hero">
@@ -301,18 +311,18 @@ function HomeScreen({ onStart, onResume, onMyBoxes }: { onStart: () => void; onR
             <p>W・D・Hをmmで入力して、ぴったりの展開図を作成</p>
             <b>この方法ではじめる　→</b>
           </button>
+          <button className="choice-card is-active template-choice-card" type="button" onClick={onTemplates}>
+            <span className="choice-icon" aria-hidden="true">▦</span>
+            <strong>テンプレートから作る</strong>
+            <p>便箋・封筒・ミニカードなど、作りたい型から選んで自由にデザイン</p>
+            <b>テンプレートを見る　→</b>
+          </button>
           {CLOUD_SYNC_UI_ENABLED && <button className="choice-card cloud-choice-card" type="button" onClick={onMyBoxes}>
             <span className="choice-icon" aria-hidden="true">☁</span>
             <strong>保存した箱を開く</strong>
             <p>Googleログインして、別の端末で作った作品を続きから編集</p>
             <b>マイボックスを見る　→</b>
           </button>}
-          <div className="choice-card is-disabled" aria-disabled="true">
-            <span className="coming-soon">準備中</span>
-            <span className="choice-icon" aria-hidden="true">▦</span>
-            <strong>テンプレートから作る</strong>
-            <p>人気の箱や封筒から選べる機能は、次のバージョンで追加予定です。</p>
-          </div>
         </div>
       </section>
 
@@ -521,7 +531,9 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
         <section className="panel-card form-card">
           <div className="card-title"><span>1</span><div><h2>箱形式</h2><p>{boxCopy.structure}</p></div></div>
           <div className="box-type-grid" role="group" aria-label="箱形式を選択">
-            {(Object.entries(BOX_TYPE_COPY) as Array<[BoxType, (typeof BOX_TYPE_COPY)[BoxType]]>).map(([type, copy]) => (
+            {SIZE_BOX_TYPES.map((type) => {
+              const copy = BOX_TYPE_COPY[type];
+              return (
               <button
                 key={type}
                 className={`box-type-button ${state.box.type === type ? "is-selected" : ""}`}
@@ -533,7 +545,8 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
                 <strong>{copy.name}</strong>
                 <small>{copy.description}</small>
               </button>
-            ))}
+              );
+            })}
           </div>
           <div className="form-divider" />
           <div className="form-section-heading"><h3>仕上がり寸法</h3><p>{twoPiece ? "幅 W／奥行 D／高さ H を指定" : shallowBox ? "表面を W × H、箱の深さを D で指定" : "幅 W／奥行 D／高さ H を指定"}</p></div>
@@ -688,6 +701,10 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   const geometry = activePage.geometry;
   const fit = activePage.fit;
   const design = pageDesign(state, activePage.id);
+  const template = templateById(state.templateId);
+  const recommendedStampSets = stampSetsForTemplate(template);
+  const recommendedKeys = new Set(recommendedStampSets.flatMap((set) => set.stampKeys));
+  const otherStamps = BUILT_IN_STAMPS.filter((preset) => !recommendedKeys.has(preset.key));
   const pageArtworkLayers = design.artworkLayers;
   const pageStamps = design.stamps;
   const pageTexts = design.texts;
@@ -825,7 +842,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   return (
     <main className="tool-page design-page">
       <div className="page-heading horizontal-heading">
-        <div><button className="back-button" type="button" onClick={() => dispatch({ type: "go", screen: "size" })}>← サイズ設定</button><p className="eyebrow">STEP 2</p><h1>デザイン編集</h1></div>
+        <div><button className="back-button" type="button" onClick={() => dispatch({ type: "go", screen: template ? "templates" : "size" })}>← {template ? "テンプレート一覧" : "サイズ設定"}</button><p className="eyebrow">STEP 2{template ? ` · ${template.seriesName}` : ""}</p><h1>{template ? `${template.categoryLabel}をデザイン` : "デザイン編集"}</h1></div>
         <FitNotice geometry={geometry} fit={fit} compact />
       </div>
       <PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} />
@@ -909,8 +926,21 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
           </AccordionSection>
 
           <AccordionSection section="stamps" openSection={state.openEditorSection} title="スタンプ" icon="★" count={pageStamps.length} onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
+            {recommendedStampSets.map((set) => (
+              <div className="recommended-stamp-set" key={set.id}>
+                <div className="recommended-stamp-heading"><span>おすすめ素材</span><strong>{set.name}</strong><small>{set.description}</small></div>
+                <div className="stamp-preset-grid">
+                  {set.stampKeys.map((key) => {
+                    const preset = BUILT_IN_STAMPS.find((item) => item.key === key);
+                    if (!preset) return null;
+                    return <button key={preset.key} className="stamp-preset-card is-recommended" type="button" disabled={uploadingStamp} onClick={() => { void addPresetStamp(preset); }}><img src={`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`} alt={preset.name} /><span><strong>{preset.name}</strong><small>自由に動かして使えます</small></span><b>＋</b></button>;
+                  })}
+                </div>
+              </div>
+            ))}
+            {recommendedStampSets.length > 0 && <p className="other-stamps-heading">ほかのスタンプ</p>}
             <div className="stamp-preset-grid">
-              {BUILT_IN_STAMPS.map((preset) => (
+              {otherStamps.map((preset) => (
                 <button key={preset.key} className="stamp-preset-card" type="button" disabled={uploadingStamp} onClick={() => { void addPresetStamp(preset); }}>
                   <img src={`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`} alt={preset.name} />
                   <span><strong>{preset.name}</strong><small>プリセットを追加</small></span><b>＋</b>
@@ -957,6 +987,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
           </AccordionSection>
 
           <AccordionSection section="display" openSection={state.openEditorSection} title="表示" icon="◉" onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
+            {state.box.type === "letter-paper-v1" && <label className="toggle-row"><span><strong>便箋の罫線</strong><small>印刷される横罫線をON/OFF</small></span><input type="checkbox" checked={state.showWritingLines} onChange={(event) => dispatch({ type: "set-writing-lines", value: event.target.checked })} /></label>}
             <label className="toggle-row"><span><strong>ガイド表示</strong><small>面名と中心線。PDFには印刷しません</small></span><input type="checkbox" checked={state.showGuides} onChange={() => dispatch({ type: "toggle-guides" })} /></label>
           </AccordionSection>
 
@@ -1003,6 +1034,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
               selectedStampId={state.selectedStampId}
               selectedTextId={state.selectedTextId}
               exportMode={false}
+              showWritingLines={state.showWritingLines}
               onSelectArtwork={(id) => { dispatch({ type: "select-artwork", id }); if (id) dispatch({ type: "set-open-editor-section", section: "artwork" }); }}
               onMoveArtwork={(id, xMm, yMm) => dispatch({ type: "update-artwork", id, patch: { offsetXmm: xMm, offsetYmm: yMm } })}
               onSelectStamp={(id) => { dispatch({ type: "select-stamp", id }); if (id) dispatch({ type: "set-open-editor-section", section: "stamps" }); }}
@@ -1020,7 +1052,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
       </div>
 
       <div className="sticky-actions">
-        <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: "size" })}>サイズに戻る</button>
+        <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: template ? "templates" : "size" })}>{template ? "型を選び直す" : "サイズに戻る"}</button>
         <button className="primary-button" type="button" onClick={() => dispatch({ type: "go", screen: "print" })}>PDFを確認 <span>▣</span></button>
       </div>
     </main>
@@ -1039,6 +1071,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
   const calibrationPageNumber = pages.length + 1;
   const twoPiece = state.box.type === "two-piece-gift-box-v1";
   const hasFoldoverLines = pages.some((page) => page.geometry.layers.foldover.length > 0);
+  const imposition = printImposition(activePage.geometry);
 
   const clearPrintablePdf = useCallback(() => {
     if (printablePdfUrl.current) URL.revokeObjectURL(printablePdfUrl.current);
@@ -1053,7 +1086,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
   useEffect(() => {
     clearPrintablePdf();
     setExportSuccess("");
-  }, [clearPrintablePdf, state.includeCalibrationPage, state.printFoldoverLines]);
+  }, [clearPrintablePdf, state.includeCalibrationPage, state.printFoldoverLines, state.showWritingLines]);
 
   const handleExport = async () => {
     const exportPages = pages.flatMap((page) => {
@@ -1121,6 +1154,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
                     {...design}
                     lineColors={state.lineColors}
                     includeFoldoverLines={state.printFoldoverLines}
+                    showWritingLines={state.showWritingLines}
                   />
                 </div>
               </section>
@@ -1132,6 +1166,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
           <p className="eyebrow">PRINT SETTINGS</p>
           <h2>PDF出力設定</h2>
           <div className="fit-notice-stack">{pages.map((page) => <FitNotice key={page.id} geometry={page.geometry} fit={page.fit} label={page.label} />)}</div>
+          {imposition.count > 1 && <div className="template-imposition-note"><strong>A4に{imposition.count}枚を自動配置</strong><span>{imposition.columns}列 × {imposition.rows}段。編集した同じカードを実寸でまとめて印刷します。</span></div>}
           <div className="print-instruction">
             <span aria-hidden="true">!</span>
             <div><strong>印刷設定が重要です</strong><p>プリンター設定で<strong>「100%／実際のサイズ」</strong>を選び、<strong>「用紙に合わせる」をOFF</strong>にしてください。</p></div>
@@ -1249,10 +1284,10 @@ export function App() {
   const lastSavedSignature = useRef(JSON.stringify(serializeBoxDocument(initialState)));
   const documentSignature = useMemo(() => JSON.stringify(serializeBoxDocument(state)), [state]);
   const document = useMemo(() => generateDielineDocument(state.box), [state.box]);
-  const pages = useMemo<DielinePageView[]>(() => document.pages.map((page) => ({
-    ...page,
-    fit: evaluateA4Fit(page.geometry.bounds.widthMm, page.geometry.bounds.heightMm),
-  })), [document]);
+  const pages = useMemo<DielinePageView[]>(() => document.pages.map((page) => {
+    const imposition = printImposition(page.geometry);
+    return { ...page, fit: evaluateA4Fit(imposition.widthMm, imposition.heightMm) };
+  }), [document]);
   const activePage = pages.find((page) => page.id === state.activePageId) ?? pages[0];
 
   useEffect(() => {
@@ -1429,6 +1464,26 @@ export function App() {
     setSaveMessage("新しい作品（未保存）");
   }, [confirmDiscard]);
 
+  const startTemplate = useCallback((template: PackageTemplate) => {
+    if (!confirmDiscard()) return;
+    const next: AppState = {
+      ...initialState,
+      screen: "design",
+      box: { ...template.box },
+      templateId: template.id,
+      showWritingLines: template.writingLines,
+      openEditorSection: "stamps",
+      includeCalibrationPage: false,
+    };
+    dispatch({ type: "replace-state", state: next });
+    setHasRestoredLocalDraft(false);
+    setShouldPersistLocalDraft(true);
+    setWorkspace(null);
+    lastSavedSignature.current = "";
+    setSaveState("dirty");
+    setSaveMessage(`${template.name}（未保存）`);
+  }, [confirmDiscard]);
+
   const logout = useCallback(async () => {
     if (!confirmDiscard()) return;
     try {
@@ -1468,6 +1523,7 @@ export function App() {
     <div className="app-shell">
       <AppHeader
         screen={state.screen}
+        templateId={state.templateId}
         user={user}
         saveState={saveState}
         saveMessage={saveMessage}
@@ -1478,7 +1534,8 @@ export function App() {
         onDeleteAccount={() => { void deleteAccount(); }}
       />
       {clientContext.isInstagramInAppBrowser && <InstagramBrowserNotice hasBrowserOnlyWork={saveState === "dirty" || saveState === "error" || saveState === "conflict"} onOpenGuide={() => setInstallGuideOpen(true)} />}
-      {state.screen === "home" && <HomeScreen onStart={startNew} onResume={hasRestoredLocalDraft ? () => dispatch({ type: "go", screen: "design" }) : null} onMyBoxes={() => dispatch({ type: "go", screen: "my-boxes" })} />}
+      {state.screen === "home" && <HomeScreen onStart={startNew} onTemplates={() => dispatch({ type: "go", screen: "templates" })} onResume={hasRestoredLocalDraft ? () => dispatch({ type: "go", screen: "design" }) : null} onMyBoxes={() => dispatch({ type: "go", screen: "my-boxes" })} />}
+      {state.screen === "templates" && <TemplateScreen onBack={() => dispatch({ type: "go", screen: "home" })} onSelect={startTemplate} />}
       {state.screen === "size" && <SizeScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
       {state.screen === "design" && <DesignScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
       {state.screen === "print" && <PrintScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} clientContext={clientContext} onSuccessfulExport={offerInstallAfterSuccess} />}
@@ -1501,7 +1558,7 @@ export function App() {
         onClose={() => setInstallGuideOpen(false)}
         onNeverShow={hideInstallGuide}
       />
-      {CLOUD_SYNC_UI_ENABLED && nameDialogOpen && <SaveNameDialog initialName={workspace?.name ?? "無題のボックス"} onCancel={() => setNameDialogOpen(false)} onSave={(name) => { setNameDialogOpen(false); void commitSave(name, null); }} />}
+      {CLOUD_SYNC_UI_ENABLED && nameDialogOpen && <SaveNameDialog initialName={workspace?.name ?? templateById(state.templateId)?.name ?? "無題のボックス"} onCancel={() => setNameDialogOpen(false)} onSave={(name) => { setNameDialogOpen(false); void commitSave(name, null); }} />}
       {CLOUD_SYNC_UI_ENABLED && saveState === "conflict" && workspace && (
         <ConflictDialog
           onLoadLatest={() => { setSaveState("dirty"); void openProject(workspace, true); }}

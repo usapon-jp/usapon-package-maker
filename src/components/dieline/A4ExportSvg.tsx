@@ -3,6 +3,7 @@ import { forwardRef } from "react";
 import type { ArtworkLayer, DielineLineColors, StampItem, TextItem } from "../../app/app-types";
 import type { DielineGeometry } from "../../domain/boxes/types";
 import type { A4FitResult } from "../../domain/paper/a4";
+import { printImposition } from "../../domain/paper/imposition";
 import { DielineLayers } from "./DielineSvg";
 
 export type A4PageSvgProps = {
@@ -15,12 +16,14 @@ export type A4PageSvgProps = {
   texts: TextItem[];
   lineColors: DielineLineColors;
   includeFoldoverLines?: boolean;
+  showWritingLines?: boolean;
 };
 
 export const A4PageSvg = forwardRef<SVGSVGElement, A4PageSvgProps>(function A4PageSvg(
-  { pageId = "main", geometry, fit, backgroundColor, artworkLayers, stamps, texts, lineColors, includeFoldoverLines = true },
+  { pageId = "main", geometry, fit, backgroundColor, artworkLayers, stamps, texts, lineColors, includeFoldoverLines = true, showWritingLines = false },
   ref,
 ) {
+  const imposition = printImposition(geometry);
   return (
     <svg
       ref={ref}
@@ -33,25 +36,33 @@ export const A4PageSvg = forwardRef<SVGSVGElement, A4PageSvgProps>(function A4Pa
       data-fit-status={fit.status}
       data-export-document="dieline"
       data-coordinate-unit="mm"
+      data-imposition-count={imposition.count}
     >
       <rect width={fit.pageWidthMm} height={fit.pageHeightMm} fill="#ffffff" />
-      <g transform={`translate(${fit.offsetXmm} ${fit.offsetYmm})`}>
-        <DielineLayers
-          geometry={geometry}
-          backgroundColor={backgroundColor}
-          artworkLayers={artworkLayers}
-          stamps={stamps}
-          texts={texts}
-          lineColors={lineColors}
-          showGuides={false}
-          selectedArtworkId={null}
-          selectedStampId={null}
-          selectedTextId={null}
-          exportMode
-          includeFoldoverLines={includeFoldoverLines}
-          idPrefix={`export-dieline-${pageId}`}
-        />
-      </g>
+      {Array.from({ length: imposition.count }, (_, index) => {
+        const column = index % imposition.columns;
+        const row = Math.floor(index / imposition.columns);
+        return (
+          <g key={index} data-imposition-item={index} transform={`translate(${fit.offsetXmm + column * geometry.bounds.widthMm} ${fit.offsetYmm + row * geometry.bounds.heightMm})`}>
+            <DielineLayers
+              geometry={geometry}
+              backgroundColor={backgroundColor}
+              artworkLayers={artworkLayers}
+              stamps={stamps}
+              texts={texts}
+              lineColors={lineColors}
+              showGuides={false}
+              selectedArtworkId={null}
+              selectedStampId={null}
+              selectedTextId={null}
+              exportMode
+              includeFoldoverLines={includeFoldoverLines}
+              showWritingLines={showWritingLines}
+              idPrefix={`export-dieline-${pageId}${imposition.count > 1 ? `-${index}` : ""}`}
+            />
+          </g>
+        );
+      })}
     </svg>
   );
 });

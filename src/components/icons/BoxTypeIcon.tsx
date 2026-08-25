@@ -31,14 +31,14 @@ function TwoPieceGiftBoxIcon() {
   );
 }
 
-const ICON_DRAWINGS: Record<BoxType, () => React.JSX.Element> = {
+const ICON_DRAWINGS: Partial<Record<BoxType, () => React.JSX.Element>> = {
   "straight-tuck-carton-v1": StraightTuckCartonIcon,
   "gift-box-v1": GiftBoxIcon,
   "two-piece-gift-box-v1": TwoPieceGiftBoxIcon,
 };
 
 export function BoxTypeIcon({ type, className }: { type: BoxType; className?: string }) {
-  const Drawing = ICON_DRAWINGS[type];
+  const Drawing = ICON_DRAWINGS[type] ?? GiftBoxIcon;
 
   return (
     <svg

@@ -1,0 +1,66 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
+
+import { initialState } from "../src/app/app-state";
+import { createStamp } from "../src/app/artwork";
+import { A4ExportSvg, A4PreviewSvg } from "../src/components/dieline/A4ExportSvg";
+import { generateDielineDocument } from "../src/domain/boxes/registry";
+import { evaluateA4Fit } from "../src/domain/paper/a4";
+import { printImposition } from "../src/domain/paper/imposition";
+import { PACKAGE_TEMPLATES, stampSetsForTemplate, templateById } from "../src/features/templates/template-catalog";
+
+describe("秋のレターセットテンプレート", () => {
+  it("便箋・封筒・ミニカードを同じシリーズとおすすめ素材にまとめる", () => {
+    expect(PACKAGE_TEMPLATES.map((template) => template.category)).toEqual(["letter-paper", "envelope", "card"]);
+    expect(new Set(PACKAGE_TEMPLATES.map((template) => template.seriesId))).toEqual(new Set(["autumn-letter-set"]));
+    for (const template of PACKAGE_TEMPLATES) {
+      expect(stampSetsForTemplate(template)[0]).toMatchObject({ name: "秋うさぎスタンプセット" });
+    }
+  });
+
+  it("便箋の罫線をプレビューと印刷元SVGでON/OFFできる", () => {
+    const template = templateById("autumn-letter-paper")!;
+    const geometry = generateDielineDocument(template.box).pages[0].geometry;
+    const fit = evaluateA4Fit(geometry.bounds.widthMm, geometry.bounds.heightMm);
+    const props = { geometry, fit, backgroundColor: "#fffdf9", artworkLayers: [], stamps: [], texts: [], lineColors: initialState.lineColors };
+    const withLines = renderToStaticMarkup(<A4PreviewSvg {...props} showWritingLines />);
+    const withoutLines = renderToStaticMarkup(<A4ExportSvg {...props} showWritingLines={false} />);
+
+    expect(fit.status).toBe("safe");
+    expect(withLines).toContain('data-layer="writing-lines"');
+    expect(withLines).toContain('x1="17"');
+    expect(withoutLines).not.toContain('data-layer="writing-lines"');
+  });
+
+  it("封筒の表面を先頭にし、切り線・折り線・のりしろをA4内へ収める", () => {
+    const template = templateById("autumn-envelope")!;
+    const geometry = generateDielineDocument(template.box).pages[0].geometry;
+    const fit = evaluateA4Fit(geometry.bounds.widthMm, geometry.bounds.heightMm);
+
+    expect(fit.status).toBe("safe");
+    expect(geometry.panels[0]).toMatchObject({ label: "封筒の表面", width: 150, height: 100 });
+    expect(geometry.layers.cut).toHaveLength(1);
+    expect(geometry.layers.fold).toHaveLength(4);
+    expect(geometry.layers.glue).toHaveLength(2);
+
+    const printed = renderToStaticMarkup(<A4ExportSvg geometry={geometry} fit={fit} backgroundColor="#ffffff" artworkLayers={[]} stamps={[]} texts={[]} lineColors={initialState.lineColors} />);
+    expect(printed.match(/fill="#f6e8e2"/g)).toHaveLength(2);
+    expect(printed.match(/>のりしろ<\/text>/g)).toHaveLength(2);
+  });
+
+  it("91×55mmカードをA4縦へ実寸のまま10面付けし、スタンプを複製する", () => {
+    const template = templateById("autumn-mini-card")!;
+    const geometry = generateDielineDocument(template.box).pages[0].geometry;
+    const imposition = printImposition(geometry);
+    const fit = evaluateA4Fit(imposition.widthMm, imposition.heightMm);
+    const stamp = createStamp({ id: "autumn-stamp", fileName: "rabbit.png", sourceType: "png", dataUrl: "data:image/png;base64,AA==", aspectRatio: 1 }, geometry);
+    const markup = renderToStaticMarkup(<A4ExportSvg geometry={geometry} fit={fit} backgroundColor="#ffffff" artworkLayers={[]} stamps={[stamp]} texts={[]} lineColors={initialState.lineColors} />);
+
+    expect(imposition).toEqual({ columns: 2, rows: 5, count: 10, widthMm: 182, heightMm: 275 });
+    expect(fit).toMatchObject({ status: "safe", orientation: "portrait", offsetXmm: 14, offsetYmm: 11 });
+    expect(markup).toContain('data-imposition-count="10"');
+    expect(markup.match(/data-imposition-item=/g)).toHaveLength(10);
+    expect(markup.match(/data-stamp-id="autumn-stamp"/g)).toHaveLength(10);
+    expect(markup).toContain('transform="translate(105 231)"');
+  });
+});

@@ -57,6 +57,8 @@ export async function loadLocalDraft(): Promise<LocalDraft | null> {
     ...draft,
     state: {
       ...draft.state,
+      templateId: draft.state.templateId ?? null,
+      showWritingLines: draft.state.showWritingLines ?? false,
       artworkLayers: await Promise.all(draft.state.artworkLayers.map(async (item) => {
         const restored = await restoreRenderUrl(item);
         if (restored.kind === "uploaded-artwork") return { ...restored, role: "background" as const, repeatGapMm: restored.repeatGapMm ?? 0 };
