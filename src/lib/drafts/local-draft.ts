@@ -3,6 +3,7 @@ import { openDB } from "idb";
 import type { AppState, ArtworkLayer, StampItem } from "../../app/app-types";
 import type { ProjectWorkspace } from "../../cloud/types";
 import { blobToDataUrl } from "../uploads/read-pattern";
+import { normalizeTextItem } from "../../features/auto-layout/text-layout";
 
 const DATABASE_NAME = "usapon-package-maker";
 const STORE_NAME = "drafts";
@@ -56,8 +57,14 @@ export async function loadLocalDraft(): Promise<LocalDraft | null> {
     ...draft,
     state: {
       ...draft.state,
-      artworkLayers: await Promise.all(draft.state.artworkLayers.map(restoreRenderUrl)),
-      stamps: await Promise.all(draft.state.stamps.map(restoreRenderUrl)),
+      artworkLayers: await Promise.all(draft.state.artworkLayers.map(async (item) => {
+        const restored = await restoreRenderUrl(item);
+        if (restored.kind === "uploaded-artwork") return { ...restored, role: "background" as const, repeatGapMm: restored.repeatGapMm ?? 0 };
+        if (restored.kind === "dot-pattern") return { ...restored, role: "background" as const, angleDeg: restored.angleDeg ?? 0 };
+        return { ...restored, role: "background" as const };
+      })),
+      stamps: await Promise.all(draft.state.stamps.map(async (item) => ({ ...await restoreRenderUrl(item), role: "stamp" as const }))),
+      texts: draft.state.texts.map(normalizeTextItem),
     },
   };
 }

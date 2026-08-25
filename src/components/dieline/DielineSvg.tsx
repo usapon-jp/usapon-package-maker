@@ -29,7 +29,7 @@ type LayersProps = {
   onArtworkPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
   onStampPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
   onStampRotate?: (id: string) => void;
-  onTextPointerDown?: (event: PointerEvent<SVGTextElement>, id: string) => void;
+  onTextPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
 };
 
 export function DielineLayers({
@@ -141,7 +141,7 @@ export function DielineSvg({
     return point.matrixTransform(svg.getScreenCTM()?.inverse());
   };
 
-  const handleTextPointerDown = (event: PointerEvent<SVGTextElement>, id: string) => {
+  const handleTextPointerDown = (event: PointerEvent<SVGGElement>, id: string) => {
     event.stopPropagation();
     const item = texts.find((text) => text.id === id);
     if (!item) return;

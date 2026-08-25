@@ -4,6 +4,7 @@ import { hydrateBoxDocument, parseBoxDocument, serializeBoxDocument } from "../s
 import { initialState } from "../src/app/app-state";
 import type { AppState } from "../src/app/app-types";
 import type { BoxType } from "../src/domain/boxes/types";
+import { DEFAULT_TEXT_STYLE } from "../src/features/auto-layout/text-layout";
 
 const USER_ASSET_ID = "c0a8012e-fb4a-4e8b-aac1-33ea68be17c1";
 
@@ -18,6 +19,7 @@ function stateFor(type: BoxType): AppState {
       {
         id: "uploaded-layer",
         kind: "uploaded-artwork",
+        role: "background",
         pageId: type === "two-piece-gift-box-v1" ? "lid" : "main",
         name: "pattern.svg",
         assetRef: { kind: "user", assetId: USER_ASSET_ID },
@@ -28,6 +30,7 @@ function stateFor(type: BoxType): AppState {
         aspectRatio: 2,
         widthMm: 32,
         repeat: true,
+        repeatGapMm: 0,
         rotationDeg: 90,
         visible: true,
         opacity: 0.8,
@@ -37,6 +40,7 @@ function stateFor(type: BoxType): AppState {
       {
         id: "stripe-layer",
         kind: "stripe-pattern",
+        role: "background",
         pageId: type === "two-piece-gift-box-v1" ? "base" : "main",
         name: "ストライプ",
         color: "#f6d96f",
@@ -52,6 +56,7 @@ function stateFor(type: BoxType): AppState {
     stamps: [{
       id: "builtin-stamp-layer",
       kind: "stamp",
+      role: "stamp",
       pageId: type === "two-piece-gift-box-v1" ? "base" : "main",
       name: "Pofumofu friends",
       assetRef: { kind: "builtin", key: "pofumofu-friends" },
@@ -69,6 +74,7 @@ function stateFor(type: BoxType): AppState {
     texts: [{
       id: "text-layer",
       kind: "text",
+      ...DEFAULT_TEXT_STYLE,
       pageId: type === "two-piece-gift-box-v1" ? "lid" : "main",
       text: "ありがとう",
       xMm: 10,
@@ -177,6 +183,50 @@ describe("BoxDocumentV1", () => {
     const restored = await hydrateBoxDocument(legacy, async () => ({ dataUrl: "data:image/png;base64,RESTORED" }));
     expect(restored.box.foldoverMm).toBeUndefined();
     expect(restored.printFoldoverLines).toBe(true);
+  });
+
+  it("role・ロゴ装飾・パターン拡張がない既存V1作品へ既定値を補う", async () => {
+    const legacy = JSON.parse(JSON.stringify(serializeBoxDocument(stateFor("straight-tuck-carton-v1")))) as {
+      design: {
+        artworkLayers: Array<Record<string, unknown>>;
+        stamps: Array<Record<string, unknown>>;
+        texts: Array<Record<string, unknown>>;
+      };
+    };
+    for (const item of legacy.design.artworkLayers) {
+      delete item.role;
+      if (item.kind === "uploaded-artwork") delete item.repeatGapMm;
+      if (item.kind === "dot-pattern") delete item.angleDeg;
+    }
+    for (const item of legacy.design.stamps) delete item.role;
+    for (const item of legacy.design.texts) {
+      delete item.role;
+      delete item.letterSpacingMm;
+      delete item.lineHeight;
+      delete item.alignment;
+      delete item.fontWeight;
+      delete item.arcMm;
+      delete item.strokeColor;
+      delete item.strokeWidthMm;
+      delete item.labelColor;
+      delete item.labelPaddingMm;
+    }
+
+    const restored = await hydrateBoxDocument(legacy, async () => ({ dataUrl: "data:image/png;base64,RESTORED" }));
+    expect(restored.artworkLayers.every((item) => item.role === "background")).toBe(true);
+    expect(restored.stamps.every((item) => item.role === "stamp")).toBe(true);
+    expect(restored.texts[0]).toMatchObject({
+      role: "text",
+      letterSpacingMm: 0,
+      lineHeight: 1.25,
+      alignment: "middle",
+      fontWeight: 700,
+      arcMm: 0,
+      strokeColor: null,
+      strokeWidthMm: 0,
+      labelColor: null,
+      labelPaddingMm: 1.8,
+    });
   });
 
   it.each([

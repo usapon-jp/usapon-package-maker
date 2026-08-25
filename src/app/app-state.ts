@@ -161,6 +161,19 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         texts: state.texts.filter((item) => item.id !== action.id),
         selectedTextId: state.selectedTextId === action.id ? null : state.selectedTextId,
       };
+    case "apply-auto-layout":
+      return {
+        ...state,
+        artworkLayers: action.artworkLayers
+          ? [...state.artworkLayers.filter((item) => item.pageId !== action.pageId), ...action.artworkLayers]
+          : state.artworkLayers,
+        stamps: action.stamps
+          ? [...state.stamps.filter((item) => item.pageId !== action.pageId), ...action.stamps]
+          : state.stamps,
+        texts: action.texts
+          ? [...state.texts.filter((item) => item.pageId !== action.pageId), ...action.texts]
+          : state.texts,
+      };
     case "toggle-guides":
       return { ...state, showGuides: !state.showGuides };
     case "set-open-editor-section":

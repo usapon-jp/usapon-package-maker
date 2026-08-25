@@ -8,6 +8,7 @@ import { A4ExportSvg, A4PreviewSvg } from "../src/components/dieline/A4ExportSvg
 import { generateStraightTuckCarton } from "../src/domain/boxes/straight-tuck-carton";
 import { generateTwoPieceGiftBox } from "../src/domain/boxes/two-piece-gift-box";
 import { evaluateA4Fit } from "../src/domain/paper/a4";
+import { createTextItem } from "../src/features/auto-layout/text-layout";
 
 const geometry = generateStraightTuckCarton(initialState.box);
 const fit = evaluateA4Fit(geometry.bounds.widthMm, geometry.bounds.heightMm);
@@ -39,16 +40,7 @@ const stamp = {
   widthMm: 36,
   rotationDeg: 90 as const,
 };
-const text: TextItem = {
-  id: "shared-text",
-  kind: "text",
-  pageId: "main",
-  text: "ありがとう",
-  xMm: 50,
-  yMm: 60,
-  fontSizeMm: 6,
-  color: "#55443f",
-};
+const text: TextItem = createTextItem("shared-text", "main", "ありがとう", 50, 60, "#55443f");
 const props = {
   pageId: "main",
   geometry,
@@ -86,7 +78,7 @@ describe("A4 Web/PDF SVG source", () => {
     expect(markup).toContain('data-layer="stamp"');
     expect(markup).toContain('data-stamp-id="shared-stamp"');
     expect(markup).toMatch(/data-stamp-id="shared-stamp"[\s\S]*?<image href="data:image\/svg\+xml/);
-    expect(markup).toContain('data-text-id="shared-text" x="50" y="60"');
+    expect(markup).toMatch(/data-text-id="shared-text"[^>]*x="50" y="60"/);
     expect(markup).toContain('font-size="6"');
   });
 

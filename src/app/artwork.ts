@@ -64,12 +64,14 @@ export function createUploadedArtwork(asset: UploadedAsset, geometry: DielineGeo
     ...runtime.asset,
     id: runtime.id,
     kind: "uploaded-artwork",
+    role: "background",
     pageId,
     name: asset.fileName,
     widthMm,
     offsetXmm: center.x,
     offsetYmm: center.y,
     repeat: false,
+    repeatGapMm: 0,
     rotationDeg: 0,
     visible: true,
     opacity: 1,
@@ -80,6 +82,7 @@ export function createStripePattern(id: string, number: number, pageId: DielineP
   return {
     id,
     kind: "stripe-pattern",
+    role: "background",
     pageId,
     name: `ストライプ ${number}`,
     color: "#f6d96f",
@@ -97,11 +100,13 @@ export function createDotPattern(id: string, number: number, pageId: DielinePage
   return {
     id,
     kind: "dot-pattern",
+    role: "background",
     pageId,
     name: `水玉 ${number}`,
     color: "#f6d96f",
     dotDiameterMm: 8,
     spacingMm: 24,
+    angleDeg: 0,
     offsetXmm: 0,
     offsetYmm: 0,
     visible: true,
@@ -116,6 +121,7 @@ export function createStamp(asset: UploadedAsset, geometry: DielineGeometry, nam
     ...runtime.asset,
     id: runtime.id,
     kind: "stamp",
+    role: "stamp",
     pageId,
     name,
     xMm: center.x,
@@ -125,6 +131,10 @@ export function createStamp(asset: UploadedAsset, geometry: DielineGeometry, nam
     visible: true,
     opacity: 1,
   };
+}
+
+export function rotateByDegrees(rotation: number, amount = 90) {
+  return ((rotation + amount) % 360 + 360) % 360;
 }
 
 export function artworkKindLabel(item: ArtworkLayer) {

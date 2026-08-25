@@ -8,6 +8,7 @@ import { A4ExportSvg } from "../src/components/dieline/A4ExportSvg";
 import { DielineSvg } from "../src/components/dieline/DielineSvg";
 import { generateStraightTuckCarton } from "../src/domain/boxes/straight-tuck-carton";
 import { evaluateA4Fit } from "../src/domain/paper/a4";
+import { createTextItem } from "../src/features/auto-layout/text-layout";
 
 const geometry = generateStraightTuckCarton(initialState.box);
 const fit = evaluateA4Fit(geometry.bounds.widthMm, geometry.bounds.heightMm);
@@ -52,7 +53,7 @@ describe("背景・柄・スタンプのSVG描画", () => {
 
   it("スタンプとテキストを箱形状でクリップし、固定の重なり順で描画する", () => {
     const stamp = { ...createStamp({ ...asset, id: "stamp-1" }, geometry, "Pofumofu friends"), xMm: 44, yMm: 58, widthMm: 36, rotationDeg: 90 as const, opacity: 0.7 };
-    const text: TextItem = { id: "text-1", kind: "text", pageId: "main", text: "ありがとう", xMm: 50, yMm: 60, fontSizeMm: 6, color: "#55443f" };
+    const text: TextItem = createTextItem("text-1", "main", "ありがとう", 50, 60, "#55443f");
     const markup = renderToStaticMarkup(
       <A4ExportSvg
         geometry={geometry}

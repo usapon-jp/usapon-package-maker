@@ -8,6 +8,7 @@ import {
   createUploadedArtwork,
   rotateQuarterTurn,
 } from "../src/app/artwork";
+import { createTextItem } from "../src/features/auto-layout/text-layout";
 import type { UploadedAsset } from "../src/app/app-types";
 import { generateStraightTuckCarton } from "../src/domain/boxes/straight-tuck-carton";
 
@@ -124,7 +125,7 @@ describe("背景・柄・スタンプの状態管理", () => {
       backgroundColors: { ...state.backgroundColors, lid: "#f6d96f", base: "#ffffff" },
       artworkLayers: [lidDots, oldBase],
       stamps: [{ ...createStamp({ ...asset, id: "base-stamp" }, geometry, "本体スタンプ", "base") }],
-      texts: [{ id: "base-text", kind: "text", pageId: "base", text: "残す", xMm: 10, yMm: 10, fontSizeMm: 4, color: "#333333" }],
+      texts: [{ ...createTextItem("base-text", "base", "残す", 10, 10, "#333333"), fontSizeMm: 4 }],
     };
 
     state = appReducer(state, {

@@ -4,6 +4,9 @@ export type Screen = "home" | "size" | "design" | "print" | "my-boxes";
 
 export type ImageSourceType = "png" | "svg";
 export type QuarterTurn = 0 | 90 | 180 | 270;
+export type DesignElementRole = "background" | "stamp" | "text" | "logoText";
+export type TextAlignment = "start" | "middle" | "end";
+export type TextFontWeight = 400 | 500 | 600 | 700 | 800 | 900;
 
 export const BUILT_IN_STAMP_KEYS = ["pofumofu-friends", "usapon-box-rabbits"] as const;
 export type BuiltInStampKey = (typeof BUILT_IN_STAMP_KEYS)[number];
@@ -28,6 +31,7 @@ export type RuntimeAsset = Omit<UploadedAsset, "id" | "assetRef"> & {
 
 type ArtworkBase = {
   id: string;
+  role: "background";
   pageId: DielinePageId;
   name: string;
   visible: boolean;
@@ -40,6 +44,7 @@ export type UploadedArtworkLayer = ArtworkBase & RuntimeAsset & {
   kind: "uploaded-artwork";
   widthMm: number;
   repeat: boolean;
+  repeatGapMm: number;
   rotationDeg: QuarterTurn;
 };
 
@@ -56,6 +61,7 @@ export type DotPatternLayer = ArtworkBase & {
   color: string;
   dotDiameterMm: number;
   spacingMm: number;
+  angleDeg: number;
 };
 
 export type ArtworkLayer = UploadedArtworkLayer | StripePatternLayer | DotPatternLayer;
@@ -63,12 +69,13 @@ export type ArtworkLayer = UploadedArtworkLayer | StripePatternLayer | DotPatter
 export type StampItem = RuntimeAsset & {
   id: string;
   kind: "stamp";
+  role: "stamp";
   pageId: DielinePageId;
   name: string;
   xMm: number;
   yMm: number;
   widthMm: number;
-  rotationDeg: QuarterTurn;
+  rotationDeg: number;
   visible: boolean;
   opacity: number;
 };
@@ -76,12 +83,22 @@ export type StampItem = RuntimeAsset & {
 export type TextItem = {
   id: string;
   kind: "text";
+  role: "text" | "logoText";
   pageId: DielinePageId;
   text: string;
   xMm: number;
   yMm: number;
   fontSizeMm: number;
   color: string;
+  letterSpacingMm: number;
+  lineHeight: number;
+  alignment: TextAlignment;
+  fontWeight: TextFontWeight;
+  arcMm: number;
+  strokeColor: string | null;
+  strokeWidthMm: number;
+  labelColor: string | null;
+  labelPaddingMm: number;
 };
 
 export type DielineLineColors = {
@@ -89,7 +106,7 @@ export type DielineLineColors = {
   fold: string;
 };
 
-export type EditorSection = "artwork" | "stamps" | "text" | "display" | "lines";
+export type EditorSection = "auto-layout" | "artwork" | "stamps" | "text" | "display" | "lines";
 
 export type AppState = {
   screen: Screen;
@@ -134,6 +151,7 @@ export type AppAction =
   | { type: "select-text"; id: string | null }
   | { type: "update-text"; id: string; patch: Partial<TextItem> }
   | { type: "remove-text"; id: string }
+  | { type: "apply-auto-layout"; pageId: DielinePageId; artworkLayers?: ArtworkLayer[]; stamps?: StampItem[]; texts?: TextItem[] }
   | { type: "set-open-editor-section"; section: EditorSection }
   | { type: "toggle-guides" }
   | { type: "set-line-color"; layer: keyof DielineLineColors; color: string }

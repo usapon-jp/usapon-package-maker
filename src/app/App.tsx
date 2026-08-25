@@ -5,11 +5,12 @@ import { A4ExportSvg, A4PreviewSvg, CalibrationSvg } from "../components/dieline
 import { DielineSvg } from "../components/dieline/DielineSvg";
 import { BoxTypeIcon } from "../components/icons/BoxTypeIcon";
 import { MyBoxesScreen } from "../components/cloud/MyBoxesScreen";
+import { InstallGuide } from "../components/pwa/InstallGuide";
 import { generateDielineDocument } from "../domain/boxes/registry";
 import type { BoxType, DielineGeometry, DielinePage, DielinePageId } from "../domain/boxes/types";
 import { evaluateA4Fit, type A4FitResult, type FitStatus } from "../domain/paper/a4";
 import { clamp, roundMm } from "../domain/units";
-import { downloadPdfBlob, exportA4Pdf } from "../lib/pdf/export-a4-pdf";
+import { downloadPdfBlob } from "../lib/pdf/download-pdf";
 import { canSharePdfFile, createPdfShareFile, createTimestampedPdfFileName, sharePdfFile } from "../lib/pdf/share-pdf";
 import { detectClientContext, type ClientContext } from "../lib/browser/client-context";
 import { readPatternFile } from "../lib/uploads/read-pattern";
@@ -42,12 +43,19 @@ import {
   createStripePattern,
   createUploadedArtwork,
   markAsBuiltInStamp,
+  rotateByDegrees,
   rotateQuarterTurn,
 } from "./artwork";
 import type { AppAction, AppState, DielineLineColors, EditorSection, Screen, TextItem } from "./app-types";
 import { serializeBoxDocument } from "./box-document";
 import { parseNumberDraft } from "./number-input";
 import { FAVORITE_SIZES_STORAGE_KEY, parseFavoriteSizes, registerFavoriteSize } from "./favorite-sizes";
+import { AutoLayoutPanel } from "../features/auto-layout/AutoLayoutPanel";
+import { arrangeDesign, autoLayoutElementCount } from "../features/auto-layout/layout-engine";
+import { createTextItem } from "../features/auto-layout/text-layout";
+import { DEFAULT_AUTO_LAYOUT_SETTINGS, type AutoLayoutResult, type AutoLayoutSettings } from "../features/auto-layout/types";
+import { targetIncludesRole } from "../features/auto-layout/element-roles";
+import { canOfferInstallGuide, detectInstallContext, INSTALL_GUIDE_HIDDEN_KEY } from "../lib/pwa/install-guide";
 
 // 既存のクラウド保存利用者がいるため、端末内下書き保存と併用して提供する。
 const CLOUD_SYNC_UI_ENABLED = true;
@@ -204,13 +212,14 @@ function AppHeader({
   );
 }
 
-function InstagramBrowserNotice() {
+function InstagramBrowserNotice({ hasBrowserOnlyWork, onOpenGuide }: { hasBrowserOnlyWork: boolean; onOpenGuide: () => void }) {
   return (
     <aside className="instagram-browser-notice" role="alert">
       <span aria-hidden="true">!</span>
       <div>
-        <strong>Instagram内ブラウザで開いています。Safariで開いてください</strong>
-        <p>右上の「•••」から「外部ブラウザーで開く」または「Safariで開く」を選んでください。すでにデザイン中の場合はこの画面を閉じず、PDF作成後にiPhoneの共有画面へ進んでください。</p>
+        <strong>{hasBrowserOnlyWork ? "作業中の作品は、このブラウザだけにあります" : "作り始める前に、通常のブラウザで開くのがおすすめです"}</strong>
+        <p>{hasBrowserOnlyWork ? "移動前に画面上部の「保存」を押してください。未保存の作品はInstagramからSafari・Chromeへ自動では移りません。" : "右上の「•••」から「外部ブラウザーで開く」を選ぶと、ホーム画面へ追加できます。"}</p>
+        <button type="button" onClick={onOpenGuide}>開き方を見る</button>
       </div>
     </aside>
   );
@@ -689,6 +698,9 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   const [uploadingArtwork, setUploadingArtwork] = useState(false);
   const [uploadingStamp, setUploadingStamp] = useState(false);
   const [backgroundCopyMessage, setBackgroundCopyMessage] = useState("");
+  const [autoLayoutSettings, setAutoLayoutSettings] = useState<AutoLayoutSettings>(DEFAULT_AUTO_LAYOUT_SETTINGS);
+  const [autoLayoutResult, setAutoLayoutResult] = useState<AutoLayoutResult | null>(null);
+  const autoLayoutRun = useRef(0);
   const [favoriteColors, setFavoriteColors] = useState<string[]>(() => {
     try {
       return parseFavoriteColors(window.localStorage.getItem(FAVORITE_COLORS_STORAGE_KEY));
@@ -699,6 +711,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   const selectedArtwork = pageArtworkLayers.find((item) => item.id === state.selectedArtworkId) ?? null;
   const selectedStamp = pageStamps.find((item) => item.id === state.selectedStampId) ?? null;
   const selectedText = pageTexts.find((item) => item.id === state.selectedTextId) ?? null;
+  const autoLayoutDisabled = autoLayoutElementCount(design, autoLayoutSettings.target) === 0;
 
   useEffect(() => {
     try {
@@ -707,6 +720,11 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
       // 保存できない環境でも、現在の編集セッション内では利用できます。
     }
   }, [favoriteColors]);
+
+  useEffect(() => {
+    setAutoLayoutResult(null);
+    autoLayoutRun.current = 0;
+  }, [activePage.id]);
 
   const addFavorite = (color: string) => setFavoriteColors((colors) => addFavoriteColor(colors, color));
   const removeFavorite = (color: string) => setFavoriteColors((colors) => removeFavoriteColor(colors, color));
@@ -772,17 +790,36 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
 
   const addText = () => {
     const front = geometry.panels[0];
-    const item: TextItem = {
-      id: crypto.randomUUID(),
-      kind: "text",
-      pageId: activePage.id,
-      text: "ありがとう",
-      xMm: front.x + front.width / 2,
-      yMm: front.y + front.height / 2,
-      fontSizeMm: 6,
-      color: "#6d4037",
-    };
+    const item: TextItem = createTextItem(crypto.randomUUID(), activePage.id, "ありがとう", front.x + front.width / 2, front.y + front.height / 2);
     dispatch({ type: "add-text", item });
+  };
+
+  const runAutoLayout = (again: boolean) => {
+    const run = again ? autoLayoutRun.current + 1 : 0;
+    autoLayoutRun.current = run;
+    const result = arrangeDesign({
+      geometry,
+      design,
+      settings: autoLayoutSettings,
+      seed: JSON.stringify({
+        pageId: activePage.id,
+        ids: [...pageArtworkLayers, ...pageStamps, ...pageTexts].map((item) => item.id),
+        settings: autoLayoutSettings,
+        run,
+      }),
+      previousSignature: again ? autoLayoutResult?.signature : null,
+    });
+    const includesBackground = targetIncludesRole(autoLayoutSettings.target, "background");
+    const includesStamps = targetIncludesRole(autoLayoutSettings.target, "stamp");
+    const includesTexts = targetIncludesRole(autoLayoutSettings.target, "text") || targetIncludesRole(autoLayoutSettings.target, "logoText");
+    dispatch({
+      type: "apply-auto-layout",
+      pageId: activePage.id,
+      artworkLayers: includesBackground ? result.artworkLayers : undefined,
+      stamps: includesStamps ? result.stamps : undefined,
+      texts: includesTexts ? result.texts : undefined,
+    });
+    setAutoLayoutResult(result);
   };
 
   return (
@@ -795,6 +832,20 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
 
       <div className={`editor-layout ${state.openEditorSection === "artwork" ? "is-background-editing" : ""}`}>
         <aside className="editor-controls panel-card">
+          <AccordionSection section="auto-layout" openSection={state.openEditorSection} title="いい感じに配置" icon="✦" onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
+            <AutoLayoutPanel
+              settings={autoLayoutSettings}
+              result={autoLayoutResult}
+              disabled={autoLayoutDisabled}
+              onSettingsChange={(settings) => {
+                setAutoLayoutSettings(settings);
+                setAutoLayoutResult(null);
+                autoLayoutRun.current = 0;
+              }}
+              onArrange={() => runAutoLayout(false)}
+              onArrangeAgain={() => runAutoLayout(true)}
+            />
+          </AccordionSection>
           <AccordionSection section="artwork" openSection={state.openEditorSection} title="背景・柄" icon="▧" count={pageArtworkLayers.length} onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
             <DesignColorControl className="background-color-control" label="基本背景色" value={design.backgroundColor} favoriteColors={favoriteColors} onChange={(color) => dispatch({ type: "set-background-color", pageId: activePage.id, color })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
             {state.box.type === "two-piece-gift-box-v1" && activePage.id === "lid" && (
@@ -875,7 +926,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
                 <strong className="selected-layer-title">{selectedStamp.name}</strong>
                 <label className="range-control"><span>スタンプの幅 <output>{mm(selectedStamp.widthMm)}</output></span><input type="range" min="2" max="200" step="1" value={selectedStamp.widthMm} onChange={(event) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { widthMm: Number(event.target.value) } })} /></label>
                 <label className="range-control"><span>透明度 <output>{Math.round(selectedStamp.opacity * 100)}%</output></span><input type="range" min="0.1" max="1" step="0.05" value={selectedStamp.opacity} onChange={(event) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { opacity: Number(event.target.value) } })} /></label>
-                <button className="rotate-button" type="button" onClick={() => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { rotationDeg: rotateQuarterTurn(selectedStamp.rotationDeg) } })}>↻ 90°回転 <span>{selectedStamp.rotationDeg}°</span></button>
+                <button className="rotate-button" type="button" onClick={() => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { rotationDeg: rotateByDegrees(selectedStamp.rotationDeg) } })}>↻ 90°回転 <span>{Math.round(selectedStamp.rotationDeg)}°</span></button>
                 <div className="mini-number-grid"><NumberField label="横位置 X" value={roundMm(selectedStamp.xMm, 1)} min={0} max={geometry.bounds.widthMm} step={1} onChange={(value) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { xMm: value } })} /><NumberField label="縦位置 Y" value={roundMm(selectedStamp.yMm, 1)} min={0} max={geometry.bounds.heightMm} step={1} onChange={(value) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { yMm: value } })} /></div>
                 <p className="drag-hint">プレビュー上でも移動できます。</p>
                 <div className="layer-action-row"><button type="button" onClick={() => dispatch({ type: "move-stamp", id: selectedStamp.id, direction: "backward" })}>← 背面</button><button type="button" onClick={() => dispatch({ type: "move-stamp", id: selectedStamp.id, direction: "forward" })}>前面 →</button><button type="button" onClick={() => dispatch({ type: "duplicate-stamp", id: selectedStamp.id, newId: crypto.randomUUID() })}>複製</button><button className="danger" type="button" onClick={() => dispatch({ type: "remove-stamp", id: selectedStamp.id })}>削除</button></div>
@@ -892,7 +943,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
             )}
             {selectedText && (
               <div className="selected-text-controls">
-                <label className="text-input-label">文字<input type="text" maxLength={40} value={selectedText.text} onChange={(event) => dispatch({ type: "update-text", id: selectedText.id, patch: { text: event.target.value } })} /></label>
+                <label className="text-input-label">文字<textarea rows={2} maxLength={80} value={selectedText.text} onChange={(event) => dispatch({ type: "update-text", id: selectedText.id, patch: { text: event.target.value } })} /></label>
                 <label className="range-control"><span>文字サイズ <output>{mm(selectedText.fontSizeMm)}</output></span><input type="range" min="2" max="18" step="0.5" value={selectedText.fontSizeMm} onChange={(event) => dispatch({ type: "update-text", id: selectedText.id, patch: { fontSizeMm: Number(event.target.value) } })} /></label>
                 <DesignColorControl label="文字色" value={selectedText.color} favoriteColors={favoriteColors} onChange={(color) => dispatch({ type: "update-text", id: selectedText.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
                 <div className="mini-number-grid">
@@ -958,7 +1009,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
               onMoveStamp={(id, xMm, yMm) => dispatch({ type: "update-stamp", id, patch: { xMm, yMm } })}
               onRotateStamp={(id) => {
                 const stamp = pageStamps.find((item) => item.id === id);
-                if (stamp) dispatch({ type: "update-stamp", id, patch: { rotationDeg: rotateQuarterTurn(stamp.rotationDeg) } });
+                if (stamp) dispatch({ type: "update-stamp", id, patch: { rotationDeg: rotateByDegrees(stamp.rotationDeg) } });
               }}
               onSelectText={(id) => { dispatch({ type: "select-text", id }); if (id) dispatch({ type: "set-open-editor-section", section: "text" }); }}
               onMoveText={(id, xMm, yMm) => dispatch({ type: "update-text", id, patch: { xMm, yMm } })}
@@ -976,7 +1027,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   );
 }
 
-function PrintScreen({ state, dispatch, pages, activePage, clientContext }: ScreenProps & { clientContext: ClientContext }) {
+function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSuccessfulExport }: ScreenProps & { clientContext: ClientContext; onSuccessfulExport: () => void }) {
   const dielineSvgs = useRef<Record<string, SVGSVGElement | null>>({});
   const calibrationSvg = useRef<SVGSVGElement>(null);
   const printablePdfUrl = useRef<string | null>(null);
@@ -1015,6 +1066,9 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext }: Scre
     setExportSuccess("");
     clearPrintablePdf();
     try {
+      // jsPDF / svg2pdf / opentype はPDF作成時だけ必要なので、編集画面の
+      // 初回読み込みには含めない。
+      const { exportA4Pdf } = await import("../lib/pdf/export-a4-pdf");
       const fileName = createTimestampedPdfFileName(`usapon-${state.box.type}-${state.box.widthMm}x${state.box.heightMm}x${state.box.depthMm}mm.pdf`);
       const result = await exportA4Pdf({
         pages: exportPages,
@@ -1025,6 +1079,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext }: Scre
       printablePdfUrl.current = url;
       setPrintablePdf({ url, file, fileName, canShare: canSharePdfFile(file) });
       setExportSuccess(`PDFを作成しました（${result.pageCount}ページ／${Math.max(1, Math.round(result.byteLength / 1024))}KB）。下のボタンから共有・印刷または保存へ進んでください。`);
+      onSuccessfulExport();
     } catch (error) {
       setExportError(error instanceof Error ? error.message : "PDFを作成できませんでした。");
     } finally {
@@ -1183,6 +1238,12 @@ export function App() {
   const [shouldPersistLocalDraft, setShouldPersistLocalDraft] = useState(false);
   const [nameDialogOpen, setNameDialogOpen] = useState(false);
   const clientContext = useMemo(() => detectClientContext(), []);
+  const installContext = useMemo(() => detectInstallContext(), []);
+  const [installGuideOpen, setInstallGuideOpen] = useState(false);
+  const [installGuideHidden, setInstallGuideHidden] = useState(() => {
+    try { return window.localStorage.getItem(INSTALL_GUIDE_HIDDEN_KEY) === "1"; } catch { return false; }
+  });
+  const installOfferShown = useRef(false);
   const pendingSaveHandled = useRef(false);
   const oauthRedirecting = useRef(false);
   const lastSavedSignature = useRef(JSON.stringify(serializeBoxDocument(initialState)));
@@ -1278,6 +1339,10 @@ export function App() {
       setSaveState("saved");
       setSaveMessage(`保存済み ${new Intl.DateTimeFormat("ja-JP", { hour: "2-digit", minute: "2-digit" }).format(new Date())}`);
       await saveLocalDraft(state, saved);
+      if (!installOfferShown.current && canOfferInstallGuide(installContext, installGuideHidden)) {
+        installOfferShown.current = true;
+        setInstallGuideOpen(true);
+      }
     } catch (error) {
       if (error instanceof ProjectConflictError) {
         setSaveState("conflict");
@@ -1287,7 +1352,19 @@ export function App() {
         setSaveMessage(cloudErrorMessage(error));
       }
     }
-  }, [state, workspace]);
+  }, [state, workspace, installContext, installGuideHidden]);
+
+  const offerInstallAfterSuccess = useCallback(() => {
+    if (installOfferShown.current || !canOfferInstallGuide(installContext, installGuideHidden)) return;
+    installOfferShown.current = true;
+    setInstallGuideOpen(true);
+  }, [installContext, installGuideHidden]);
+
+  const hideInstallGuide = useCallback(() => {
+    try { window.localStorage.setItem(INSTALL_GUIDE_HIDDEN_KEY, "1"); } catch { /* 現在の表示だけ閉じる */ }
+    setInstallGuideHidden(true);
+    setInstallGuideOpen(false);
+  }, []);
 
   const save = useCallback(async () => {
     if (!isCloudConfigured) {
@@ -1394,11 +1471,11 @@ export function App() {
         onLogout={() => { void logout(); }}
         onDeleteAccount={() => { void deleteAccount(); }}
       />
-      {clientContext.shouldRecommendSafari && <InstagramBrowserNotice />}
+      {clientContext.isInstagramInAppBrowser && <InstagramBrowserNotice hasBrowserOnlyWork={saveState === "dirty" || saveState === "error" || saveState === "conflict"} onOpenGuide={() => setInstallGuideOpen(true)} />}
       {state.screen === "home" && <HomeScreen onStart={startNew} onResume={hasRestoredLocalDraft ? () => dispatch({ type: "go", screen: "design" }) : null} onMyBoxes={() => dispatch({ type: "go", screen: "my-boxes" })} />}
       {state.screen === "size" && <SizeScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
       {state.screen === "design" && <DesignScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
-      {state.screen === "print" && <PrintScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} clientContext={clientContext} />}
+      {state.screen === "print" && <PrintScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} clientContext={clientContext} onSuccessfulExport={offerInstallAfterSuccess} />}
       {CLOUD_SYNC_UI_ENABLED && state.screen === "my-boxes" && (
         <MyBoxesScreen
           user={user}
@@ -1409,7 +1486,15 @@ export function App() {
           onWorkspaceChange={(updated) => { if (workspace?.id === updated.id) setWorkspace(updated); }}
         />
       )}
-      <footer className="app-footer"><strong>うさぽん パッケージメーカー</strong><span>未保存は端末内／保存作品は非公開クラウド</span><a href={`${import.meta.env.BASE_URL}privacy.html`}>プライバシーポリシー</a></footer>
+      <footer className="app-footer"><strong>うさぽん パッケージメーカー</strong><span>未保存は端末内／保存作品は非公開クラウド</span><button type="button" onClick={() => setInstallGuideOpen(true)}>ホーム画面に追加する</button><a href={`${import.meta.env.BASE_URL}privacy.html`}>プライバシーポリシー</a></footer>
+      <InstallGuide
+        open={installGuideOpen}
+        context={installContext}
+        hasBrowserOnlyWork={saveState === "dirty" || saveState === "error" || saveState === "conflict"}
+        cloudSaved={saveState === "saved"}
+        onClose={() => setInstallGuideOpen(false)}
+        onNeverShow={hideInstallGuide}
+      />
       {CLOUD_SYNC_UI_ENABLED && nameDialogOpen && <SaveNameDialog initialName={workspace?.name ?? "無題のボックス"} onCancel={() => setNameDialogOpen(false)} onSave={(name) => { setNameDialogOpen(false); void commitSave(name, null); }} />}
       {CLOUD_SYNC_UI_ENABLED && saveState === "conflict" && workspace && (
         <ConflictDialog

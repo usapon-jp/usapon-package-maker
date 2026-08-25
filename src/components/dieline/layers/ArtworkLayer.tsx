@@ -52,8 +52,9 @@ function UploadedArtwork({
   const sourceWidth = Math.max(2, item.widthMm);
   const sourceHeight = sourceWidth / Math.max(0.05, item.aspectRatio);
   const quarterTurn = item.rotationDeg === 90 || item.rotationDeg === 270;
-  const tileWidth = quarterTurn ? sourceHeight : sourceWidth;
-  const tileHeight = quarterTurn ? sourceWidth : sourceHeight;
+  const repeatGap = Math.max(0, item.repeatGapMm ?? 0);
+  const tileWidth = (quarterTurn ? sourceHeight : sourceWidth) + repeatGap;
+  const tileHeight = (quarterTurn ? sourceWidth : sourceHeight) + repeatGap;
 
   if (item.repeat) {
     return (
@@ -68,7 +69,7 @@ function UploadedArtwork({
             patternUnits="userSpaceOnUse"
             patternContentUnits="userSpaceOnUse"
           >
-            <g transform={`translate(${tileWidth / 2} ${tileHeight / 2}) rotate(${item.rotationDeg})`}>
+              <g transform={`translate(${tileWidth / 2} ${tileHeight / 2}) rotate(${item.rotationDeg})`}>
               <image href={item.dataUrl} x={-sourceWidth / 2} y={-sourceHeight / 2} width={sourceWidth} height={sourceHeight} preserveAspectRatio="xMidYMid meet" />
             </g>
           </pattern>
@@ -131,7 +132,7 @@ export function ArtworkLayer({
             return (
               <g key={item.id} data-artwork-id={item.id} opacity={item.opacity}>
                 <defs>
-                  <pattern id={patternId} x={item.offsetXmm} y={item.offsetYmm} width={spacing} height={spacing * 2} patternUnits="userSpaceOnUse" patternContentUnits="userSpaceOnUse">
+                  <pattern id={patternId} x={item.offsetXmm} y={item.offsetYmm} width={spacing} height={spacing * 2} patternUnits="userSpaceOnUse" patternContentUnits="userSpaceOnUse" patternTransform={`rotate(${item.angleDeg ?? 0})`}>
                     <circle cx={spacing / 4} cy={spacing / 2} r={item.dotDiameterMm / 2} fill={item.color} />
                     <circle cx={spacing * 0.75} cy={spacing * 1.5} r={item.dotDiameterMm / 2} fill={item.color} />
                   </pattern>
@@ -158,9 +159,9 @@ export function ArtworkLayer({
           if (!item.visible) return null;
           const width = Math.max(2, item.widthMm);
           const height = width / Math.max(0.05, item.aspectRatio);
-          const quarterTurn = item.rotationDeg === 90 || item.rotationDeg === 270;
-          const rotatedWidth = quarterTurn ? height : width;
-          const rotatedHeight = quarterTurn ? width : height;
+          const radians = item.rotationDeg * Math.PI / 180;
+          const rotatedWidth = Math.abs(width * Math.cos(radians)) + Math.abs(height * Math.sin(radians));
+          const rotatedHeight = Math.abs(width * Math.sin(radians)) + Math.abs(height * Math.cos(radians));
           const screenHandle = { x: rotatedWidth / 2 + 3, y: -rotatedHeight / 2 - 3 };
           const handlePosition = item.rotationDeg === 90
             ? { x: screenHandle.y, y: -screenHandle.x }

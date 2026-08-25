@@ -21,6 +21,7 @@ const assetRefSchema = z.discriminatedUnion("kind", [
 ]);
 const artworkBaseSchema = z.object({
   id: z.string().min(1),
+  role: z.literal("background").default("background"),
   pageId: pageIdSchema,
   name: z.string().max(255),
   visible: z.boolean(),
@@ -38,6 +39,7 @@ const uploadedArtworkSchema = artworkBaseSchema.extend({
   kind: z.literal("uploaded-artwork"),
   widthMm: z.number().positive().finite(),
   repeat: z.boolean(),
+  repeatGapMm: z.number().nonnegative().finite().default(0),
   rotationDeg: quarterTurnSchema,
 }).merge(runtimeAssetSchema);
 const stripeSchema = artworkBaseSchema.extend({
@@ -52,28 +54,40 @@ const dotSchema = artworkBaseSchema.extend({
   color: z.string(),
   dotDiameterMm: z.number().positive().finite(),
   spacingMm: z.number().positive().finite(),
+  angleDeg: z.number().finite().default(0),
 });
 const stampSchema = runtimeAssetSchema.extend({
   id: z.string().min(1),
   kind: z.literal("stamp"),
+  role: z.literal("stamp").default("stamp"),
   pageId: pageIdSchema,
   name: z.string().max(255),
   xMm: z.number().finite(),
   yMm: z.number().finite(),
   widthMm: z.number().positive().finite(),
-  rotationDeg: quarterTurnSchema,
+  rotationDeg: z.number().finite(),
   visible: z.boolean(),
   opacity: z.number().min(0).max(1),
 });
 const textSchema = z.object({
   id: z.string().min(1),
   kind: z.literal("text"),
+  role: z.enum(["text", "logoText"]).default("text"),
   pageId: pageIdSchema,
-  text: z.string().max(40),
+  text: z.string().max(80),
   xMm: z.number().finite(),
   yMm: z.number().finite(),
   fontSizeMm: z.number().positive().finite(),
   color: z.string(),
+  letterSpacingMm: z.number().finite().default(0),
+  lineHeight: z.number().positive().finite().default(1.25),
+  alignment: z.enum(["start", "middle", "end"]).default("middle"),
+  fontWeight: z.union([z.literal(400), z.literal(500), z.literal(600), z.literal(700), z.literal(800), z.literal(900)]).default(700),
+  arcMm: z.number().finite().default(0),
+  strokeColor: z.string().nullable().default(null),
+  strokeWidthMm: z.number().nonnegative().finite().default(0),
+  labelColor: z.string().nullable().default(null),
+  labelPaddingMm: z.number().nonnegative().finite().default(1.8),
 });
 const persistedBoxTypeSchema = z.union([
   z.enum(["straight-tuck-carton-v1", "gift-box-v1", "two-piece-gift-box-v1"]),
