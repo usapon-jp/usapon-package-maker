@@ -107,12 +107,14 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .template-preview { display: grid; place-items: center; height: 207px; overflow: hidden; background: radial-gradient(circle at 18% 20%, #fffaf0, transparent 35%), linear-gradient(135deg, #f8eadc, #f6e1d7); }
 .template-preview-paper { position: relative; width: 128px; height: 177px; overflow: hidden; border: 1px solid #ead7c6; border-radius: 3px; background: #fffdf8; box-shadow: 0 12px 26px rgba(106,73,58,.17); }
 .template-preview-paper img { position: absolute; right: 3px; bottom: 4px; width: 73px; height: 65px; object-fit: contain; }
+.template-preview[data-template-id="autumn-letter-paper"] .template-preview-paper img { right: -10px; bottom: -5px; width: 78px; height: 70px; }
 .template-preview-lines { position: absolute; inset: 27px 13px 20px; background: repeating-linear-gradient(to bottom, transparent 0 12px, rgba(174,140,121,.38) 12px 13px); }
 .template-preview.is-envelope .template-preview-paper { width: 179px; height: 119px; }
-.template-preview.is-envelope .template-preview-paper img { width: 87px; height: 77px; }
-.template-preview-envelope-fold { position: absolute; top: -75px; left: 16px; width: 145px; height: 120px; border-right: 1px solid #e1cdbc; border-bottom: 1px solid #e1cdbc; transform: rotate(45deg); }
+.template-preview.is-envelope .template-preview-paper img { right: 15px; bottom: 3px; width: 72px; height: 64px; }
+.template-preview-envelope-fold { position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%; fill: none; stroke: #e1cdbc; stroke-width: 1; vector-effect: non-scaling-stroke; }
+.template-preview.is-envelope .template-preview-paper img { z-index: 1; }
 .template-preview.is-card .template-preview-paper { width: 170px; height: 105px; border-radius: 5px; }
-.template-preview.is-card .template-preview-paper img { right: 22px; bottom: 7px; width: 118px; height: 86px; }
+.template-preview.is-card .template-preview-paper img { right: -2px; bottom: -4px; width: 128px; height: 102px; }
 .template-card-copy { padding: 17px 17px 19px; }
 .template-card-meta { display: flex; align-items: center; gap: 7px; }
 .template-card-meta span, .template-card-meta b { padding: 5px 8px; border-radius: 999px; color: #936950; background: #f8efe4; font-size: 8px; }

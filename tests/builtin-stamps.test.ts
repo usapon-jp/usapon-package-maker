@@ -20,6 +20,7 @@ describe("内蔵スタンプ", () => {
       "autumn-rabbit-acorn-hug",
       "autumn-rabbit-sweet-potato",
       "autumn-rabbit-chestnut",
+      "autumn-rabbit-sleeping-sweet-potato",
     ]);
     expect(builtInStampForKey("usapon-box-rabbits")).toMatchObject({
       fileName: "usapon-box-rabbits.png",
@@ -28,6 +29,10 @@ describe("内蔵スタンプ", () => {
     expect(builtInStampForKey("autumn-rabbit-acorn-hug")).toMatchObject({
       fileName: "autumn-rabbit-acorn-hug.png",
       name: "どんぐりぎゅっ",
+    });
+    expect(builtInStampForKey("autumn-rabbit-sleeping-sweet-potato")).toMatchObject({
+      fileName: "autumn-rabbit-sleeping-sweet-potato.png",
+      name: "おいもの中でおやすみ",
     });
   });
 

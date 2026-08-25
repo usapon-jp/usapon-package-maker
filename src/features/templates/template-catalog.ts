@@ -73,7 +73,7 @@ export const PACKAGE_TEMPLATES: PackageTemplate[] = [
     description: "91 × 55mm。A4に同じデザインをまとめて面付け。",
     badge: "A4に10枚",
     box: { ...defaults, type: "mini-card-v1", widthMm: 91, heightMm: 55 },
-    previewStampKey: "autumn-rabbit-chestnut",
+    previewStampKey: "autumn-rabbit-sleeping-sweet-potato",
     recommendedStampSetIds: ["autumn-rabbits"],
     writingLines: false,
   },

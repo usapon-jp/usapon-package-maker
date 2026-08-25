@@ -15,6 +15,7 @@ export const BUILT_IN_STAMP_KEYS = [
   "autumn-rabbit-acorn-hug",
   "autumn-rabbit-sweet-potato",
   "autumn-rabbit-chestnut",
+  "autumn-rabbit-sleeping-sweet-potato",
 ] as const;
 export type BuiltInStampKey = (typeof BUILT_IN_STAMP_KEYS)[number];
 

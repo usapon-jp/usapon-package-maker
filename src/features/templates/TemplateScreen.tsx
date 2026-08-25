@@ -17,10 +17,15 @@ function readFavorites(): string[] {
 function TemplatePreview({ template }: { template: PackageTemplate }) {
   const stamp = builtInStampForKey(template.previewStampKey);
   return (
-    <div className={`template-preview is-${template.category}`} aria-hidden="true">
+    <div className={`template-preview is-${template.category}`} data-template-id={template.id} aria-hidden="true">
       <div className="template-preview-paper">
         {template.category === "letter-paper" && <span className="template-preview-lines" />}
-        {template.category === "envelope" && <span className="template-preview-envelope-fold" />}
+        {template.category === "envelope" && (
+          <svg className="template-preview-envelope-fold" viewBox="0 0 179 119" preserveAspectRatio="none">
+            <path d="M 1 1 L 89.5 64 L 178 1" />
+            <path d="M 1 118 L 55 77 M 178 118 L 124 77" />
+          </svg>
+        )}
         <img src={`${import.meta.env.BASE_URL}assets/stamps/${stamp.fileName}`} alt="" />
       </div>
     </div>

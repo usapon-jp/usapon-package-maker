@@ -16,6 +16,7 @@ describe("秋のレターセットテンプレート", () => {
     for (const template of PACKAGE_TEMPLATES) {
       expect(stampSetsForTemplate(template)[0]).toMatchObject({ name: "秋うさぎスタンプセット" });
     }
+    expect(templateById("autumn-mini-card")?.previewStampKey).toBe("autumn-rabbit-sleeping-sweet-potato");
   });
 
   it("便箋の罫線をプレビューと印刷元SVGでON/OFFできる", () => {
