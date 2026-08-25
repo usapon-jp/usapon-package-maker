@@ -21,8 +21,6 @@ export function detectInstallContext(
     isStandalone: Boolean(standaloneDisplay || navigatorStandalone),
   };
 }
-
 export function canOfferInstallGuide(context: InstallContext, permanentlyHidden: boolean) {
   return !context.isStandalone && !permanentlyHidden;
 }
-

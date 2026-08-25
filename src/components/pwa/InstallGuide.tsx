@@ -98,4 +98,3 @@ export function InstallGuide({ open, context, hasBrowserOnlyWork, cloudSaved, on
     </div>
   );
 }
-
