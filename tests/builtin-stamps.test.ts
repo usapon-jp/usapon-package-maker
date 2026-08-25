@@ -31,7 +31,7 @@ describe("内蔵スタンプ", () => {
       name: "どんぐりぎゅっ",
     });
     expect(builtInStampForKey("autumn-rabbit-sleeping-sweet-potato")).toMatchObject({
-      fileName: "autumn-rabbit-sleeping-sweet-potato.png",
+      fileName: "autumn-rabbit-sleeping-sweet-potato-no-text.png",
       name: "おいもの中でおやすみ",
     });
   });

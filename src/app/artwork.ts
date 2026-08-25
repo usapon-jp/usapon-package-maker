@@ -28,7 +28,7 @@ export const BUILT_IN_STAMPS = [
   { key: "autumn-rabbit-acorn-hug", fileName: "autumn-rabbit-acorn-hug.png", name: "どんぐりぎゅっ" },
   { key: "autumn-rabbit-sweet-potato", fileName: "autumn-rabbit-sweet-potato.png", name: "おいもをもぐもぐ" },
   { key: "autumn-rabbit-chestnut", fileName: "autumn-rabbit-chestnut.png", name: "栗からこんにちは" },
-  { key: "autumn-rabbit-sleeping-sweet-potato", fileName: "autumn-rabbit-sleeping-sweet-potato.png", name: "おいもの中でおやすみ" },
+  { key: "autumn-rabbit-sleeping-sweet-potato", fileName: "autumn-rabbit-sleeping-sweet-potato-no-text.png", name: "おいもの中でおやすみ" },
 ] as const satisfies ReadonlyArray<{ key: BuiltInStampKey; fileName: string; name: string }>;
 
 export function builtInStampForKey(key: BuiltInStampKey) {
