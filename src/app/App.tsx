@@ -1022,7 +1022,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
         <section className="editor-canvas-panel panel-card">
           <div className="canvas-toolbar">
             <LineLegend geometry={geometry} lineColors={state.lineColors} />
-            <span className="dimension-pill">{mm(geometry.bounds.widthMm)} × {mm(geometry.bounds.heightMm)}</span>
+            <span className="dimension-pill">{geometry.type === "envelope-v1" ? `完成 ${mm(geometry.input.widthMm)} × ${mm(geometry.input.heightMm)} ／ 展開図 ${mm(geometry.bounds.widthMm)} × ${mm(geometry.bounds.heightMm)}` : `${mm(geometry.bounds.widthMm)} × ${mm(geometry.bounds.heightMm)}`}</span>
           </div>
           <div className="dieline-stage editor-stage">
             <DielineSvg
@@ -1047,7 +1047,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
               onMoveText={(id, xMm, yMm) => dispatch({ type: "update-text", id, patch: { xMm, yMm } })}
             />
           </div>
-          <p className="canvas-caption">画面では見やすい大きさに拡大表示しています。印刷寸法は下のmm値とPDFの実寸座標が基準です。</p>
+          {geometry.type === "envelope-v1" ? <p className="canvas-caption envelope-canvas-caption"><strong>完成品：横 {mm(geometry.input.widthMm)} × 縦 {mm(geometry.input.heightMm)}{geometry.input.widthMm === 162 && geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong><span>左右の三角フラップ → 下フラップの順に折ってのり付けし、上の三角フラップで封をします。</span></p> : <p className="canvas-caption">画面では見やすい大きさに拡大表示しています。印刷寸法は下のmm値とPDFの実寸座標が基準です。</p>}
         </section>
       </div>
 
@@ -1166,6 +1166,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
           <p className="eyebrow">PRINT SETTINGS</p>
           <h2>PDF出力設定</h2>
           <div className="fit-notice-stack">{pages.map((page) => <FitNotice key={page.id} geometry={page.geometry} fit={page.fit} label={page.label} />)}</div>
+          {activePage.geometry.type === "envelope-v1" && <div className="envelope-finished-note"><strong>完成：横 {mm(activePage.geometry.input.widthMm)} × 縦 {mm(activePage.geometry.input.heightMm)}{activePage.geometry.input.widthMm === 162 && activePage.geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong><span>横長の封筒が1枚できます。左右 → 下の順に折って貼り、上の三角フラップで閉じます。</span></div>}
           {imposition.count > 1 && <div className="template-imposition-note"><strong>A4に{imposition.count}枚を自動配置</strong><span>{imposition.columns}列 × {imposition.rows}段。編集した同じカードを実寸でまとめて印刷します。</span></div>}
           <div className="print-instruction">
             <span aria-hidden="true">!</span>

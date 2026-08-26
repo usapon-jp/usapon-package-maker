@@ -109,8 +109,15 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .template-preview-paper img { position: absolute; right: 3px; bottom: 4px; width: 73px; height: 65px; object-fit: contain; }
 .template-preview[data-template-id="autumn-letter-paper"] .template-preview-paper img { right: -10px; bottom: -5px; width: 78px; height: 70px; }
 .template-preview-lines { position: absolute; inset: 27px 13px 20px; background: repeating-linear-gradient(to bottom, transparent 0 12px, rgba(174,140,121,.38) 12px 13px); }
-.template-preview.is-envelope .template-preview-paper { width: 179px; height: 119px; }
-.template-preview.is-envelope .template-preview-paper img { right: 15px; bottom: 3px; width: 72px; height: 64px; }
+.template-preview.is-envelope { display: flex; align-items: center; justify-content: center; gap: 9px; padding: 20px 14px 14px; }
+.template-envelope-net, .template-envelope-finished { position: relative; }
+.template-envelope-net > span, .template-envelope-finished > span { position: absolute; z-index: 2; top: -17px; left: 50%; color: #9b6f65; font-size: 7px; font-weight: 800; transform: translateX(-50%); }
+.template-envelope-net svg { display: block; width: 137px; height: 100px; overflow: visible; filter: drop-shadow(0 8px 13px rgba(106,73,58,.13)); }
+.template-envelope-net svg > path { fill: #fffdf8; stroke: #d9b8ae; stroke-width: 1.5; }
+.template-envelope-net svg > g { fill: none; stroke: #cf8f9a; stroke-width: 1.5; stroke-dasharray: 5 4; }
+.template-envelope-arrow { color: #c98991; font-size: 15px; font-weight: 800; }
+.template-preview.is-envelope .template-preview-paper { width: 101px; height: 71px; }
+.template-preview.is-envelope .template-preview-paper img { right: 6px; bottom: 1px; width: 43px; height: 39px; }
 .template-preview-envelope-fold { position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%; fill: none; stroke: #e1cdbc; stroke-width: 1; vector-effect: non-scaling-stroke; }
 .template-preview.is-envelope .template-preview-paper img { z-index: 1; }
 .template-preview.is-card .template-preview-paper { width: 170px; height: 105px; border-radius: 5px; }
@@ -121,6 +128,10 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .template-card-meta b { color: #a94454; background: #ffedf0; }
 .template-card-copy h3 { margin: 12px 0 0; font-size: 15px; }
 .template-card-copy p { min-height: 37px; margin: 7px 0 0; color: var(--muted); font-size: 9px; line-height: 1.7; }
+.template-finished-size { display: grid; grid-template-columns: auto 1fr; align-items: baseline; gap: 3px 7px; margin-top: 10px; padding: 9px 10px; border: 1px solid #f0d7dc; border-radius: 11px; background: #fff7f8; }
+.template-finished-size span { color: #a66a74; font-size: 7px; font-weight: 800; }
+.template-finished-size strong { color: #744c53; font-size: 11px; }
+.template-finished-size small { grid-column: 1 / -1; color: #927a75; font-size: 7px; }
 .template-card-copy > small { display: block; margin-top: 10px; color: #a28174; font-size: 8px; }
 .template-card-copy > strong { display: block; margin-top: 14px; color: var(--pink-dark); font-size: 10px; }
 .recommended-stamp-set { margin-bottom: 14px; padding: 10px; border: 1px solid #ead6bd; border-radius: 13px; background: #fffaf1; }
@@ -394,6 +405,9 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .canvas-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 13px; }
 .editor-stage { height: min(66vh, 660px); min-height: 450px; padding: 28px; }
 .canvas-caption { margin: 11px 4px 0; color: #8e7a74; font-size: 8px; line-height: 1.6; text-align: center; }
+.envelope-canvas-caption strong, .envelope-canvas-caption span { display: block; }
+.envelope-canvas-caption strong { color: #79545b; font-size: 9px; }
+.envelope-canvas-caption span { margin-top: 3px; }
 
 .print-layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 35px; align-items: start; }
 .print-page-grid { min-width: 0; }
@@ -408,6 +422,10 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .print-settings h2 { margin: 0; font-size: 20px; }
 .print-instruction { display: flex; gap: 11px; margin-top: 18px; padding: 14px; border-radius: 14px; color: #76511d; background: var(--amber-soft); }
 .print-instruction > span { display: grid; place-items: center; flex: 0 0 auto; width: 24px; height: 24px; border-radius: 50%; color: white; background: var(--amber); font-weight: 900; }
+.envelope-finished-note { margin-top: 15px; padding: 13px 14px; border: 1px solid #efccd2; border-radius: 13px; background: #fff7f8; }
+.envelope-finished-note strong, .envelope-finished-note span { display: block; }
+.envelope-finished-note strong { color: #874e59; font-size: 10px; }
+.envelope-finished-note span { margin-top: 5px; color: #826d68; font-size: 8px; line-height: 1.6; }
 .print-instruction strong { font-size: 10px; }
 .print-instruction p { margin: 5px 0 0; font-size: 9px; line-height: 1.65; }
 .calibration-toggle { padding: 15px 0; border-bottom: 1px solid #eee2de; }
