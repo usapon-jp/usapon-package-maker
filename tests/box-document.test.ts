@@ -14,7 +14,7 @@ function stateFor(type: BoxType): AppState {
     screen: "print",
     box: { ...initialState.box, type },
     activePageId: type === "two-piece-gift-box-v1" ? "base" : "main",
-    backgroundColors: { main: "#ffffff", lid: "#fff1dc", base: "#f7f0e8" },
+    backgroundColors: { main: "#ffffff", lid: "#fff1dc", base: "#f7f0e8", letter: "#fffdf9", card: "#fffdf9" },
     artworkLayers: [
       {
         id: "uploaded-layer",
@@ -188,15 +188,34 @@ describe("BoxDocumentV1", () => {
 
   it("テンプレート項目がない既存作品に後方互換の初期値を補う", async () => {
     const legacy = JSON.parse(JSON.stringify(serializeBoxDocument(stateFor("gift-box-v1")))) as {
-      design: { templateId?: string | null; showWritingLines?: boolean };
+      design: {
+        templateId?: string | null;
+        showWritingLines?: boolean;
+        envelopeDesign?: unknown;
+        stationerySetSelection?: string;
+        backgroundColors: Record<string, string>;
+      };
     };
     delete legacy.design.templateId;
     delete legacy.design.showWritingLines;
+    delete legacy.design.envelopeDesign;
+    delete legacy.design.stationerySetSelection;
+    delete legacy.design.backgroundColors.letter;
+    delete legacy.design.backgroundColors.card;
 
     const restored = await hydrateBoxDocument(legacy, async () => ({ dataUrl: "data:image/png;base64,RESTORED" }));
 
     expect(restored.templateId).toBeNull();
     expect(restored.showWritingLines).toBe(false);
+    expect(restored.stationerySetSelection).toBe("envelope-only");
+    expect(restored.envelopeDesign).toMatchObject({
+      style: "simple",
+      flapAccentEnabled: false,
+      showAddressField: false,
+      showAddressLines: false,
+    });
+    expect(restored.backgroundColors.letter).toBe("#fffdf9");
+    expect(restored.backgroundColors.card).toBe("#fffdf9");
   });
 
   it("新しい折り返し項目がない既存V1作品も読み込める", async () => {

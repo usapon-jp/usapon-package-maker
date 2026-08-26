@@ -33,19 +33,20 @@ describe("秋のレターセットテンプレート", () => {
     expect(withoutLines).not.toContain('data-layer="writing-lines"');
   });
 
-  it("洋形2号封筒を三角フラップ型にし、切り線・折り線・のりしろをA4内へ収める", () => {
+  it("洋形2号を実用ダイヤ貼寸法で作り、A4へ無理に縮小しない", () => {
     const template = templateById("autumn-envelope")!;
     const geometry = generateDielineDocument(template.box).pages[0].geometry;
     const fit = evaluateA4Fit(geometry.bounds.widthMm, geometry.bounds.heightMm);
 
-    expect(fit.status).toBe("safe");
+    expect(fit.status).toBe("overflow");
     expect(template.description).toContain("洋形2号");
     expect(geometry.panels[0]).toMatchObject({ label: "封筒の表面", width: 162, height: 114 });
-    expect(geometry.bounds).toMatchObject({ widthMm: 276, heightMm: 200 });
+    expect(geometry.bounds).toMatchObject({ widthMm: 320, heightMm: 249 });
+    expect(geometry.envelope).toMatchObject({ topFlapMm: 70, bottomFlapMm: 65, sideFlapMm: 79, sideSeamGapMm: 4 });
     expect(geometry.layers.cut).toHaveLength(1);
-    expect(geometry.layers.cut[0].d).toContain("138,0");
-    expect(geometry.layers.cut[0].d).toContain("276,97");
-    expect(geometry.layers.cut[0].d).toContain("138,200");
+    expect(geometry.layers.cut[0].d).toContain("156,0");
+    expect(geometry.layers.cut[0].d).toContain("320,123");
+    expect(geometry.layers.cut[0].d).toContain("156,249");
     expect(geometry.layers.fold).toHaveLength(4);
     expect(geometry.layers.glue).toHaveLength(2);
 

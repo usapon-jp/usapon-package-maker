@@ -426,6 +426,53 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .envelope-finished-note strong, .envelope-finished-note span { display: block; }
 .envelope-finished-note strong { color: #874e59; font-size: 10px; }
 .envelope-finished-note span { margin-top: 5px; color: #826d68; font-size: 8px; line-height: 1.6; }
+
+.letter-set-panel { padding: 18px; border-bottom: 1px solid #efe5dc; background: linear-gradient(145deg, #fffaf5, #fff4f6); }
+.letter-set-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 13px; }
+.letter-set-heading > span { display: grid; width: 34px; height: 34px; border-radius: 11px; place-items: center; color: #a85165; background: #fbe2e6; font-size: 18px; }
+.letter-set-heading strong, .letter-set-heading small { display: block; }
+.letter-set-heading strong { color: #543c38; font-size: 14px; }
+.letter-set-heading small { margin-top: 2px; color: #8a7771; font-size: 9px; }
+.envelope-template-picker { display: grid; gap: 7px; margin-bottom: 13px; }
+.envelope-template-picker > button { display: grid; grid-template-columns: 48px 1fr; gap: 10px; align-items: center; min-height: 54px; padding: 7px 9px; border: 1px solid #eadbd3; border-radius: 11px; color: #65534e; background: #fff; text-align: left; }
+.envelope-template-picker > button.is-selected { border-color: #d76f83; background: #fff4f6; box-shadow: inset 0 0 0 1px #d76f83; }
+.envelope-template-picker span strong, .envelope-template-picker span small { display: block; }
+.envelope-template-picker span strong { font-size: 10px; }
+.envelope-template-picker span small { margin-top: 2px; color: #8b7872; font-size: 7.5px; line-height: 1.45; }
+.envelope-template-swatch { position: relative; display: block; width: 46px; height: 32px; overflow: hidden; border: 1px solid #dfd1ca; border-radius: 4px; background: #fff; }
+.envelope-template-swatch::before { position: absolute; content: ""; inset: 7px 10px 8px; border: 1px solid #d8b6bd; border-radius: 2px; background: rgba(255,255,255,.9); }
+.envelope-template-swatch::after { position: absolute; content: ""; top: 12px; left: 15px; width: 16px; height: 1px; background: #cfa3ad; box-shadow: 0 4px #cfa3ad, 0 8px #cfa3ad; }
+.envelope-template-swatch.is-cute { border-top: 8px dotted #f0aeb9; background: #fff8f6; }
+.envelope-template-swatch.is-adult { border-top: 8px solid #c9bdb1; background: #f7f3ee; }
+.envelope-template-swatch.is-adult::before { inset: 5px; border-color: #9d9085; background: transparent; }
+.envelope-template-swatch.is-adult::after { left: 17px; width: 13px; background: #9d9085; box-shadow: 0 4px #9d9085; }
+.envelope-template-swatch.is-simple { border-top: 8px solid #efede9; background: #fff; }
+.letter-set-options { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.letter-set-options button { min-height: 42px; padding: 8px; border: 1px solid #eadbd3; border-radius: 10px; color: #725f59; background: #fff; font-size: 9px; font-weight: 700; line-height: 1.35; }
+.letter-set-options button.is-selected { border-color: #d76f83; color: #9d4559; background: #fff0f3; box-shadow: inset 0 0 0 1px #d76f83; }
+.letter-set-sizes { margin: 13px 0; padding: 10px 12px; border-radius: 11px; background: rgba(255,255,255,.78); }
+.letter-set-sizes > div { display: grid; grid-template-columns: 48px 1fr; gap: 7px; padding: 5px 0; border-bottom: 1px dashed #eaded8; }
+.letter-set-sizes > div:last-child { border-bottom: 0; }
+.letter-set-sizes dt { color: #9a6670; font-size: 9px; font-weight: 800; }
+.letter-set-sizes dd { margin: 0; color: #574946; font-size: 9px; font-weight: 700; }
+.letter-set-sizes dd small { display: block; margin-top: 2px; color: #8a7974; font-size: 7.5px; font-weight: 500; line-height: 1.45; }
+.letter-set-details { margin: 0 0 12px; border: 1px solid #eaded8; border-radius: 11px; background: rgba(255,255,255,.72); }
+.letter-set-details summary { padding: 11px 12px; color: #715d57; cursor: pointer; font-size: 9px; font-weight: 800; }
+.letter-set-detail-body { display: grid; gap: 11px; padding: 0 12px 13px; }
+.envelope-size-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.envelope-size-inputs label { position: relative; color: #7b6862; font-size: 8px; font-weight: 700; }
+.envelope-size-inputs input { width: 100%; height: 38px; margin-top: 4px; padding: 0 29px 0 9px; border: 1px solid #e4d8d1; border-radius: 8px; color: #4e403d; background: #fff; font: inherit; font-size: 10px; }
+.envelope-size-inputs em { position: absolute; right: 8px; bottom: 11px; color: #a18e87; font-size: 7px; font-style: normal; }
+.envelope-flap-color { display: flex; align-items: center; justify-content: space-between; color: #695853; font-size: 8px; font-weight: 700; }
+.envelope-flap-color span { display: flex; align-items: center; gap: 7px; }
+.envelope-flap-color code { color: #907e78; font-size: 7px; }
+.envelope-flap-color input { width: 31px; height: 27px; padding: 2px; border: 1px solid #dfd3cd; border-radius: 7px; background: #fff; }
+.envelope-flap-pattern { display: grid; grid-template-columns: repeat(3,1fr); gap: 6px; }
+.envelope-flap-pattern button { min-height: 32px; border: 1px solid #e5d9d2; border-radius: 8px; color: #74625d; background: #fff; font-size: 8px; font-weight: 700; }
+.envelope-flap-pattern button.is-selected { border-color: #d76f83; color: #9d4559; background: #fff0f3; }
+.letter-set-existing-tools { margin: 0; color: #8d7a74; font-size: 7.5px; line-height: 1.5; }
+.letter-set-share-help { display: block; margin-top: 7px; color: #8a7974; font-size: 8px; line-height: 1.5; }
+.letter-set-panel > p { margin: 8px 0 0; color: #8f5361; font-size: 8px; line-height: 1.5; }
 .print-instruction strong { font-size: 10px; }
 .print-instruction p { margin: 5px 0 0; font-size: 9px; line-height: 1.65; }
 .calibration-toggle { padding: 15px 0; border-bottom: 1px solid #eee2de; }

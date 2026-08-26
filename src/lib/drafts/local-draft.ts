@@ -59,6 +59,21 @@ export async function loadLocalDraft(): Promise<LocalDraft | null> {
       ...draft.state,
       templateId: draft.state.templateId ?? null,
       showWritingLines: draft.state.showWritingLines ?? false,
+      stationerySetSelection: draft.state.stationerySetSelection ?? "envelope-only",
+      envelopeDesign: draft.state.envelopeDesign ?? {
+        style: "simple",
+        flapAccentEnabled: false,
+        flapColor: "#fffdf9",
+        flapPattern: "solid",
+        showAddressField: false,
+        showAddressLines: false,
+        marginMm: 12,
+      },
+      backgroundColors: {
+        ...draft.state.backgroundColors,
+        letter: draft.state.backgroundColors.letter ?? "#fffdf9",
+        card: draft.state.backgroundColors.card ?? "#fffdf9",
+      },
       artworkLayers: await Promise.all(draft.state.artworkLayers.map(async (item) => {
         const restored = await restoreRenderUrl(item);
         if (restored.kind === "uploaded-artwork") return { ...restored, role: "background" as const, repeatGapMm: restored.repeatGapMm ?? 0 };

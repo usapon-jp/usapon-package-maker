@@ -56,7 +56,7 @@ export const PACKAGE_TEMPLATES: PackageTemplate[] = [
     categoryLabel: "封筒",
     seriesId: "autumn-letter-set",
     seriesName: "秋のレターセット",
-    description: "三角フラップを折って作る、はがきが入る横長の洋形2号封筒。",
+    description: "洋形2号ダイヤ貼の実用寸法。左右・下フラップを貼って袋状にします。",
     badge: "おそろい",
     box: { ...defaults, type: "envelope-v1", widthMm: 162, heightMm: 114, glueFlapMm: 12 },
     previewStampKey: "autumn-rabbit-sweet-potato-car",

@@ -8,7 +8,8 @@ export type BoxType =
   | "envelope-v1"
   | "mini-card-v1";
 
-export type DielinePageId = "main" | "lid" | "base";
+export type DielinePageId = "main" | "lid" | "base" | "letter" | "card";
+export type StationerySetSelection = "envelope-only" | "envelope-letter" | "envelope-card" | "envelope-letter-card";
 
 export type Point = { x: Millimeters; y: Millimeters };
 export type Line = { id: string; from: Point; to: Point };
@@ -43,12 +44,24 @@ export type DielineBounds = {
   heightMm: Millimeters;
 };
 
+export type EnvelopeMetrics = {
+  finishedWidthMm: Millimeters;
+  finishedHeightMm: Millimeters;
+  topFlapMm: Millimeters;
+  bottomFlapMm: Millimeters;
+  sideFlapMm: Millimeters;
+  sideSeamGapMm: Millimeters;
+  glueWidthMm: Millimeters;
+  tipFlatMm: Millimeters;
+};
+
 export type DielineGeometry = {
   type: BoxInput["type"];
   input: BoxInput;
   bounds: DielineBounds;
   bodyTopMm: Millimeters;
   bodyBottomMm: Millimeters;
+  envelope?: EnvelopeMetrics;
   panels: Panel[];
   clipPolygons: PolygonShape[];
   layers: {

@@ -1,6 +1,6 @@
 import { useId, useRef, type PointerEvent } from "react";
 
-import type { ArtworkLayer as ArtworkItem, DielineLineColors, StampItem, TextItem } from "../../app/app-types";
+import type { ArtworkLayer as ArtworkItem, DielineLineColors, EnvelopeDesignSettings, StampItem, TextItem } from "../../app/app-types";
 import type { DielineGeometry } from "../../domain/boxes/types";
 import { clamp } from "../../domain/units";
 import { pointsToString } from "./geometry-utils";
@@ -11,6 +11,7 @@ import { GlueLayer } from "./layers/GlueLayer";
 import { GuideLayer } from "./layers/GuideLayer";
 import { ArtworkLayer } from "./layers/ArtworkLayer";
 import { TextLayer } from "./layers/TextLayer";
+import { EnvelopeDesignLayer } from "./layers/EnvelopeDesignLayer";
 
 type LayersProps = {
   geometry: DielineGeometry;
@@ -26,6 +27,7 @@ type LayersProps = {
   exportMode: boolean;
   includeFoldoverLines?: boolean;
   showWritingLines?: boolean;
+  envelopeDesign?: EnvelopeDesignSettings;
   idPrefix: string;
   onArtworkPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
   onStampPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
@@ -47,6 +49,7 @@ export function DielineLayers({
   exportMode,
   includeFoldoverLines = true,
   showWritingLines = false,
+  envelopeDesign,
   idPrefix,
   onArtworkPointerDown,
   onStampPointerDown,
@@ -78,6 +81,7 @@ export function DielineLayers({
         onStampPointerDown={onStampPointerDown}
         onStampRotate={onStampRotate}
       />
+      {envelopeDesign && <EnvelopeDesignLayer geometry={geometry} settings={envelopeDesign} idPrefix={idPrefix} />}
       <g clipPath={`url(#${clipId})`}>
         {geometry.type === "letter-paper-v1" && showWritingLines && (
           <g data-layer="writing-lines" fill="none" stroke="#c9b4a7" strokeWidth="0.22" opacity="0.72" pointerEvents="none">
@@ -128,6 +132,7 @@ export function DielineSvg({
   exportMode,
   includeFoldoverLines = true,
   showWritingLines = false,
+  envelopeDesign,
   onSelectArtwork,
   onMoveArtwork,
   onSelectStamp,
@@ -228,6 +233,7 @@ export function DielineSvg({
         exportMode={exportMode}
         includeFoldoverLines={includeFoldoverLines}
         showWritingLines={showWritingLines}
+        envelopeDesign={envelopeDesign}
         idPrefix={idPrefix}
         onArtworkPointerDown={handleArtworkPointerDown}
         onStampPointerDown={handleStampPointerDown}

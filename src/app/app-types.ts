@@ -1,10 +1,21 @@
-import type { BoxInput, BoxType, DielinePageId } from "../domain/boxes/types";
+import type { BoxInput, BoxType, DielinePageId, StationerySetSelection } from "../domain/boxes/types";
 
 export type Screen = "home" | "size" | "templates" | "design" | "print" | "my-boxes";
 
 export type ImageSourceType = "png" | "svg";
 export type QuarterTurn = 0 | 90 | 180 | 270;
 export type DesignElementRole = "background" | "stamp" | "text" | "logoText";
+export type EnvelopeTemplateStyle = "cute" | "adult" | "simple";
+export type EnvelopeFlapPattern = "solid" | "dots" | "stripes";
+export type EnvelopeDesignSettings = {
+  style: EnvelopeTemplateStyle;
+  flapAccentEnabled: boolean;
+  flapColor: string;
+  flapPattern: EnvelopeFlapPattern;
+  showAddressField: boolean;
+  showAddressLines: boolean;
+  marginMm: number;
+};
 export type TextAlignment = "start" | "middle" | "end";
 export type TextFontWeight = 400 | 500 | 600 | 700 | 800 | 900;
 
@@ -121,6 +132,8 @@ export type AppState = {
   box: BoxInput;
   templateId: string | null;
   showWritingLines: boolean;
+  stationerySetSelection: StationerySetSelection;
+  envelopeDesign: EnvelopeDesignSettings;
   activePageId: DielinePageId;
   backgroundColors: Record<DielinePageId, string>;
   artworkLayers: ArtworkLayer[];
@@ -142,6 +155,8 @@ export type AppAction =
   | { type: "set-box-type"; boxType: BoxType }
   | { type: "replace-box"; box: BoxInput }
   | { type: "set-writing-lines"; value: boolean }
+  | { type: "set-stationery-set-selection"; value: StationerySetSelection }
+  | { type: "update-envelope-design"; patch: Partial<EnvelopeDesignSettings> }
   | { type: "set-active-page"; pageId: DielinePageId }
   | { type: "update-box"; field: keyof Omit<BoxInput, "type">; value: number }
   | { type: "set-background-color"; pageId: DielinePageId; color: string }
@@ -163,6 +178,7 @@ export type AppAction =
   | { type: "update-text"; id: string; patch: Partial<TextItem> }
   | { type: "remove-text"; id: string }
   | { type: "apply-auto-layout"; pageId: DielinePageId; artworkLayers?: ArtworkLayer[]; stamps?: StampItem[]; texts?: TextItem[] }
+  | { type: "replace-stationery-set-design"; pageIds: DielinePageId[]; backgroundColors: Partial<Record<DielinePageId, string>>; artworkLayers: ArtworkLayer[]; stamps: StampItem[]; texts: TextItem[] }
   | { type: "set-open-editor-section"; section: EditorSection }
   | { type: "toggle-guides" }
   | { type: "set-line-color"; layer: keyof DielineLineColors; color: string }

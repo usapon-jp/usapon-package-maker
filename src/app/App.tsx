@@ -8,6 +8,7 @@ import { MyBoxesScreen } from "../components/cloud/MyBoxesScreen";
 import { InstallGuide } from "../components/pwa/InstallGuide";
 import { generateDielineDocument } from "../domain/boxes/registry";
 import type { BoxType, DielineGeometry, DielinePage, DielinePageId } from "../domain/boxes/types";
+import { generateStationerySetDocument } from "../domain/boxes/stationery";
 import { evaluateA4Fit, type A4FitResult, type FitStatus } from "../domain/paper/a4";
 import { printImposition } from "../domain/paper/imposition";
 import { clamp, roundMm } from "../domain/units";
@@ -47,7 +48,7 @@ import {
   rotateByDegrees,
   rotateQuarterTurn,
 } from "./artwork";
-import type { AppAction, AppState, DielineLineColors, EditorSection, Screen, TextItem } from "./app-types";
+import type { AppAction, AppState, DielineLineColors, EditorSection, EnvelopeTemplateStyle, Screen, TextItem } from "./app-types";
 import { serializeBoxDocument } from "./box-document";
 import { parseNumberDraft } from "./number-input";
 import { FAVORITE_SIZES_STORAGE_KEY, parseFavoriteSizes, registerFavoriteSize } from "./favorite-sizes";
@@ -59,6 +60,9 @@ import { targetIncludesRole } from "../features/auto-layout/element-roles";
 import { canOfferInstallGuide, detectInstallContext, INSTALL_GUIDE_HIDDEN_KEY } from "../lib/pwa/install-guide";
 import { TemplateScreen } from "../features/templates/TemplateScreen";
 import { stampSetsForTemplate, templateById, type PackageTemplate } from "../features/templates/template-catalog";
+import { LetterSetPanel } from "../features/letter-set/LetterSetPanel";
+import { adaptEnvelopeDesignToPage } from "../features/letter-set/design-sharing";
+import { arrangeEnvelopeTemplate, ENVELOPE_LAYOUT_TEMPLATES } from "../features/letter-set/envelope-layout-templates";
 
 // 既存のクラウド保存利用者がいるため、端末内下書き保存と併用して提供する。
 const CLOUD_SYNC_UI_ENABLED = true;
@@ -74,7 +78,7 @@ const FIT_COPY: Record<FitStatus, { title: string; description: string }> = {
   },
   overflow: {
     title: "A4に収まりません",
-    description: "実寸を守るため自動縮小しません。箱の寸法を小さくしてください。",
+    description: "実寸を守るため自動縮小しません。完成サイズを小さくしてください。",
   },
 };
 
@@ -115,7 +119,7 @@ type DielinePageView = DielinePage & { fit: A4FitResult };
 
 function pageDesign(state: AppState, pageId: DielinePageId) {
   return {
-    backgroundColor: state.backgroundColors[pageId],
+    backgroundColor: state.backgroundColors[pageId] ?? state.backgroundColors.main,
     artworkLayers: state.artworkLayers.filter((item) => item.pageId === pageId),
     stamps: state.stamps.filter((item) => item.pageId === pageId),
     texts: state.texts.filter((item) => item.pageId === pageId),
@@ -637,6 +641,7 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
                         fit={page.fit}
                         {...design}
                         lineColors={state.lineColors}
+                        envelopeDesign={state.envelopeDesign}
                       />
                     </div>
                   </div>
@@ -715,6 +720,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   const [uploadingArtwork, setUploadingArtwork] = useState(false);
   const [uploadingStamp, setUploadingStamp] = useState(false);
   const [backgroundCopyMessage, setBackgroundCopyMessage] = useState("");
+  const [letterSetShareMessage, setLetterSetShareMessage] = useState("");
   const [autoLayoutSettings, setAutoLayoutSettings] = useState<AutoLayoutSettings>(DEFAULT_AUTO_LAYOUT_SETTINGS);
   const [autoLayoutResult, setAutoLayoutResult] = useState<AutoLayoutResult | null>(null);
   const autoLayoutRun = useRef(0);
@@ -839,6 +845,48 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
     setAutoLayoutResult(result);
   };
 
+  const shareEnvelopeDesignWithSet = () => {
+    const sourcePage = pages.find((page) => page.id === "main");
+    const targetPages = pages.filter((page) => page.id === "letter" || page.id === "card");
+    if (!sourcePage || targetPages.length === 0) return;
+    const sourceDesign = pageDesign(state, "main");
+    const adapted = targetPages.map((page) => adaptEnvelopeDesignToPage(sourcePage.geometry, page.geometry, page.id, sourceDesign, state.envelopeDesign.style));
+    dispatch({
+      type: "replace-stationery-set-design",
+      pageIds: adapted.map((page) => page.pageId),
+      backgroundColors: Object.fromEntries(adapted.map((page) => [page.pageId, page.backgroundColor])),
+      artworkLayers: adapted.flatMap((page) => page.artworkLayers),
+      stamps: adapted.flatMap((page) => page.stamps),
+      texts: adapted.flatMap((page) => page.texts),
+    });
+    setLetterSetShareMessage(`${targetPages.map((page) => page.label).join("・")}へデザインを反映しました。各ページで個別に調整できます。`);
+  };
+
+  const applyEnvelopeTemplateChoice = (style: EnvelopeTemplateStyle) => {
+    const sourcePage = pages.find((page) => page.id === "main");
+    if (!sourcePage) return;
+    const templateDefinition = ENVELOPE_LAYOUT_TEMPLATES[style];
+    const arranged = arrangeEnvelopeTemplate(pageDesign(state, "main"), sourcePage.geometry, style);
+    dispatch({ type: "update-envelope-design", patch: templateDefinition.settings });
+    dispatch({ type: "set-background-color", pageId: "main", color: templateDefinition.backgroundColor });
+    dispatch({ type: "apply-auto-layout", pageId: "main", ...arranged });
+    const targetPages = pages.filter((page) => page.id === "letter" || page.id === "card");
+    if (targetPages.length > 0) {
+      const sourceDesign = { backgroundColor: templateDefinition.backgroundColor, ...arranged };
+      const adapted = targetPages.map((page) => adaptEnvelopeDesignToPage(sourcePage.geometry, page.geometry, page.id, sourceDesign, style));
+      dispatch({
+        type: "replace-stationery-set-design",
+        pageIds: adapted.map((page) => page.pageId),
+        backgroundColors: Object.fromEntries(adapted.map((page) => [page.pageId, page.backgroundColor])),
+        artworkLayers: adapted.flatMap((page) => page.artworkLayers),
+        stamps: adapted.flatMap((page) => page.stamps),
+        texts: adapted.flatMap((page) => page.texts),
+      });
+    }
+    const arrangedLabels = ["封筒", ...targetPages.map((page) => page.label.replace("（2つ折り）", ""))];
+    setLetterSetShareMessage(`「${templateDefinition.label}」で${arrangedLabels.join("・")}を整えました。ここから手動で調整できます。`);
+  };
+
   return (
     <main className="tool-page design-page">
       <div className="page-heading horizontal-heading">
@@ -849,7 +897,21 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
 
       <div className={`editor-layout ${state.openEditorSection === "artwork" ? "is-background-editing" : ""}`}>
         <aside className="editor-controls panel-card">
-          <AccordionSection section="auto-layout" openSection={state.openEditorSection} title="いい感じに配置" icon="✦" onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
+          {state.box.type === "envelope-v1" && (
+            <LetterSetPanel
+              box={state.box}
+              selection={state.stationerySetSelection}
+              envelopeDesign={state.envelopeDesign}
+              canShare={pages.length > 1}
+              shareMessage={letterSetShareMessage}
+              onSelectionChange={(value) => { dispatch({ type: "set-stationery-set-selection", value }); setLetterSetShareMessage(""); }}
+              onTemplateSelect={applyEnvelopeTemplateChoice}
+              onEnvelopeDesignChange={(patch) => dispatch({ type: "update-envelope-design", patch })}
+              onBoxDimensionChange={(field, value) => { if (Number.isFinite(value) && value > 0) dispatch({ type: "update-box", field, value }); }}
+              onShare={shareEnvelopeDesignWithSet}
+            />
+          )}
+          {state.box.type !== "envelope-v1" && <AccordionSection section="auto-layout" openSection={state.openEditorSection} title="いい感じに配置" icon="✦" onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
             <AutoLayoutPanel
               settings={autoLayoutSettings}
               result={autoLayoutResult}
@@ -862,7 +924,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
               onArrange={() => runAutoLayout(false)}
               onArrangeAgain={() => runAutoLayout(true)}
             />
-          </AccordionSection>
+          </AccordionSection>}
           <AccordionSection section="artwork" openSection={state.openEditorSection} title="背景・柄" icon="▧" count={pageArtworkLayers.length} onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
             <DesignColorControl className="background-color-control" label="基本背景色" value={design.backgroundColor} favoriteColors={favoriteColors} onChange={(color) => dispatch({ type: "set-background-color", pageId: activePage.id, color })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
             {state.box.type === "two-piece-gift-box-v1" && activePage.id === "lid" && (
@@ -987,7 +1049,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
           </AccordionSection>
 
           <AccordionSection section="display" openSection={state.openEditorSection} title="表示" icon="◉" onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
-            {state.box.type === "letter-paper-v1" && <label className="toggle-row"><span><strong>便箋の罫線</strong><small>印刷される横罫線をON/OFF</small></span><input type="checkbox" checked={state.showWritingLines} onChange={(event) => dispatch({ type: "set-writing-lines", value: event.target.checked })} /></label>}
+            {geometry.type === "letter-paper-v1" && <label className="toggle-row"><span><strong>便箋の罫線</strong><small>印刷される横罫線をON/OFF</small></span><input type="checkbox" checked={state.showWritingLines} onChange={(event) => dispatch({ type: "set-writing-lines", value: event.target.checked })} /></label>}
             <label className="toggle-row"><span><strong>ガイド表示</strong><small>面名と中心線。PDFには印刷しません</small></span><input type="checkbox" checked={state.showGuides} onChange={() => dispatch({ type: "toggle-guides" })} /></label>
           </AccordionSection>
 
@@ -1022,7 +1084,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
         <section className="editor-canvas-panel panel-card">
           <div className="canvas-toolbar">
             <LineLegend geometry={geometry} lineColors={state.lineColors} />
-            <span className="dimension-pill">{geometry.type === "envelope-v1" ? `完成 ${mm(geometry.input.widthMm)} × ${mm(geometry.input.heightMm)} ／ 展開図 ${mm(geometry.bounds.widthMm)} × ${mm(geometry.bounds.heightMm)}` : `${mm(geometry.bounds.widthMm)} × ${mm(geometry.bounds.heightMm)}`}</span>
+            <span className="dimension-pill">{geometry.type === "envelope-v1" ? `完成 ${mm(geometry.input.widthMm)} × ${mm(geometry.input.heightMm)} ／ 展開 ${mm(geometry.bounds.widthMm)} × ${mm(geometry.bounds.heightMm)}` : `${mm(geometry.bounds.widthMm)} × ${mm(geometry.bounds.heightMm)}`}</span>
           </div>
           <div className="dieline-stage editor-stage">
             <DielineSvg
@@ -1035,6 +1097,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
               selectedTextId={state.selectedTextId}
               exportMode={false}
               showWritingLines={state.showWritingLines}
+              envelopeDesign={state.envelopeDesign}
               onSelectArtwork={(id) => { dispatch({ type: "select-artwork", id }); if (id) dispatch({ type: "set-open-editor-section", section: "artwork" }); }}
               onMoveArtwork={(id, xMm, yMm) => dispatch({ type: "update-artwork", id, patch: { offsetXmm: xMm, offsetYmm: yMm } })}
               onSelectStamp={(id) => { dispatch({ type: "select-stamp", id }); if (id) dispatch({ type: "set-open-editor-section", section: "stamps" }); }}
@@ -1047,7 +1110,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
               onMoveText={(id, xMm, yMm) => dispatch({ type: "update-text", id, patch: { xMm, yMm } })}
             />
           </div>
-          {geometry.type === "envelope-v1" ? <p className="canvas-caption envelope-canvas-caption"><strong>完成品：横 {mm(geometry.input.widthMm)} × 縦 {mm(geometry.input.heightMm)}{geometry.input.widthMm === 162 && geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong><span>左右の三角フラップ → 下フラップの順に折ってのり付けし、上の三角フラップで封をします。</span></p> : <p className="canvas-caption">画面では見やすい大きさに拡大表示しています。印刷寸法は下のmm値とPDFの実寸座標が基準です。</p>}
+          {geometry.type === "envelope-v1" ? <p className="canvas-caption envelope-canvas-caption"><strong>完成品：横 {mm(geometry.input.widthMm)} × 縦 {mm(geometry.input.heightMm)}{geometry.input.widthMm === 162 && geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong><span>上 {mm(geometry.envelope?.topFlapMm ?? 0)} ／ 下 {mm(geometry.envelope?.bottomFlapMm ?? 0)} ／ 左右 各{mm(geometry.envelope?.sideFlapMm ?? 0)} ／ のりしろ {mm(geometry.envelope?.glueWidthMm ?? 0)}</span><span>左右フラップ → 下フラップの順に折り、下フラップ両端ののりしろを左右フラップへ貼ります。最後に上フラップで封をします。</span></p> : <p className="canvas-caption">画面では見やすい大きさに拡大表示しています。印刷寸法は下のmm値とPDFの実寸座標が基準です。</p>}
         </section>
       </div>
 
@@ -1071,7 +1134,9 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
   const calibrationPageNumber = pages.length + 1;
   const twoPiece = state.box.type === "two-piece-gift-box-v1";
   const hasFoldoverLines = pages.some((page) => page.geometry.layers.foldover.length > 0);
-  const imposition = printImposition(activePage.geometry);
+  const imposedPages = pages
+    .map((page) => ({ label: page.label, imposition: printImposition(page.geometry) }))
+    .filter((page) => page.imposition.count > 1);
 
   const clearPrintablePdf = useCallback(() => {
     if (printablePdfUrl.current) URL.revokeObjectURL(printablePdfUrl.current);
@@ -1155,6 +1220,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
                     lineColors={state.lineColors}
                     includeFoldoverLines={state.printFoldoverLines}
                     showWritingLines={state.showWritingLines}
+                    envelopeDesign={state.envelopeDesign}
                   />
                 </div>
               </section>
@@ -1166,8 +1232,8 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
           <p className="eyebrow">PRINT SETTINGS</p>
           <h2>PDF出力設定</h2>
           <div className="fit-notice-stack">{pages.map((page) => <FitNotice key={page.id} geometry={page.geometry} fit={page.fit} label={page.label} />)}</div>
-          {activePage.geometry.type === "envelope-v1" && <div className="envelope-finished-note"><strong>完成：横 {mm(activePage.geometry.input.widthMm)} × 縦 {mm(activePage.geometry.input.heightMm)}{activePage.geometry.input.widthMm === 162 && activePage.geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong><span>横長の封筒が1枚できます。左右 → 下の順に折って貼り、上の三角フラップで閉じます。</span></div>}
-          {imposition.count > 1 && <div className="template-imposition-note"><strong>A4に{imposition.count}枚を自動配置</strong><span>{imposition.columns}列 × {imposition.rows}段。編集した同じカードを実寸でまとめて印刷します。</span></div>}
+          {activePage.geometry.type === "envelope-v1" && <div className="envelope-finished-note"><strong>完成：横 {mm(activePage.geometry.input.widthMm)} × 縦 {mm(activePage.geometry.input.heightMm)}{activePage.geometry.input.widthMm === 162 && activePage.geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong><span>展開：{mm(activePage.geometry.bounds.widthMm)} × {mm(activePage.geometry.bounds.heightMm)} ／ 上 {mm(activePage.geometry.envelope?.topFlapMm ?? 0)} ／ 下 {mm(activePage.geometry.envelope?.bottomFlapMm ?? 0)} ／ 左右 各{mm(activePage.geometry.envelope?.sideFlapMm ?? 0)}</span><span>左右 → 下の順に折り、下フラップ両端ののりしろを左右フラップへ貼って袋状にします。上フラップは封をするときだけ折ります。</span></div>}
+          {imposedPages.map(({ label, imposition }) => <div className="template-imposition-note" key={label}><strong>{label}をA4に{imposition.count}枚自動配置</strong><span>{imposition.columns}列 × {imposition.rows}段。編集した同じカードを実寸でまとめて印刷します。</span></div>)}
           <div className="print-instruction">
             <span aria-hidden="true">!</span>
             <div><strong>印刷設定が重要です</strong><p>プリンター設定で<strong>「100%／実際のサイズ」</strong>を選び、<strong>「用紙に合わせる」をOFF</strong>にしてください。</p></div>
@@ -1215,12 +1281,15 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
             {!clientContext.isIPhone && !clientContext.isAndroid && printablePdf?.canShare && <small className="pdf-share-help">共有画面が開いたら「プリント」または「“ファイル”に保存」を選んでください。</small>}
           </div>
           <p className="privacy-copy">PDFはこの端末内で作成します。作品をクラウド保存した場合だけ、作品JSONと追加画像を非公開のSupabaseへ送信します。</p>
-          {hasOverflow && <p className="blocked-copy">蓋または本体がA4に収まらないため出力を停止しています。サイズ設定へ戻って寸法を小さくしてください。</p>}
+          {hasOverflow && <p className="blocked-copy">{state.box.type === "envelope-v1" ? "封筒の展開図がA4に収まらないため出力を停止しています。デザイン画面の詳細設定で完成サイズを小さくしてください。" : "蓋または本体がA4に収まらないため出力を停止しています。サイズ設定へ戻って寸法を小さくしてください。"}</p>}
         </aside>
       </div>
 
       <div className="hidden-export-svg" aria-hidden="true"><CalibrationSvg ref={calibrationSvg} /></div>
-      <div className="sticky-actions"><button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: "design" })}>デザインに戻る</button><button className="outline-button" type="button" onClick={() => dispatch({ type: "go", screen: "size" })}>寸法を変更</button></div>
+      <div className="sticky-actions">
+        <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: "design" })}>デザインに戻る</button>
+        {state.box.type !== "envelope-v1" && <button className="outline-button" type="button" onClick={() => dispatch({ type: "go", screen: "size" })}>寸法を変更</button>}
+      </div>
     </main>
   );
 }
@@ -1284,7 +1353,12 @@ export function App() {
   const oauthRedirecting = useRef(false);
   const lastSavedSignature = useRef(JSON.stringify(serializeBoxDocument(initialState)));
   const documentSignature = useMemo(() => JSON.stringify(serializeBoxDocument(state)), [state]);
-  const document = useMemo(() => generateDielineDocument(state.box), [state.box]);
+  const document = useMemo(
+    () => state.box.type === "envelope-v1"
+      ? generateStationerySetDocument(state.box, state.stationerySetSelection)
+      : generateDielineDocument(state.box),
+    [state.box, state.stationerySetSelection],
+  );
   const pages = useMemo<DielinePageView[]>(() => document.pages.map((page) => {
     const imposition = printImposition(page.geometry);
     return { ...page, fit: evaluateA4Fit(imposition.widthMm, imposition.heightMm) };
@@ -1472,7 +1546,12 @@ export function App() {
       screen: "design",
       box: { ...template.box },
       templateId: template.id,
-      showWritingLines: template.writingLines,
+      showWritingLines: template.box.type === "envelope-v1" ? true : template.writingLines,
+      stationerySetSelection: template.box.type === "envelope-v1" ? "envelope-letter-card" : "envelope-only",
+      envelopeDesign: template.box.type === "envelope-v1" ? { ...ENVELOPE_LAYOUT_TEMPLATES.cute.settings } : { ...initialState.envelopeDesign },
+      backgroundColors: template.box.type === "envelope-v1"
+        ? { ...initialState.backgroundColors, main: ENVELOPE_LAYOUT_TEMPLATES.cute.backgroundColor, letter: ENVELOPE_LAYOUT_TEMPLATES.cute.backgroundColor, card: ENVELOPE_LAYOUT_TEMPLATES.cute.backgroundColor }
+        : { ...initialState.backgroundColors },
       openEditorSection: "stamps",
       includeCalibrationPage: false,
     };

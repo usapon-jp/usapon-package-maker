@@ -32,8 +32,18 @@ export const initialState: AppState = {
   },
   templateId: null,
   showWritingLines: false,
+  stationerySetSelection: "envelope-only",
+  envelopeDesign: {
+    style: "simple",
+    flapAccentEnabled: false,
+    flapColor: "#fffdf9",
+    flapPattern: "solid",
+    showAddressField: false,
+    showAddressLines: false,
+    marginMm: 12,
+  },
   activePageId: "main",
-  backgroundColors: { main: "#fffdf9", lid: "#fffdf9", base: "#fffdf9" },
+  backgroundColors: { main: "#fffdf9", lid: "#fffdf9", base: "#fffdf9", letter: "#fffdf9", card: "#fffdf9" },
   artworkLayers: [],
   stamps: [],
   selectedArtworkId: null,
@@ -73,6 +83,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         activePageId: action.boxType === "two-piece-gift-box-v1" ? "lid" : "main",
         templateId: null,
         showWritingLines: false,
+        stationerySetSelection: "envelope-only",
         selectedArtworkId: null,
         selectedStampId: null,
         selectedTextId: null,
@@ -84,6 +95,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
         activePageId: action.box.type === "two-piece-gift-box-v1" ? "lid" : "main",
         templateId: null,
         showWritingLines: false,
+        stationerySetSelection: "envelope-only",
         selectedArtworkId: null,
         selectedStampId: null,
         selectedTextId: null,
@@ -92,6 +104,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, activePageId: action.pageId, selectedArtworkId: null, selectedStampId: null, selectedTextId: null };
     case "set-writing-lines":
       return { ...state, showWritingLines: action.value };
+    case "set-stationery-set-selection":
+      return { ...state, stationerySetSelection: action.value, activePageId: "main", selectedArtworkId: null, selectedStampId: null, selectedTextId: null };
+    case "update-envelope-design":
+      return { ...state, envelopeDesign: { ...state.envelopeDesign, ...action.patch } };
     case "update-box":
       return {
         ...state,
@@ -107,6 +123,17 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
     case "set-background-color":
       return { ...state, backgroundColors: { ...state.backgroundColors, [action.pageId]: action.color } };
+    case "replace-stationery-set-design":
+      return {
+        ...state,
+        backgroundColors: { ...state.backgroundColors, ...action.backgroundColors },
+        artworkLayers: [...state.artworkLayers.filter((item) => !action.pageIds.includes(item.pageId)), ...action.artworkLayers],
+        stamps: [...state.stamps.filter((item) => !action.pageIds.includes(item.pageId)), ...action.stamps],
+        texts: [...state.texts.filter((item) => !action.pageIds.includes(item.pageId)), ...action.texts],
+        selectedArtworkId: null,
+        selectedStampId: null,
+        selectedTextId: null,
+      };
     case "replace-page-background":
       return {
         ...state,

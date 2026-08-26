@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 
-import type { ArtworkLayer, DielineLineColors, StampItem, TextItem } from "../../app/app-types";
+import type { ArtworkLayer, DielineLineColors, EnvelopeDesignSettings, StampItem, TextItem } from "../../app/app-types";
 import type { DielineGeometry } from "../../domain/boxes/types";
 import type { A4FitResult } from "../../domain/paper/a4";
 import { printImposition } from "../../domain/paper/imposition";
@@ -17,10 +17,11 @@ export type A4PageSvgProps = {
   lineColors: DielineLineColors;
   includeFoldoverLines?: boolean;
   showWritingLines?: boolean;
+  envelopeDesign?: EnvelopeDesignSettings;
 };
 
 export const A4PageSvg = forwardRef<SVGSVGElement, A4PageSvgProps>(function A4PageSvg(
-  { pageId = "main", geometry, fit, backgroundColor, artworkLayers, stamps, texts, lineColors, includeFoldoverLines = true, showWritingLines = false },
+  { pageId = "main", geometry, fit, backgroundColor, artworkLayers, stamps, texts, lineColors, includeFoldoverLines = true, showWritingLines = false, envelopeDesign },
   ref,
 ) {
   const imposition = printImposition(geometry);
@@ -58,6 +59,7 @@ export const A4PageSvg = forwardRef<SVGSVGElement, A4PageSvgProps>(function A4Pa
               exportMode
               includeFoldoverLines={includeFoldoverLines}
               showWritingLines={showWritingLines}
+              envelopeDesign={envelopeDesign}
               idPrefix={`export-dieline-${pageId}${imposition.count > 1 ? `-${index}` : ""}`}
             />
           </g>

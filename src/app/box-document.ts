@@ -13,7 +13,7 @@ import type {
 import { BUILT_IN_STAMP_KEYS } from "./app-types";
 import { initialState } from "./app-state";
 
-const pageIdSchema = z.enum(["main", "lid", "base"]);
+const pageIdSchema = z.enum(["main", "lid", "base", "letter", "card"]);
 const quarterTurnSchema = z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]);
 const assetRefSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("user"), assetId: z.string().uuid() }),
@@ -109,7 +109,13 @@ export const boxDocumentV1Schema = z.object({
     foldoverMm: z.number().positive().finite().optional(),
   }),
   design: z.object({
-    backgroundColors: z.object({ main: z.string(), lid: z.string(), base: z.string() }),
+    backgroundColors: z.object({
+      main: z.string(),
+      lid: z.string(),
+      base: z.string(),
+      letter: z.string().default("#fffdf9"),
+      card: z.string().default("#fffdf9"),
+    }),
     artworkLayers: z.array(z.union([uploadedArtworkSchema, stripeSchema, dotSchema])),
     stamps: z.array(stampSchema),
     texts: z.array(textSchema),
@@ -118,6 +124,24 @@ export const boxDocumentV1Schema = z.object({
     printFoldoverLines: z.boolean().default(true),
     templateId: z.string().max(120).nullable().default(null),
     showWritingLines: z.boolean().default(false),
+    stationerySetSelection: z.enum(["envelope-only", "envelope-letter", "envelope-card", "envelope-letter-card"]).default("envelope-only"),
+    envelopeDesign: z.object({
+      style: z.enum(["cute", "adult", "simple"]),
+      flapAccentEnabled: z.boolean(),
+      flapColor: z.string(),
+      flapPattern: z.enum(["solid", "dots", "stripes"]),
+      showAddressField: z.boolean(),
+      showAddressLines: z.boolean(),
+      marginMm: z.number().min(4).max(30),
+    }).default({
+      style: "simple",
+      flapAccentEnabled: false,
+      flapColor: "#fffdf9",
+      flapPattern: "solid",
+      showAddressField: false,
+      showAddressLines: false,
+      marginMm: 12,
+    }),
   }),
 });
 
@@ -155,6 +179,8 @@ export function serializeBoxDocument(state: AppState): BoxDocumentV1 {
       printFoldoverLines: state.printFoldoverLines,
       templateId: state.templateId ?? null,
       showWritingLines: state.showWritingLines ?? false,
+      stationerySetSelection: state.stationerySetSelection ?? "envelope-only",
+      envelopeDesign: { ...state.envelopeDesign },
     },
   };
 }
@@ -196,6 +222,8 @@ export async function hydrateBoxDocument(value: unknown, resolveAsset: AssetReso
     printFoldoverLines: document.design.printFoldoverLines,
     templateId: document.design.templateId,
     showWritingLines: document.design.showWritingLines,
+    stationerySetSelection: document.design.stationerySetSelection,
+    envelopeDesign: { ...document.design.envelopeDesign },
   };
 }
 

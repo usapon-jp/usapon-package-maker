@@ -1,4 +1,13 @@
-import type { BoxGenerator, BoxInput, DielineGeometry, Line, Panel, Point, PolygonShape } from "./types";
+import type { BoxGenerator, BoxInput, DielineDocument, DielineGeometry, EnvelopeMetrics, Line, Panel, Point, PolygonShape, StationerySetSelection } from "./types";
+
+function round(value: number, digits = 1) {
+  const scale = 10 ** digits;
+  return Math.round(value * scale) / scale;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
 
 function polygon(id: string, points: Point[]): PolygonShape {
   return { id, points };
@@ -22,7 +31,7 @@ function edgeGlueStrip(id: string, from: Point, to: Point, toward: Point, width:
   if (normal.x * (toward.x - midpoint.x) + normal.y * (toward.y - midpoint.y) < 0) {
     normal = { x: -normal.x, y: -normal.y };
   }
-  const trim = Math.min(length * 0.25, width * 2);
+  const trim = Math.min(length * 0.08, Math.max(4, width * 0.6));
   const start = { x: from.x + unit.x * trim, y: from.y + unit.y * trim };
   const end = { x: to.x - unit.x * trim, y: to.y - unit.y * trim };
   const offset = { x: normal.x * width, y: normal.y * width };
@@ -55,41 +64,157 @@ export const generateFlatStationery: BoxGenerator = (input): DielineGeometry => 
     bodyBottomMm: height,
     panels: [panel],
     clipPolygons: [surface],
-    layers: { cut: [{ id: "stationery-outline", d: outline(surface.points) }], fold: [], foldover: [], glue: [], guide: centerGuides(panel) },
+    layers: {
+      cut: [{ id: "stationery-outline", d: outline(surface.points) }],
+      fold: input.type === "letter-paper-v1"
+        ? [{ id: "letter-paper-center-fold", from: { x: 0, y: height / 2 }, to: { x: width, y: height / 2 } }]
+        : [],
+      foldover: [],
+      glue: [],
+      guide: centerGuides(panel),
+    },
   };
 };
+
+/**
+ * ハート社の洋2ダイヤ貼（仕上162×114+フタ70、展開320×249mm）を基準に、
+ * 完成寸法から各フラップを個別に再計算する。外寸を先に決めて余りを配らない。
+ */
+export function calculateEnvelopeMetrics(input: Pick<BoxInput, "widthMm" | "heightMm" | "glueFlapMm">): EnvelopeMetrics {
+  const width = input.widthMm;
+  const height = input.heightMm;
+  if (![width, height].every((value) => Number.isFinite(value) && value > 0)) {
+    throw new RangeError("封筒の完成幅と完成高さは0より大きいmm値で指定してください。");
+  }
+  const sideSeamGapMm = clamp(round(width * (4 / 162)), 3, 6);
+  return {
+    finishedWidthMm: width,
+    finishedHeightMm: height,
+    topFlapMm: round(height * (70 / 114)),
+    bottomFlapMm: round(height * (65 / 114)),
+    sideFlapMm: round((width - sideSeamGapMm) / 2),
+    sideSeamGapMm,
+    glueWidthMm: clamp(round(input.glueFlapMm), 8, 15),
+    tipFlatMm: clamp(round(height * (8 / 114)), 4, 10),
+  };
+}
+
+export function calculateLetterPaperSize(input: Pick<BoxInput, "widthMm" | "heightMm">) {
+  const sideClearanceMm = clamp(round(Math.min(input.widthMm, input.heightMm) * 0.03), 3, 5);
+  const foldedWidthMm = round(input.widthMm - sideClearanceMm * 2);
+  const foldedHeightMm = round(input.heightMm - sideClearanceMm * 2);
+  return {
+    widthMm: foldedWidthMm,
+    heightMm: round(foldedHeightMm * 2),
+    foldedWidthMm,
+    foldedHeightMm,
+    sideClearanceMm,
+    foldYmm: foldedHeightMm,
+  };
+}
+
+export function calculateMiniCardSize(input: Pick<BoxInput, "widthMm" | "heightMm">) {
+  const aspectRatio = 91 / 55;
+  const widthFromEnvelope = input.widthMm * 0.56;
+  const widthFromHeight = input.heightMm * 0.48 * aspectRatio;
+  const widthMm = round(Math.max(35, Math.min(widthFromEnvelope, widthFromHeight, input.widthMm - 12)));
+  const heightMm = round(widthMm / aspectRatio);
+  return { widthMm, heightMm, clearanceXmm: round((input.widthMm - widthMm) / 2), clearanceYmm: round((input.heightMm - heightMm) / 2) };
+}
+
+export function stationerySelectionIncludes(selection: StationerySetSelection, item: "letter" | "card") {
+  return selection === "envelope-letter-card" || selection === `envelope-${item}`;
+}
+
+export function generateStationerySetDocument(input: BoxInput, selection: StationerySetSelection): DielineDocument {
+  if (input.type !== "envelope-v1") throw new TypeError("レターセットは封筒の完成寸法から生成してください。");
+  const pages: DielineDocument["pages"] = [{ id: "main", label: "封筒", geometry: generateEnvelope(input) }];
+  if (stationerySelectionIncludes(selection, "letter")) {
+    const size = calculateLetterPaperSize(input);
+    const letterInput: BoxInput = { ...input, type: "letter-paper-v1", widthMm: size.widthMm, heightMm: size.heightMm };
+    pages.push({ id: "letter", label: "便箋（2つ折り）", geometry: generateFlatStationery(letterInput) });
+  }
+  if (stationerySelectionIncludes(selection, "card")) {
+    const size = calculateMiniCardSize(input);
+    const cardInput: BoxInput = { ...input, type: "mini-card-v1", widthMm: size.widthMm, heightMm: size.heightMm };
+    pages.push({ id: "card", label: "ミニカード", geometry: generateFlatStationery(cardInput) });
+  }
+  return { type: input.type, input, pages };
+}
 
 export const generateEnvelope: BoxGenerator = (input): DielineGeometry => {
   assertDimensions(input);
   const { widthMm: width, heightMm: height } = input;
-  const sideFlap = Math.min(Math.round(height / 2), Math.round(width * 0.36));
-  const topFlap = Math.min(40, Math.round(height * 0.35));
-  const bottomFlap = Math.min(46, Math.round(height * 0.4));
-  const glueWidth = Math.min(Math.max(input.glueFlapMm, 8), 12);
+  const envelope = calculateEnvelopeMetrics(input);
+  const { sideFlapMm: sideFlap, topFlapMm: topFlap, bottomFlapMm: bottomFlap, glueWidthMm: glueWidth, tipFlatMm: tipFlat } = envelope;
   const x0 = sideFlap;
   const x1 = x0 + width;
   const y0 = topFlap;
   const y1 = y0 + height;
   const centerX = x0 + width / 2;
   const centerY = y0 + height / 2;
-  const bottomPoint = { x: centerX, y: y1 + bottomFlap };
+  const shoulder = clamp(round(height * 0.08), 5, 12);
+  const topRise = round(topFlap * 0.14);
+  const bottomDrop = round(bottomFlap * 0.14);
   const front: Panel = { id: "panel-envelope-front", label: "封筒の表面", x: x0, y: y0, width, height };
   const frontSurface = rectangle("envelope-front", x0, y0, width, height);
-  const top = polygon("envelope-top-flap", [{ x: x0, y: y0 }, { x: centerX, y: 0 }, { x: x1, y: y0 }]);
-  const bottom = polygon("envelope-bottom-flap", [{ x: x0, y: y1 }, { x: x1, y: y1 }, bottomPoint]);
-  const left = polygon("envelope-left-flap", [{ x: x0, y: y0 }, { x: 0, y: centerY }, { x: x0, y: y1 }]);
-  const right = polygon("envelope-right-flap", [{ x: x1, y: y0 }, { x: x1 + sideFlap, y: centerY }, { x: x1, y: y1 }]);
-  const bottomCenter = { x: centerX, y: y1 + bottomFlap / 3 };
-  const leftGlue = edgeGlueStrip("envelope-bottom-left-glue", bottom.points[0], bottomPoint, bottomCenter, glueWidth);
-  const rightGlue = edgeGlueStrip("envelope-bottom-right-glue", bottom.points[1], bottomPoint, bottomCenter, glueWidth);
-  const outerPoints = [top.points[1], top.points[2], right.points[1], right.points[2], bottom.points[2], bottom.points[0], left.points[1], left.points[0]];
+  const top = polygon("envelope-top-flap", [
+    { x: x0, y: y0 },
+    { x: x0 + shoulder, y: y0 - topRise },
+    { x: centerX - tipFlat / 2, y: 0 },
+    { x: centerX + tipFlat / 2, y: 0 },
+    { x: x1 - shoulder, y: y0 - topRise },
+    { x: x1, y: y0 },
+  ]);
+  const bottom = polygon("envelope-bottom-flap", [
+    { x: x0, y: y1 },
+    { x: x1, y: y1 },
+    { x: x1 - shoulder, y: y1 + bottomDrop },
+    { x: centerX + tipFlat / 2, y: y1 + bottomFlap },
+    { x: centerX - tipFlat / 2, y: y1 + bottomFlap },
+    { x: x0 + shoulder, y: y1 + bottomDrop },
+  ]);
+  const left = polygon("envelope-left-flap", [
+    { x: x0, y: y0 },
+    { x: x0 - shoulder, y: y0 + shoulder },
+    { x: 0, y: centerY - tipFlat / 2 },
+    { x: 0, y: centerY + tipFlat / 2 },
+    { x: x0 - shoulder, y: y1 - shoulder },
+    { x: x0, y: y1 },
+  ]);
+  const right = polygon("envelope-right-flap", [
+    { x: x1, y: y0 },
+    { x: x1 + shoulder, y: y0 + shoulder },
+    { x: x1 + sideFlap, y: centerY - tipFlat / 2 },
+    { x: x1 + sideFlap, y: centerY + tipFlat / 2 },
+    { x: x1 + shoulder, y: y1 - shoulder },
+    { x: x1, y: y1 },
+  ]);
+  const leftFlapCenter = { x: x0 - sideFlap * 0.4, y: centerY + height * 0.18 };
+  const rightFlapCenter = { x: x1 + sideFlap * 0.4, y: centerY + height * 0.18 };
+  const leftGlue = edgeGlueStrip("envelope-left-side-glue", left.points[3], left.points[5], leftFlapCenter, glueWidth);
+  const rightGlue = edgeGlueStrip("envelope-right-side-glue", right.points[3], right.points[5], rightFlapCenter, glueWidth);
+  const outerPoints = [
+    ...top.points.slice(1),
+    ...right.points.slice(1),
+    ...bottom.points.slice(2),
+    ...left.points.slice(1, -1).reverse(),
+    top.points[0],
+  ];
   return {
     type: input.type,
     input,
-    bounds: { x: 0, y: 0, widthMm: width + sideFlap * 2, heightMm: topFlap + height + bottomFlap },
+    bounds: { x: 0, y: 0, widthMm: round(width + sideFlap * 2), heightMm: round(topFlap + height + bottomFlap) },
     bodyTopMm: y0,
     bodyBottomMm: y1,
-    panels: [front, { id: "panel-envelope-back", label: "背面（下フラップ）", x: x0, y: y1, width, height: bottomFlap }],
+    envelope,
+    panels: [
+      front,
+      { id: "panel-envelope-top-flap", label: "封をする上フラップ", x: x0, y: 0, width, height: topFlap },
+      { id: "panel-envelope-bottom-flap", label: "裏面を作る下フラップ", x: x0, y: y1, width, height: bottomFlap },
+      { id: "panel-envelope-left-flap", label: "左フラップ", x: 0, y: y0, width: sideFlap, height },
+      { id: "panel-envelope-right-flap", label: "右フラップ", x: x1, y: y0, width: sideFlap, height },
+    ],
     clipPolygons: [frontSurface, top, bottom, left, right],
     layers: {
       cut: [{ id: "envelope-outline", d: outline(outerPoints) }],
