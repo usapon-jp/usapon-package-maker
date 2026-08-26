@@ -1280,6 +1280,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
   const calibrationPageNumber = pages.length + 1;
   const twoPiece = state.box.type === "two-piece-gift-box-v1";
   const hasFoldoverLines = pages.some((page) => page.geometry.layers.foldover.length > 0);
+  const envelopePage = pages.find((page) => page.geometry.type === "envelope-v1");
   const imposedPages = pages
     .map((page) => ({ label: page.label, imposition: printImposition(page.geometry) }))
     .filter((page) => page.imposition.count > 1);
@@ -1378,12 +1379,12 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
         <aside className="print-settings panel-card">
           <p className="eyebrow">PRINT SETTINGS</p>
           <h2>PDF出力設定</h2>
-          {activePage.geometry.type === "envelope-v1" && <div className="print-guide-mode" role="group" aria-label="封筒PDFの表示">
+          {envelopePage && <div className="print-guide-mode" role="group" aria-label="封筒PDFの表示">
             <button type="button" className={state.printGuideMode === "assembly" ? "is-selected" : ""} onClick={() => dispatch({ type: "set-print-guide-mode", mode: "assembly" })}><strong>制作ガイドあり</strong><small>A/B/C・のりしろを表示</small></button>
             <button type="button" className={state.printGuideMode === "design" ? "is-selected" : ""} onClick={() => dispatch({ type: "set-print-guide-mode", mode: "design" })}><strong>デザイン優先</strong><small>必要なカット・折り線だけ</small></button>
           </div>}
           <div className="fit-notice-stack">{pages.map((page) => <FitNotice key={page.id} geometry={page.geometry} fit={page.fit} label={page.label} />)}</div>
-          {activePage.geometry.type === "envelope-v1" && <div className="envelope-finished-note"><strong>完成：横 {mm(activePage.geometry.input.widthMm)} × 縦 {mm(activePage.geometry.input.heightMm)}{activePage.geometry.input.widthMm === 162 && activePage.geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong>{activePage.geometry.envelope?.construction === "kamasu" ? <><span>展開：{mm(activePage.geometry.bounds.widthMm)} × {mm(activePage.geometry.bounds.heightMm)} ／ B フタ {mm(activePage.geometry.envelope.topFlapMm)} ／ 左右のりしろ 各{mm(activePage.geometry.envelope.glueWidthMm)}</span><span>Cの左右のりしろを内側へ折り、Aを重ねて接着します。最後にBで封をします。</span></> : <><span>展開：{mm(activePage.geometry.bounds.widthMm)} × {mm(activePage.geometry.bounds.heightMm)}</span><span>左右 → 下の順に折り、貼って袋状にします。</span></>}</div>}
+          {envelopePage && <div className="envelope-finished-note"><strong>完成：横 {mm(envelopePage.geometry.input.widthMm)} × 縦 {mm(envelopePage.geometry.input.heightMm)}{envelopePage.geometry.input.widthMm === 162 && envelopePage.geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong>{envelopePage.geometry.envelope?.construction === "kamasu" ? <><span>展開：{mm(envelopePage.geometry.bounds.widthMm)} × {mm(envelopePage.geometry.bounds.heightMm)} ／ B フタ {mm(envelopePage.geometry.envelope.topFlapMm)} ／ 左右のりしろ 各{mm(envelopePage.geometry.envelope.glueWidthMm)}</span><span>Cの左右のりしろを内側へ折り、Aを重ねて接着します。最後にBで封をします。</span></> : <><span>展開：{mm(envelopePage.geometry.bounds.widthMm)} × {mm(envelopePage.geometry.bounds.heightMm)}</span><span>左右 → 下の順に折り、貼って袋状にします。</span></>}</div>}
           {imposedPages.map(({ label, imposition }) => <div className="template-imposition-note" key={label}><strong>{label}をA4に{imposition.count}枚自動配置</strong><span>{imposition.columns}列 × {imposition.rows}段。編集した同じカードを実寸でまとめて印刷します。</span></div>)}
           <div className="print-instruction">
             <span aria-hidden="true">!</span>
@@ -1393,7 +1394,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
           {hasFoldoverLines && (
             <label className="toggle-row print-line-toggle"><span><strong>折り返し線を印刷する</strong><small>側面上端{mm(state.box.foldoverMm ?? 25)}の補助点線だけをPDFレビューと保存PDFで切り替えます</small></span><input type="checkbox" checked={state.printFoldoverLines} onChange={(event) => dispatch({ type: "set-print-foldover-lines", value: event.target.checked })} /></label>
           )}
-          <div className="guide-print-status"><span aria-hidden="true">✓</span><div><strong>{activePage.geometry.type === "envelope-v1" && state.printGuideMode === "assembly" ? "A/B/C面名とのりしろを印刷します" : "面名・中心ガイドは印刷しません"}</strong><small>カット線と通常の折り線は、どちらのモードでも実寸で残ります。</small></div></div>
+          <div className="guide-print-status"><span aria-hidden="true">✓</span><div><strong>{envelopePage && state.printGuideMode === "assembly" ? "A/B/C面名とのりしろを印刷します" : "面名・中心ガイドは印刷しません"}</strong><small>カット線と通常の折り線は、どちらのモードでも実寸で残ります。</small></div></div>
           <div className="calibration-explanation"><b>実寸の確認方法</b><ol><li>{calibrationPageNumber}ページ目も同じ設定で印刷</li><li>検寸線を定規で測る</li><li>ちょうど50mmなら正しい倍率です</li></ol></div>
           {twoPiece && (
             <div className="two-piece-shipping-guide">
