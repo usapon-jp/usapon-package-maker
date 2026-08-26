@@ -16,6 +16,7 @@ export type PackageTemplate = {
   previewStampKey: BuiltInStampKey;
   recommendedStampSetIds: string[];
   writingLines: boolean;
+  themePackId?: string;
 };
 
 export type StampSet = {
@@ -31,10 +32,24 @@ export const STAMP_SETS: StampSet[] = [{
   id: "autumn-rabbits",
   name: "秋うさぎスタンプセット",
   description: "どんぐり・おいも・栗の秋うさぎ",
-  stampKeys: ["autumn-rabbit-acorn-hug", "autumn-rabbit-sweet-potato-car", "autumn-rabbit-sweet-potato", "autumn-rabbit-chestnut"],
+  stampKeys: ["autumn-rabbit-acorn-hug", "autumn-rabbit-sweet-potato-car", "autumn-rabbit-sweet-potato", "autumn-rabbit-chestnut", "autumn-rabbit-sleeping-sweet-potato"],
 }];
 
 export const PACKAGE_TEMPLATES: PackageTemplate[] = [
+  {
+    id: "y2-kamasu-envelope",
+    name: "洋形2号カマス貼り封筒",
+    category: "envelope",
+    categoryLabel: "封筒",
+    seriesId: "basic-letter-set",
+    seriesName: "基本のレターセット",
+    description: "完成162 × 114mm。A4実寸で作れる基本の封筒です。",
+    badge: "無料",
+    box: { ...defaults, type: "envelope-v1", widthMm: 162, heightMm: 114, glueFlapMm: 12, envelopeConstruction: "kamasu" },
+    previewStampKey: "usapon-box-rabbits",
+    recommendedStampSetIds: [],
+    writingLines: false,
+  },
   {
     id: "autumn-letter-paper",
     name: "秋うさぎの便箋",
@@ -48,6 +63,7 @@ export const PACKAGE_TEMPLATES: PackageTemplate[] = [
     previewStampKey: "autumn-rabbit-acorn-hug",
     recommendedStampSetIds: ["autumn-rabbits"],
     writingLines: true,
+    themePackId: "autumn-letter-set",
   },
   {
     id: "autumn-envelope",
@@ -56,12 +72,13 @@ export const PACKAGE_TEMPLATES: PackageTemplate[] = [
     categoryLabel: "封筒",
     seriesId: "autumn-letter-set",
     seriesName: "秋のレターセット",
-    description: "洋形2号ダイヤ貼の実用寸法。左右・下フラップを貼って袋状にします。",
-    badge: "おそろい",
-    box: { ...defaults, type: "envelope-v1", widthMm: 162, heightMm: 114, glueFlapMm: 12 },
+    description: "洋形2号・カマス貼り。A4から切って折り、左右を貼って作れます。",
+    badge: "A4実寸",
+    box: { ...defaults, type: "envelope-v1", widthMm: 162, heightMm: 114, glueFlapMm: 12, envelopeConstruction: "kamasu" },
     previewStampKey: "autumn-rabbit-sweet-potato-car",
     recommendedStampSetIds: ["autumn-rabbits"],
     writingLines: false,
+    themePackId: "autumn-letter-set",
   },
   {
     id: "autumn-mini-card",
@@ -76,6 +93,7 @@ export const PACKAGE_TEMPLATES: PackageTemplate[] = [
     previewStampKey: "autumn-rabbit-sleeping-sweet-potato",
     recommendedStampSetIds: ["autumn-rabbits"],
     writingLines: false,
+    themePackId: "autumn-letter-set",
   },
 ];
 

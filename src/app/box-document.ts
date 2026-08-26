@@ -15,6 +15,7 @@ import { initialState } from "./app-state";
 
 const pageIdSchema = z.enum(["main", "lid", "base", "letter", "card"]);
 const quarterTurnSchema = z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]);
+const envelopeFaceSchema = z.enum(["envelope-front", "envelope-flap", "envelope-back"]);
 const assetRefSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("user"), assetId: z.string().uuid() }),
   z.object({ kind: z.literal("builtin"), key: z.enum(BUILT_IN_STAMP_KEYS) }),
@@ -28,6 +29,8 @@ const artworkBaseSchema = z.object({
   opacity: z.number().min(0).max(1),
   offsetXmm: z.number().finite(),
   offsetYmm: z.number().finite(),
+  surfaceId: envelopeFaceSchema.optional(),
+  themePresetId: z.string().max(120).optional(),
 });
 const runtimeAssetSchema = z.object({
   assetRef: assetRefSchema,
@@ -68,6 +71,8 @@ const stampSchema = runtimeAssetSchema.extend({
   rotationDeg: z.number().finite(),
   visible: z.boolean(),
   opacity: z.number().min(0).max(1),
+  surfaceId: envelopeFaceSchema.optional(),
+  themePresetId: z.string().max(120).optional(),
 });
 const textSchema = z.object({
   id: z.string().min(1),
@@ -88,6 +93,9 @@ const textSchema = z.object({
   strokeWidthMm: z.number().nonnegative().finite().default(0),
   labelColor: z.string().nullable().default(null),
   labelPaddingMm: z.number().nonnegative().finite().default(1.8),
+  rotationDeg: z.number().finite().optional(),
+  surfaceId: envelopeFaceSchema.optional(),
+  themePresetId: z.string().max(120).optional(),
 });
 const persistedBoxTypeSchema = z.union([
   z.enum(["straight-tuck-carton-v1", "gift-box-v1", "two-piece-gift-box-v1", "letter-paper-v1", "envelope-v1", "mini-card-v1"]),
@@ -107,6 +115,7 @@ export const boxDocumentV1Schema = z.object({
     lidDepthMm: z.number().positive().finite().optional(),
     lidClearanceMm: z.number().nonnegative().finite().optional(),
     foldoverMm: z.number().positive().finite().optional(),
+    envelopeConstruction: z.enum(["diamond", "kamasu"]).optional(),
   }),
   design: z.object({
     backgroundColors: z.object({
@@ -142,6 +151,13 @@ export const boxDocumentV1Schema = z.object({
       showAddressLines: false,
       marginMm: 12,
     }),
+    surfaceBackgroundColors: z.object({
+      "envelope-front": z.string().optional(),
+      "envelope-flap": z.string().optional(),
+      "envelope-back": z.string().optional(),
+    }).default({}),
+    themePackId: z.string().max(120).nullable().default(null),
+    printGuideMode: z.enum(["assembly", "design"]).default("assembly"),
   }),
 });
 
@@ -181,6 +197,9 @@ export function serializeBoxDocument(state: AppState): BoxDocumentV1 {
       showWritingLines: state.showWritingLines ?? false,
       stationerySetSelection: state.stationerySetSelection ?? "envelope-only",
       envelopeDesign: { ...state.envelopeDesign },
+      surfaceBackgroundColors: { ...state.surfaceBackgroundColors },
+      themePackId: state.themePackId,
+      printGuideMode: state.printGuideMode,
     },
   };
 }
@@ -224,6 +243,10 @@ export async function hydrateBoxDocument(value: unknown, resolveAsset: AssetReso
     showWritingLines: document.design.showWritingLines,
     stationerySetSelection: document.design.stationerySetSelection,
     envelopeDesign: { ...document.design.envelopeDesign },
+    activeEnvelopeFace: "envelope-front",
+    surfaceBackgroundColors: { ...document.design.surfaceBackgroundColors },
+    themePackId: document.design.themePackId,
+    printGuideMode: document.design.printGuideMode,
   };
 }
 

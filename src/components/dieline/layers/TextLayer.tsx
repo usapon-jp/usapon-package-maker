@@ -1,6 +1,7 @@
 import type { PointerEvent, SVGProps } from "react";
 
 import type { TextItem } from "../../../app/app-types";
+import type { EnvelopeFaceId } from "../../../domain/boxes/types";
 import { normalizeTextItem, textLineWidth, textRect } from "../../../features/auto-layout/text-layout";
 
 type Props = {
@@ -8,6 +9,7 @@ type Props = {
   selectedTextId: string | null;
   exportMode: boolean;
   onPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
+  surfaceClipIds?: Partial<Record<EnvelopeFaceId, string>>;
 };
 
 function textPaintProps(item: TextItem): SVGProps<SVGTextElement> {
@@ -48,7 +50,7 @@ function ArchedLine({ item, line, yMm }: { item: TextItem; line: string; yMm: nu
   );
 }
 
-export function TextLayer({ texts, selectedTextId, exportMode, onPointerDown }: Props) {
+export function TextLayer({ texts, selectedTextId, exportMode, onPointerDown, surfaceClipIds = {} }: Props) {
   return (
     <g data-layer="text">
       {texts.map((rawItem) => {
@@ -62,6 +64,8 @@ export function TextLayer({ texts, selectedTextId, exportMode, onPointerDown }: 
             data-text-container={item.id}
             data-text-role={item.role}
             data-export-text={item.text}
+            clipPath={item.surfaceId && surfaceClipIds[item.surfaceId] ? `url(#${surfaceClipIds[item.surfaceId]})` : undefined}
+            transform={item.rotationDeg ? `rotate(${item.rotationDeg} ${item.xMm} ${item.yMm})` : undefined}
             style={{ cursor: exportMode ? "default" : "grab", touchAction: "none", userSelect: "none" }}
             onPointerDown={exportMode ? undefined : (event) => onPointerDown?.(event, item.id)}
           >

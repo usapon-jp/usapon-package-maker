@@ -1,7 +1,7 @@
 import { forwardRef } from "react";
 
-import type { ArtworkLayer, DielineLineColors, EnvelopeDesignSettings, StampItem, TextItem } from "../../app/app-types";
-import type { DielineGeometry } from "../../domain/boxes/types";
+import type { ArtworkLayer, DielineLineColors, EnvelopeDesignSettings, PrintGuideMode, StampItem, TextItem } from "../../app/app-types";
+import type { DielineGeometry, EnvelopeFaceId } from "../../domain/boxes/types";
 import type { A4FitResult } from "../../domain/paper/a4";
 import { printImposition } from "../../domain/paper/imposition";
 import { DielineLayers } from "./DielineSvg";
@@ -11,6 +11,7 @@ export type A4PageSvgProps = {
   geometry: DielineGeometry;
   fit: A4FitResult;
   backgroundColor: string;
+  surfaceBackgroundColors?: Partial<Record<EnvelopeFaceId, string>>;
   artworkLayers: ArtworkLayer[];
   stamps: StampItem[];
   texts: TextItem[];
@@ -18,10 +19,11 @@ export type A4PageSvgProps = {
   includeFoldoverLines?: boolean;
   showWritingLines?: boolean;
   envelopeDesign?: EnvelopeDesignSettings;
+  printGuideMode?: PrintGuideMode;
 };
 
 export const A4PageSvg = forwardRef<SVGSVGElement, A4PageSvgProps>(function A4PageSvg(
-  { pageId = "main", geometry, fit, backgroundColor, artworkLayers, stamps, texts, lineColors, includeFoldoverLines = true, showWritingLines = false, envelopeDesign },
+  { pageId = "main", geometry, fit, backgroundColor, surfaceBackgroundColors, artworkLayers, stamps, texts, lineColors, includeFoldoverLines = true, showWritingLines = false, envelopeDesign, printGuideMode = "assembly" },
   ref,
 ) {
   const imposition = printImposition(geometry);
@@ -48,6 +50,7 @@ export const A4PageSvg = forwardRef<SVGSVGElement, A4PageSvgProps>(function A4Pa
             <DielineLayers
               geometry={geometry}
               backgroundColor={backgroundColor}
+              surfaceBackgroundColors={surfaceBackgroundColors}
               artworkLayers={artworkLayers}
               stamps={stamps}
               texts={texts}
@@ -60,6 +63,7 @@ export const A4PageSvg = forwardRef<SVGSVGElement, A4PageSvgProps>(function A4Pa
               includeFoldoverLines={includeFoldoverLines}
               showWritingLines={showWritingLines}
               envelopeDesign={envelopeDesign}
+              printGuideMode={printGuideMode}
               idPrefix={`export-dieline-${pageId}${imposition.count > 1 ? `-${index}` : ""}`}
             />
           </g>

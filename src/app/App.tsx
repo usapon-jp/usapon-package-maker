@@ -7,7 +7,7 @@ import { BoxTypeIcon } from "../components/icons/BoxTypeIcon";
 import { MyBoxesScreen } from "../components/cloud/MyBoxesScreen";
 import { InstallGuide } from "../components/pwa/InstallGuide";
 import { generateDielineDocument } from "../domain/boxes/registry";
-import type { BoxType, DielineGeometry, DielinePage, DielinePageId } from "../domain/boxes/types";
+import type { BoxType, DielineGeometry, DielinePage, DielinePageId, EnvelopeFaceId, Panel } from "../domain/boxes/types";
 import { generateStationerySetDocument } from "../domain/boxes/stationery";
 import { evaluateA4Fit, type A4FitResult, type FitStatus } from "../domain/paper/a4";
 import { printImposition } from "../domain/paper/imposition";
@@ -20,9 +20,12 @@ import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from "../lib/drafts/l
 import {
   currentUser,
   deleteCloudAccount,
+  downloadThemeAsset,
+  listThemePackEntitlements,
   openCloudProject,
   ProjectConflictError,
   saveCloudProject,
+  redeemThemePack,
   signInWithGoogle,
   signOutLocally,
 } from "../cloud/box-repository";
@@ -59,10 +62,11 @@ import { DEFAULT_AUTO_LAYOUT_SETTINGS, type AutoLayoutResult, type AutoLayoutSet
 import { targetIncludesRole } from "../features/auto-layout/element-roles";
 import { canOfferInstallGuide, detectInstallContext, INSTALL_GUIDE_HIDDEN_KEY } from "../lib/pwa/install-guide";
 import { TemplateScreen } from "../features/templates/TemplateScreen";
-import { stampSetsForTemplate, templateById, type PackageTemplate } from "../features/templates/template-catalog";
+import { STAMP_SETS, stampSetsForTemplate, templateById, type PackageTemplate } from "../features/templates/template-catalog";
 import { LetterSetPanel } from "../features/letter-set/LetterSetPanel";
 import { adaptEnvelopeDesignToPage } from "../features/letter-set/design-sharing";
 import { arrangeEnvelopeTemplate, ENVELOPE_LAYOUT_TEMPLATES } from "../features/letter-set/envelope-layout-templates";
+import { AUTUMN_THEME_PACK, themePackById, type ThemePackDefinition } from "../features/theme-packs/theme-pack-catalog";
 
 // 既存のクラウド保存利用者がいるため、端末内下書き保存と併用して提供する。
 const CLOUD_SYNC_UI_ENABLED = true;
@@ -120,9 +124,28 @@ type DielinePageView = DielinePage & { fit: A4FitResult };
 function pageDesign(state: AppState, pageId: DielinePageId) {
   return {
     backgroundColor: state.backgroundColors[pageId] ?? state.backgroundColors.main,
+    surfaceBackgroundColors: pageId === "main" ? state.surfaceBackgroundColors : {},
     artworkLayers: state.artworkLayers.filter((item) => item.pageId === pageId),
     stamps: state.stamps.filter((item) => item.pageId === pageId),
     texts: state.texts.filter((item) => item.pageId === pageId),
+  };
+}
+
+function envelopeFacePanel(geometry: DielineGeometry, faceId: EnvelopeFaceId): Panel {
+  const panelId = faceId === "envelope-front" ? "panel-envelope-front" : faceId === "envelope-flap" ? "panel-envelope-flap" : "panel-envelope-back";
+  return geometry.panels.find((panel) => panel.id === panelId) ?? geometry.panels[0];
+}
+
+function envelopeFaceRotation(faceId: EnvelopeFaceId) {
+  return faceId === "envelope-front" ? 0 : 180;
+}
+
+function clampToEnvelopeFace(geometry: DielineGeometry, faceId: EnvelopeFaceId | undefined, xMm: number, yMm: number) {
+  if (!faceId) return { xMm, yMm };
+  const panel = envelopeFacePanel(geometry, faceId);
+  return {
+    xMm: clamp(xMm, panel.x, panel.x + panel.width),
+    yMm: clamp(yMm, panel.y, panel.y + panel.height),
   };
 }
 
@@ -435,6 +458,7 @@ function DesignColorControl({
   onChange,
   onAddFavorite,
   onRemoveFavorite,
+  extraPalettes = [],
 }: {
   label: string;
   value: string;
@@ -443,10 +467,12 @@ function DesignColorControl({
   onChange: (color: string) => void;
   onAddFavorite: (color: string) => void;
   onRemoveFavorite: (color: string) => void;
+  extraPalettes?: Array<{ label: string; colors: Array<{ name: string; value: `#${string}` }> }>;
 }) {
   const palettes = [
     { label: "基本カラー", colors: BASIC_DESIGN_COLORS },
     { label: "参考画像・おすすめ", colors: RECOMMENDED_DESIGN_COLORS },
+    ...extraPalettes,
   ];
   return (
     <div className={`design-color-control ${className}`}>
@@ -702,17 +728,25 @@ function AccordionSection({
   );
 }
 
-function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
+function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds, onUnlockThemePack }: ScreenProps & { unlockedThemePackIds: string[]; onUnlockThemePack: (themePackId: string) => void }) {
   const geometry = activePage.geometry;
   const fit = activePage.fit;
   const design = pageDesign(state, activePage.id);
   const template = templateById(state.templateId);
-  const recommendedStampSets = stampSetsForTemplate(template);
+  const activeThemePack = themePackById(state.themePackId);
+  const autumnUnlocked = unlockedThemePackIds.includes(AUTUMN_THEME_PACK.id);
+  const templateStampSets = stampSetsForTemplate(template);
+  const autumnStampSet = STAMP_SETS.find((set) => set.id === "autumn-rabbits");
+  const recommendedStampSets = activeThemePack?.id === AUTUMN_THEME_PACK.id && autumnUnlocked && autumnStampSet && !templateStampSets.some((set) => set.id === autumnStampSet.id)
+    ? [...templateStampSets, autumnStampSet]
+    : templateStampSets;
   const recommendedKeys = new Set(recommendedStampSets.flatMap((set) => set.stampKeys));
-  const otherStamps = BUILT_IN_STAMPS.filter((preset) => !recommendedKeys.has(preset.key));
-  const pageArtworkLayers = design.artworkLayers;
-  const pageStamps = design.stamps;
-  const pageTexts = design.texts;
+  const otherStamps = BUILT_IN_STAMPS.filter((preset) => !recommendedKeys.has(preset.key) && (!preset.themePackId || unlockedThemePackIds.includes(preset.themePackId)));
+  const faceEditing = geometry.type === "envelope-v1" && geometry.envelope?.construction === "kamasu" && activePage.id === "main";
+  const onActiveFace = <T extends { surfaceId?: EnvelopeFaceId }>(item: T) => !faceEditing || !item.surfaceId || item.surfaceId === state.activeEnvelopeFace;
+  const pageArtworkLayers = design.artworkLayers.filter(onActiveFace);
+  const pageStamps = design.stamps.filter(onActiveFace);
+  const pageTexts = design.texts.filter(onActiveFace);
   const artworkFileInput = useRef<HTMLInputElement>(null);
   const stampFileInput = useRef<HTMLInputElement>(null);
   const [artworkUploadError, setArtworkUploadError] = useState("");
@@ -721,6 +755,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   const [uploadingStamp, setUploadingStamp] = useState(false);
   const [backgroundCopyMessage, setBackgroundCopyMessage] = useState("");
   const [letterSetShareMessage, setLetterSetShareMessage] = useState("");
+  const [applyingThemePack, setApplyingThemePack] = useState(false);
   const [autoLayoutSettings, setAutoLayoutSettings] = useState<AutoLayoutSettings>(DEFAULT_AUTO_LAYOUT_SETTINGS);
   const [autoLayoutResult, setAutoLayoutResult] = useState<AutoLayoutResult | null>(null);
   const autoLayoutRun = useRef(0);
@@ -734,7 +769,8 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   const selectedArtwork = pageArtworkLayers.find((item) => item.id === state.selectedArtworkId) ?? null;
   const selectedStamp = pageStamps.find((item) => item.id === state.selectedStampId) ?? null;
   const selectedText = pageTexts.find((item) => item.id === state.selectedTextId) ?? null;
-  const autoLayoutDisabled = autoLayoutElementCount(design, autoLayoutSettings.target) === 0;
+  const activeFaceDesign = { ...design, artworkLayers: pageArtworkLayers, stamps: pageStamps, texts: pageTexts };
+  const autoLayoutDisabled = autoLayoutElementCount(activeFaceDesign, autoLayoutSettings.target) === 0;
 
   useEffect(() => {
     try {
@@ -769,7 +805,15 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
     const errors: string[] = [];
     for (const file of files) {
       try {
-        dispatch({ type: "add-artwork", item: createUploadedArtwork(await readPatternFile(file), geometry, activePage.id) });
+        const item = createUploadedArtwork(await readPatternFile(file), geometry, activePage.id);
+        if (faceEditing) {
+          const panel = envelopeFacePanel(geometry, state.activeEnvelopeFace);
+          item.surfaceId = state.activeEnvelopeFace;
+          item.offsetXmm = panel.x + panel.width / 2;
+          item.offsetYmm = panel.y + panel.height / 2;
+          item.rotationDeg = envelopeFaceRotation(state.activeEnvelopeFace) as 0 | 180;
+        }
+        dispatch({ type: "add-artwork", item });
       } catch (error) {
         errors.push(`${file.name}: ${error instanceof Error ? error.message : "読み込めませんでした。"}`);
       }
@@ -787,7 +831,15 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
     const errors: string[] = [];
     for (const file of files) {
       try {
-        dispatch({ type: "add-stamp", item: createStamp(await readPatternFile(file), geometry, file.name, activePage.id) });
+        const item = createStamp(await readPatternFile(file), geometry, file.name, activePage.id);
+        if (faceEditing) {
+          const panel = envelopeFacePanel(geometry, state.activeEnvelopeFace);
+          item.surfaceId = state.activeEnvelopeFace;
+          item.xMm = panel.x + panel.width / 2;
+          item.yMm = panel.y + panel.height / 2;
+          item.rotationDeg = envelopeFaceRotation(state.activeEnvelopeFace);
+        }
+        dispatch({ type: "add-stamp", item });
       } catch (error) {
         errors.push(`${file.name}: ${error instanceof Error ? error.message : "読み込めませんでした。"}`);
       }
@@ -800,10 +852,19 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
     setUploadingStamp(true);
     setStampUploadError("");
     try {
-      const response = await fetch(`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`);
-      if (!response.ok) throw new Error("プリセット画像を読み込めませんでした。");
-      const file = new File([await response.blob()], preset.fileName, { type: "image/png" });
-      dispatch({ type: "add-stamp", item: createStamp(markAsBuiltInStamp(await readPatternFile(file), preset.key), geometry, preset.name, activePage.id) });
+      const blob = preset.themePackId
+        ? await downloadThemeAsset(preset.themePackId, preset.fileName)
+        : await (async () => { const response = await fetch(`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`); if (!response.ok) throw new Error("プリセット画像を読み込めませんでした。"); return response.blob(); })();
+      const file = new File([blob], preset.fileName, { type: "image/png" });
+      const item = createStamp(markAsBuiltInStamp(await readPatternFile(file), preset.key), geometry, preset.name, activePage.id);
+      if (faceEditing) {
+        const panel = envelopeFacePanel(geometry, state.activeEnvelopeFace);
+        item.surfaceId = state.activeEnvelopeFace;
+        item.xMm = panel.x + panel.width / 2;
+        item.yMm = panel.y + panel.height / 2;
+        item.rotationDeg = envelopeFaceRotation(state.activeEnvelopeFace);
+      }
+      dispatch({ type: "add-stamp", item });
     } catch (error) {
       setStampUploadError(error instanceof Error ? error.message : "プリセット画像を読み込めませんでした。");
     } finally {
@@ -811,9 +872,69 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
     }
   };
 
+  const applyAutumnThemePack = async () => {
+    if (!autumnUnlocked) {
+      onUnlockThemePack(AUTUMN_THEME_PACK.id);
+      return;
+    }
+    setApplyingThemePack(true);
+    setStampUploadError("");
+    try {
+      const presetStamps = [];
+      const frontPage = pages.find((page) => page.id === "main");
+      const letterPage = pages.find((page) => page.id === "letter");
+      const definitions = [
+        { key: "autumn-rabbit-sweet-potato-car" as const, page: frontPage, slot: "front", surfaceId: "envelope-front" as const, x: 0.86, y: 0.82, width: 27 },
+        { key: "autumn-rabbit-acorn-hug" as const, page: letterPage, slot: "letter", surfaceId: undefined, x: 0.86, y: 0.9, width: 24 },
+      ];
+      for (const definition of definitions) {
+        if (!definition.page) continue;
+        const preset = BUILT_IN_STAMPS.find((item) => item.key === definition.key)!;
+        const blob = await downloadThemeAsset(AUTUMN_THEME_PACK.id, preset.fileName);
+        const asset = markAsBuiltInStamp(await readPatternFile(new File([blob], preset.fileName, { type: "image/png" })), preset.key);
+        const stamp = createStamp(asset, definition.page.geometry, preset.name, definition.page.id);
+        const panel = definition.surfaceId ? envelopeFacePanel(definition.page.geometry, definition.surfaceId) : definition.page.geometry.panels[0];
+        stamp.xMm = panel.x + panel.width * definition.x;
+        stamp.yMm = panel.y + panel.height * definition.y;
+        stamp.widthMm = definition.width;
+        stamp.surfaceId = definition.surfaceId;
+        stamp.themePresetId = `${AUTUMN_THEME_PACK.id}:${definition.slot}`;
+        presetStamps.push(stamp);
+      }
+      dispatch({
+        type: "apply-theme-pack",
+        themePackId: AUTUMN_THEME_PACK.id,
+        backgroundColors: AUTUMN_THEME_PACK.preset.pageBackgrounds,
+        surfaceBackgroundColors: AUTUMN_THEME_PACK.preset.surfaceBackgrounds,
+        lineColors: AUTUMN_THEME_PACK.preset.lineColors,
+        envelopeDesign: AUTUMN_THEME_PACK.preset.envelopeDesign,
+        textColor: AUTUMN_THEME_PACK.preset.textColor,
+        stamps: presetStamps,
+      });
+      setLetterSetShareMessage("秋カラーとおすすめスタンプを、封筒と便箋へまとめて適用しました。手動で自由に調整できます。");
+    } catch (error) {
+      setStampUploadError(error instanceof Error ? error.message : "秋テーマを読み込めませんでした。");
+    } finally {
+      setApplyingThemePack(false);
+    }
+  };
+
+  const themeColorPalettes = activeThemePack && unlockedThemePackIds.includes(activeThemePack.id)
+    ? [{ label: `${activeThemePack.name}カラー`, colors: activeThemePack.colors }]
+    : [];
+
+  const stampPreviewUrl = (preset: (typeof BUILT_IN_STAMPS)[number]) => preset.themePackId
+    ? `${import.meta.env.BASE_URL}assets/theme-previews/${preset.fileName}`
+    : `${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`;
+
   const addText = () => {
-    const front = geometry.panels[0];
+    const front = faceEditing ? envelopeFacePanel(geometry, state.activeEnvelopeFace) : geometry.panels[0];
     const item: TextItem = createTextItem(crypto.randomUUID(), activePage.id, "ありがとう", front.x + front.width / 2, front.y + front.height / 2);
+    if (activeThemePack && unlockedThemePackIds.includes(activeThemePack.id)) item.color = activeThemePack.preset.textColor;
+    if (faceEditing) {
+      item.surfaceId = state.activeEnvelopeFace;
+      item.rotationDeg = envelopeFaceRotation(state.activeEnvelopeFace);
+    }
     dispatch({ type: "add-text", item });
   };
 
@@ -835,12 +956,15 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
     const includesBackground = targetIncludesRole(autoLayoutSettings.target, "background");
     const includesStamps = targetIncludesRole(autoLayoutSettings.target, "stamp");
     const includesTexts = targetIncludesRole(autoLayoutSettings.target, "text") || targetIncludesRole(autoLayoutSettings.target, "logoText");
+    const inactiveArtwork = faceEditing ? design.artworkLayers.filter((item) => item.surfaceId && item.surfaceId !== state.activeEnvelopeFace) : [];
+    const inactiveStamps = faceEditing ? design.stamps.filter((item) => item.surfaceId && item.surfaceId !== state.activeEnvelopeFace) : [];
+    const inactiveTexts = faceEditing ? design.texts.filter((item) => item.surfaceId && item.surfaceId !== state.activeEnvelopeFace) : [];
     dispatch({
       type: "apply-auto-layout",
       pageId: activePage.id,
-      artworkLayers: includesBackground ? result.artworkLayers : undefined,
-      stamps: includesStamps ? result.stamps : undefined,
-      texts: includesTexts ? result.texts : undefined,
+      artworkLayers: includesBackground ? [...inactiveArtwork, ...result.artworkLayers] : undefined,
+      stamps: includesStamps ? [...inactiveStamps, ...result.stamps] : undefined,
+      texts: includesTexts ? [...inactiveTexts, ...result.texts] : undefined,
     });
     setAutoLayoutResult(result);
   };
@@ -849,7 +973,14 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
     const sourcePage = pages.find((page) => page.id === "main");
     const targetPages = pages.filter((page) => page.id === "letter" || page.id === "card");
     if (!sourcePage || targetPages.length === 0) return;
-    const sourceDesign = pageDesign(state, "main");
+    const fullSourceDesign = pageDesign(state, "main");
+    const sourceDesign = {
+      ...fullSourceDesign,
+      backgroundColor: state.surfaceBackgroundColors["envelope-front"] ?? fullSourceDesign.backgroundColor,
+      artworkLayers: fullSourceDesign.artworkLayers.filter((item) => !item.surfaceId || item.surfaceId === "envelope-front"),
+      stamps: fullSourceDesign.stamps.filter((item) => !item.surfaceId || item.surfaceId === "envelope-front"),
+      texts: fullSourceDesign.texts.filter((item) => !item.surfaceId || item.surfaceId === "envelope-front"),
+    };
     const adapted = targetPages.map((page) => adaptEnvelopeDesignToPage(sourcePage.geometry, page.geometry, page.id, sourceDesign, state.envelopeDesign.style));
     dispatch({
       type: "replace-stationery-set-design",
@@ -869,10 +1000,16 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
     const arranged = arrangeEnvelopeTemplate(pageDesign(state, "main"), sourcePage.geometry, style);
     dispatch({ type: "update-envelope-design", patch: templateDefinition.settings });
     dispatch({ type: "set-background-color", pageId: "main", color: templateDefinition.backgroundColor });
+    if (sourcePage.geometry.envelope?.construction === "kamasu") dispatch({ type: "set-surface-background-color", faceId: "envelope-front", color: templateDefinition.backgroundColor });
     dispatch({ type: "apply-auto-layout", pageId: "main", ...arranged });
     const targetPages = pages.filter((page) => page.id === "letter" || page.id === "card");
     if (targetPages.length > 0) {
-      const sourceDesign = { backgroundColor: templateDefinition.backgroundColor, ...arranged };
+      const sourceDesign = {
+        backgroundColor: templateDefinition.backgroundColor,
+        artworkLayers: arranged.artworkLayers.filter((item) => !item.surfaceId || item.surfaceId === "envelope-front"),
+        stamps: arranged.stamps.filter((item) => !item.surfaceId || item.surfaceId === "envelope-front"),
+        texts: arranged.texts.filter((item) => !item.surfaceId || item.surfaceId === "envelope-front"),
+      };
       const adapted = targetPages.map((page) => adaptEnvelopeDesignToPage(sourcePage.geometry, page.geometry, page.id, sourceDesign, style));
       dispatch({
         type: "replace-stationery-set-design",
@@ -905,10 +1042,18 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
               canShare={pages.length > 1}
               shareMessage={letterSetShareMessage}
               onSelectionChange={(value) => { dispatch({ type: "set-stationery-set-selection", value }); setLetterSetShareMessage(""); }}
+              activeFace={state.activeEnvelopeFace}
+              onFaceChange={(faceId) => dispatch({ type: "set-envelope-face", faceId })}
               onTemplateSelect={applyEnvelopeTemplateChoice}
               onEnvelopeDesignChange={(patch) => dispatch({ type: "update-envelope-design", patch })}
               onBoxDimensionChange={(field, value) => { if (Number.isFinite(value) && value > 0) dispatch({ type: "update-box", field, value }); }}
               onShare={shareEnvelopeDesignWithSet}
+              themePack={AUTUMN_THEME_PACK}
+              themePackUnlocked={autumnUnlocked}
+              themePackActive={state.themePackId === AUTUMN_THEME_PACK.id}
+              applyingThemePack={applyingThemePack}
+              onUnlockThemePack={() => onUnlockThemePack(AUTUMN_THEME_PACK.id)}
+              onApplyThemePack={() => { void applyAutumnThemePack(); }}
             />
           )}
           {state.box.type !== "envelope-v1" && <AccordionSection section="auto-layout" openSection={state.openEditorSection} title="いい感じに配置" icon="✦" onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
@@ -926,7 +1071,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
             />
           </AccordionSection>}
           <AccordionSection section="artwork" openSection={state.openEditorSection} title="背景・柄" icon="▧" count={pageArtworkLayers.length} onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
-            <DesignColorControl className="background-color-control" label="基本背景色" value={design.backgroundColor} favoriteColors={favoriteColors} onChange={(color) => dispatch({ type: "set-background-color", pageId: activePage.id, color })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
+            <DesignColorControl className="background-color-control" label={faceEditing ? `${state.activeEnvelopeFace === "envelope-front" ? "A 表" : state.activeEnvelopeFace === "envelope-flap" ? "B フタ" : "C 裏"}の背景色` : "基本背景色"} value={faceEditing ? state.surfaceBackgroundColors[state.activeEnvelopeFace] ?? design.backgroundColor : design.backgroundColor} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={(color) => faceEditing ? dispatch({ type: "set-surface-background-color", faceId: state.activeEnvelopeFace, color }) : dispatch({ type: "set-background-color", pageId: activePage.id, color })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
             {state.box.type === "two-piece-gift-box-v1" && activePage.id === "lid" && (
               <div className="background-copy-control">
                 <button className="outline-button full-button" type="button" onClick={copyLidBackgroundToBase}>背景を本体にもコピー</button>
@@ -935,8 +1080,8 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
               </div>
             )}
             <div className="preset-grid" aria-label="基本柄プリセット">
-              <button type="button" onClick={() => dispatch({ type: "add-artwork", item: createStripePattern(crypto.randomUUID(), pageArtworkLayers.filter((item) => item.kind === "stripe-pattern").length + 1, activePage.id) })}><i className="stripe-preview" /><strong>ストライプ</strong><small>幅・間隔・向きを調整</small></button>
-              <button type="button" onClick={() => dispatch({ type: "add-artwork", item: createDotPattern(crypto.randomUUID(), pageArtworkLayers.filter((item) => item.kind === "dot-pattern").length + 1, activePage.id) })}><i className="dot-preview" /><strong>水玉</strong><small>色・大きさ・間隔を調整</small></button>
+              <button type="button" onClick={() => { const item = createStripePattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "stripe-pattern").length + 1, activePage.id); if (faceEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="stripe-preview" /><strong>ストライプ</strong><small>幅・間隔・向きを調整</small></button>
+              <button type="button" onClick={() => { const item = createDotPattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "dot-pattern").length + 1, activePage.id); if (faceEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="dot-preview" /><strong>水玉</strong><small>色・大きさ・間隔を調整</small></button>
             </div>
             <input ref={artworkFileInput} type="file" accept="image/png,image/svg+xml,.png,.svg" multiple hidden onChange={handleArtworkFiles} />
             <button className="upload-button compact-upload" type="button" disabled={uploadingArtwork} onClick={() => artworkFileInput.current?.click()}><span>↑</span>{uploadingArtwork ? "読み込み中…" : "自分の画像を追加"}</button>
@@ -959,14 +1104,14 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
                 <label className="range-control"><span>透明度 <output>{Math.round(selectedArtwork.opacity * 100)}%</output></span><input type="range" min="0.1" max="1" step="0.05" value={selectedArtwork.opacity} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { opacity: Number(event.target.value) } })} /></label>
                 {selectedArtwork.kind === "stripe-pattern" && (
                   <>
-                    <DesignColorControl label="ストライプ色" value={selectedArtwork.color} favoriteColors={favoriteColors} onChange={(color) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
+                    <DesignColorControl label="ストライプ色" value={selectedArtwork.color} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={(color) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
                     <div className="mini-number-grid"><NumberField label="線幅" value={selectedArtwork.stripeWidthMm} min={1} max={50} step={1} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { stripeWidthMm: value } })} /><NumberField label="間隔" value={selectedArtwork.gapMm} min={1} max={50} step={1} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { gapMm: value } })} /></div>
                     <label className="select-row">向き<select value={selectedArtwork.angleDeg} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { angleDeg: Number(event.target.value) as 0 | 45 | 90 | 135 } })}><option value="0">縦</option><option value="45">斜め 45°</option><option value="90">横</option><option value="135">斜め 135°</option></select></label>
                   </>
                 )}
                 {selectedArtwork.kind === "dot-pattern" && (
                   <>
-                    <DesignColorControl label="水玉色" value={selectedArtwork.color} favoriteColors={favoriteColors} onChange={(color) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
+                    <DesignColorControl label="水玉色" value={selectedArtwork.color} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={(color) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
                     <label className="range-control"><span>水玉の大きさ <output>{mm(selectedArtwork.dotDiameterMm)}</output></span><input aria-label="水玉の大きさ" type="range" min="1" max="60" step="1" value={selectedArtwork.dotDiameterMm} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { dotDiameterMm: Number(event.target.value) } })} /></label>
                     <label className="range-control"><span>水玉の間隔 <output>{mm(selectedArtwork.spacingMm)}</output></span><input aria-label="水玉の間隔" type="range" min="2" max="100" step="1" value={selectedArtwork.spacingMm} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { spacingMm: Number(event.target.value) } })} /></label>
                   </>
@@ -995,7 +1140,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
                   {set.stampKeys.map((key) => {
                     const preset = BUILT_IN_STAMPS.find((item) => item.key === key);
                     if (!preset) return null;
-                    return <button key={preset.key} className="stamp-preset-card is-recommended" type="button" disabled={uploadingStamp} onClick={() => { void addPresetStamp(preset); }}><img src={`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`} alt={preset.name} /><span><strong>{preset.name}</strong><small>自由に動かして使えます</small></span><b>＋</b></button>;
+                    return <button key={preset.key} className="stamp-preset-card is-recommended" type="button" disabled={uploadingStamp} onClick={() => { void addPresetStamp(preset); }}><img src={stampPreviewUrl(preset)} alt={preset.name} /><span><strong>{preset.name}</strong><small>自由に動かして使えます</small></span><b>＋</b></button>;
                   })}
                 </div>
               </div>
@@ -1004,7 +1149,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
             <div className="stamp-preset-grid">
               {otherStamps.map((preset) => (
                 <button key={preset.key} className="stamp-preset-card" type="button" disabled={uploadingStamp} onClick={() => { void addPresetStamp(preset); }}>
-                  <img src={`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`} alt={preset.name} />
+                  <img src={stampPreviewUrl(preset)} alt={preset.name} />
                   <span><strong>{preset.name}</strong><small>プリセットを追加</small></span><b>＋</b>
                 </button>
               ))}
@@ -1037,7 +1182,7 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
               <div className="selected-text-controls">
                 <label className="text-input-label">文字<textarea rows={2} maxLength={80} value={selectedText.text} onChange={(event) => dispatch({ type: "update-text", id: selectedText.id, patch: { text: event.target.value } })} /></label>
                 <label className="range-control"><span>文字サイズ <output>{mm(selectedText.fontSizeMm)}</output></span><input type="range" min="2" max="18" step="0.5" value={selectedText.fontSizeMm} onChange={(event) => dispatch({ type: "update-text", id: selectedText.id, patch: { fontSizeMm: Number(event.target.value) } })} /></label>
-                <DesignColorControl label="文字色" value={selectedText.color} favoriteColors={favoriteColors} onChange={(color) => dispatch({ type: "update-text", id: selectedText.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
+                <DesignColorControl label="文字色" value={selectedText.color} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={(color) => dispatch({ type: "update-text", id: selectedText.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
                 <div className="mini-number-grid">
                   <NumberField label="横位置 X" value={roundMm(selectedText.xMm, 1)} min={0} max={geometry.bounds.widthMm} step={1} onChange={(value) => dispatch({ type: "update-text", id: selectedText.id, patch: { xMm: value } })} />
                   <NumberField label="縦位置 Y" value={roundMm(selectedText.yMm, 1)} min={0} max={geometry.bounds.heightMm} step={1} onChange={(value) => dispatch({ type: "update-text", id: selectedText.id, patch: { yMm: value } })} />
@@ -1098,19 +1243,20 @@ function DesignScreen({ state, dispatch, pages, activePage }: ScreenProps) {
               exportMode={false}
               showWritingLines={state.showWritingLines}
               envelopeDesign={state.envelopeDesign}
-              onSelectArtwork={(id) => { dispatch({ type: "select-artwork", id }); if (id) dispatch({ type: "set-open-editor-section", section: "artwork" }); }}
-              onMoveArtwork={(id, xMm, yMm) => dispatch({ type: "update-artwork", id, patch: { offsetXmm: xMm, offsetYmm: yMm } })}
-              onSelectStamp={(id) => { dispatch({ type: "select-stamp", id }); if (id) dispatch({ type: "set-open-editor-section", section: "stamps" }); }}
-              onMoveStamp={(id, xMm, yMm) => dispatch({ type: "update-stamp", id, patch: { xMm, yMm } })}
+              activeEnvelopeFace={faceEditing ? state.activeEnvelopeFace : undefined}
+              onSelectArtwork={(id) => { const item = design.artworkLayers.find((candidate) => candidate.id === id); if (faceEditing && item?.surfaceId) dispatch({ type: "set-envelope-face", faceId: item.surfaceId }); dispatch({ type: "select-artwork", id }); if (id) dispatch({ type: "set-open-editor-section", section: "artwork" }); }}
+              onMoveArtwork={(id, xMm, yMm) => { const item = design.artworkLayers.find((candidate) => candidate.id === id); const point = clampToEnvelopeFace(geometry, faceEditing ? item?.surfaceId : undefined, xMm, yMm); dispatch({ type: "update-artwork", id, patch: { offsetXmm: point.xMm, offsetYmm: point.yMm } }); }}
+              onSelectStamp={(id) => { const item = design.stamps.find((candidate) => candidate.id === id); if (faceEditing && item?.surfaceId) dispatch({ type: "set-envelope-face", faceId: item.surfaceId }); dispatch({ type: "select-stamp", id }); if (id) dispatch({ type: "set-open-editor-section", section: "stamps" }); }}
+              onMoveStamp={(id, xMm, yMm) => { const item = design.stamps.find((candidate) => candidate.id === id); const point = clampToEnvelopeFace(geometry, faceEditing ? item?.surfaceId : undefined, xMm, yMm); dispatch({ type: "update-stamp", id, patch: point }); }}
               onRotateStamp={(id) => {
                 const stamp = pageStamps.find((item) => item.id === id);
                 if (stamp) dispatch({ type: "update-stamp", id, patch: { rotationDeg: rotateByDegrees(stamp.rotationDeg) } });
               }}
-              onSelectText={(id) => { dispatch({ type: "select-text", id }); if (id) dispatch({ type: "set-open-editor-section", section: "text" }); }}
-              onMoveText={(id, xMm, yMm) => dispatch({ type: "update-text", id, patch: { xMm, yMm } })}
+              onSelectText={(id) => { const item = design.texts.find((candidate) => candidate.id === id); if (faceEditing && item?.surfaceId) dispatch({ type: "set-envelope-face", faceId: item.surfaceId }); dispatch({ type: "select-text", id }); if (id) dispatch({ type: "set-open-editor-section", section: "text" }); }}
+              onMoveText={(id, xMm, yMm) => { const item = design.texts.find((candidate) => candidate.id === id); const point = clampToEnvelopeFace(geometry, faceEditing ? item?.surfaceId : undefined, xMm, yMm); dispatch({ type: "update-text", id, patch: point }); }}
             />
           </div>
-          {geometry.type === "envelope-v1" ? <p className="canvas-caption envelope-canvas-caption"><strong>完成品：横 {mm(geometry.input.widthMm)} × 縦 {mm(geometry.input.heightMm)}{geometry.input.widthMm === 162 && geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong><span>上 {mm(geometry.envelope?.topFlapMm ?? 0)} ／ 下 {mm(geometry.envelope?.bottomFlapMm ?? 0)} ／ 左右 各{mm(geometry.envelope?.sideFlapMm ?? 0)} ／ のりしろ {mm(geometry.envelope?.glueWidthMm ?? 0)}</span><span>左右フラップ → 下フラップの順に折り、下フラップ両端ののりしろを左右フラップへ貼ります。最後に上フラップで封をします。</span></p> : <p className="canvas-caption">画面では見やすい大きさに拡大表示しています。印刷寸法は下のmm値とPDFの実寸座標が基準です。</p>}
+          {geometry.type === "envelope-v1" ? <p className="canvas-caption envelope-canvas-caption"><strong>完成品：横 {mm(geometry.input.widthMm)} × 縦 {mm(geometry.input.heightMm)}{geometry.input.widthMm === 162 && geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong>{geometry.envelope?.construction === "kamasu" ? <><span>カマス貼り ／ B フタ {mm(geometry.envelope.topFlapMm)} ／ 左右のりしろ 各{mm(geometry.envelope.glueWidthMm)}</span><span>C 裏の左右を内側へ折り、A 表を重ねて貼ります。B フタとC 裏は完成時の向きで配置されます。</span></> : <><span>上 {mm(geometry.envelope?.topFlapMm ?? 0)} ／ 下 {mm(geometry.envelope?.bottomFlapMm ?? 0)} ／ 左右 各{mm(geometry.envelope?.sideFlapMm ?? 0)}</span><span>左右 → 下の順に折り、貼って袋状にします。</span></>}</p> : <p className="canvas-caption">画面では見やすい大きさに拡大表示しています。印刷寸法は下のmm値とPDFの実寸座標が基準です。</p>}
         </section>
       </div>
 
@@ -1151,7 +1297,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
   useEffect(() => {
     clearPrintablePdf();
     setExportSuccess("");
-  }, [clearPrintablePdf, state.includeCalibrationPage, state.printFoldoverLines, state.showWritingLines]);
+  }, [clearPrintablePdf, state.includeCalibrationPage, state.printFoldoverLines, state.showWritingLines, state.printGuideMode]);
 
   const handleExport = async () => {
     const exportPages = pages.flatMap((page) => {
@@ -1221,6 +1367,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
                     includeFoldoverLines={state.printFoldoverLines}
                     showWritingLines={state.showWritingLines}
                     envelopeDesign={state.envelopeDesign}
+                    printGuideMode={state.printGuideMode}
                   />
                 </div>
               </section>
@@ -1231,8 +1378,12 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
         <aside className="print-settings panel-card">
           <p className="eyebrow">PRINT SETTINGS</p>
           <h2>PDF出力設定</h2>
+          {activePage.geometry.type === "envelope-v1" && <div className="print-guide-mode" role="group" aria-label="封筒PDFの表示">
+            <button type="button" className={state.printGuideMode === "assembly" ? "is-selected" : ""} onClick={() => dispatch({ type: "set-print-guide-mode", mode: "assembly" })}><strong>制作ガイドあり</strong><small>A/B/C・のりしろを表示</small></button>
+            <button type="button" className={state.printGuideMode === "design" ? "is-selected" : ""} onClick={() => dispatch({ type: "set-print-guide-mode", mode: "design" })}><strong>デザイン優先</strong><small>必要なカット・折り線だけ</small></button>
+          </div>}
           <div className="fit-notice-stack">{pages.map((page) => <FitNotice key={page.id} geometry={page.geometry} fit={page.fit} label={page.label} />)}</div>
-          {activePage.geometry.type === "envelope-v1" && <div className="envelope-finished-note"><strong>完成：横 {mm(activePage.geometry.input.widthMm)} × 縦 {mm(activePage.geometry.input.heightMm)}{activePage.geometry.input.widthMm === 162 && activePage.geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong><span>展開：{mm(activePage.geometry.bounds.widthMm)} × {mm(activePage.geometry.bounds.heightMm)} ／ 上 {mm(activePage.geometry.envelope?.topFlapMm ?? 0)} ／ 下 {mm(activePage.geometry.envelope?.bottomFlapMm ?? 0)} ／ 左右 各{mm(activePage.geometry.envelope?.sideFlapMm ?? 0)}</span><span>左右 → 下の順に折り、下フラップ両端ののりしろを左右フラップへ貼って袋状にします。上フラップは封をするときだけ折ります。</span></div>}
+          {activePage.geometry.type === "envelope-v1" && <div className="envelope-finished-note"><strong>完成：横 {mm(activePage.geometry.input.widthMm)} × 縦 {mm(activePage.geometry.input.heightMm)}{activePage.geometry.input.widthMm === 162 && activePage.geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong>{activePage.geometry.envelope?.construction === "kamasu" ? <><span>展開：{mm(activePage.geometry.bounds.widthMm)} × {mm(activePage.geometry.bounds.heightMm)} ／ B フタ {mm(activePage.geometry.envelope.topFlapMm)} ／ 左右のりしろ 各{mm(activePage.geometry.envelope.glueWidthMm)}</span><span>Cの左右のりしろを内側へ折り、Aを重ねて接着します。最後にBで封をします。</span></> : <><span>展開：{mm(activePage.geometry.bounds.widthMm)} × {mm(activePage.geometry.bounds.heightMm)}</span><span>左右 → 下の順に折り、貼って袋状にします。</span></>}</div>}
           {imposedPages.map(({ label, imposition }) => <div className="template-imposition-note" key={label}><strong>{label}をA4に{imposition.count}枚自動配置</strong><span>{imposition.columns}列 × {imposition.rows}段。編集した同じカードを実寸でまとめて印刷します。</span></div>)}
           <div className="print-instruction">
             <span aria-hidden="true">!</span>
@@ -1242,7 +1393,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
           {hasFoldoverLines && (
             <label className="toggle-row print-line-toggle"><span><strong>折り返し線を印刷する</strong><small>側面上端{mm(state.box.foldoverMm ?? 25)}の補助点線だけをPDFレビューと保存PDFで切り替えます</small></span><input type="checkbox" checked={state.printFoldoverLines} onChange={(event) => dispatch({ type: "set-print-foldover-lines", value: event.target.checked })} /></label>
           )}
-          <div className="guide-print-status"><span aria-hidden="true">✓</span><div><strong>面名・中心ガイドは印刷しません</strong><small>編集画面のガイド表示とは別管理です。カット線と通常の折り線は常に残ります。</small></div></div>
+          <div className="guide-print-status"><span aria-hidden="true">✓</span><div><strong>{activePage.geometry.type === "envelope-v1" && state.printGuideMode === "assembly" ? "A/B/C面名とのりしろを印刷します" : "面名・中心ガイドは印刷しません"}</strong><small>カット線と通常の折り線は、どちらのモードでも実寸で残ります。</small></div></div>
           <div className="calibration-explanation"><b>実寸の確認方法</b><ol><li>{calibrationPageNumber}ページ目も同じ設定で印刷</li><li>検寸線を定規で測る</li><li>ちょうど50mmなら正しい倍率です</li></ol></div>
           {twoPiece && (
             <div className="two-piece-shipping-guide">
@@ -1323,6 +1474,36 @@ function ConflictDialog({ onLoadLatest, onSaveCopy, onCancel }: { onLoadLatest: 
   );
 }
 
+function ThemePackUnlockDialog({ pack, user, onLogin, onCancel, onRedeem }: { pack: ThemePackDefinition; user: User | null; onLogin: () => void; onCancel: () => void; onRedeem: (passphrase: string) => Promise<void> }) {
+  const [passphrase, setPassphrase] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const submit = async () => {
+    if (!passphrase.trim()) return;
+    setSubmitting(true);
+    setError("");
+    try {
+      await onRedeem(passphrase.trim());
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "合言葉を確認できませんでした。");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+  return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onCancel(); }}>
+    <section className="app-modal theme-unlock-dialog" role="dialog" aria-modal="true" aria-labelledby="theme-unlock-title">
+      <p className="eyebrow">THEME PACK</p>
+      <h2 id="theme-unlock-title">{pack.name}</h2>
+      <p>{pack.description}</p>
+      {!user ? <><div className="theme-login-note"><strong>購入したテーマはGoogleアカウントへ保存します</strong><small>同じアカウントなら別の端末でも合言葉の再入力は不要です。</small></div><div className="modal-actions"><button type="button" onClick={onCancel}>キャンセル</button><button className="primary-button" type="button" onClick={onLogin}>Googleでログインして解除</button></div></> : <>
+        <label className="text-input-label">合言葉<input autoFocus type="password" autoComplete="off" value={passphrase} onChange={(event) => setPassphrase(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void submit(); }} /></label>
+        {error && <p className="field-error" role="alert">{error}</p>}
+        <div className="modal-actions"><button type="button" onClick={onCancel}>キャンセル</button><button className="primary-button" type="button" disabled={submitting || !passphrase.trim()} onClick={() => { void submit(); }}>{submitting ? "確認中…" : "テーマを解除"}</button></div>
+      </>}
+    </section>
+  </div>;
+}
+
 function cloudErrorMessage(error: unknown) {
   if (error instanceof Error) {
     if (error.message.includes("PROJECT_LIMIT_REACHED")) return "保存できる作品は20件までです。不要な作品を削除してください。";
@@ -1335,6 +1516,9 @@ function cloudErrorMessage(error: unknown) {
 export function App() {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const [user, setUser] = useState<User | null>(null);
+  const [unlockedThemePackIds, setUnlockedThemePackIds] = useState<string[]>([]);
+  const [unlockPackId, setUnlockPackId] = useState<string | null>(null);
+  const [pendingTemplate, setPendingTemplate] = useState<PackageTemplate | null>(null);
   const [workspace, setWorkspace] = useState<ProjectWorkspace | null>(null);
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [saveMessage, setSaveMessage] = useState("");
@@ -1401,6 +1585,21 @@ export function App() {
       authSubscription?.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!user || !isCloudConfigured) {
+      setUnlockedThemePackIds([]);
+      return;
+    }
+    void listThemePackEntitlements().then(setUnlockedThemePackIds).catch(() => setUnlockedThemePackIds([]));
+    const pendingPack = window.sessionStorage.getItem("usapon-package-maker.pending-theme-pack");
+    if (pendingPack) {
+      window.sessionStorage.removeItem("usapon-package-maker.pending-theme-pack");
+      setUnlockPackId(pendingPack);
+      const pendingTemplateId = window.sessionStorage.getItem("usapon-package-maker.pending-template");
+      if (pendingTemplateId) setPendingTemplate(templateById(pendingTemplateId));
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!draftReady || saveState === "saving" || saveState === "conflict") return;
@@ -1539,21 +1738,32 @@ export function App() {
     setSaveMessage("新しい作品（未保存）");
   }, [confirmDiscard]);
 
-  const startTemplate = useCallback((template: PackageTemplate) => {
+  const openTemplate = useCallback((template: PackageTemplate) => {
     if (!confirmDiscard()) return;
+    const themePack = themePackById(template.themePackId);
     const next: AppState = {
       ...initialState,
       screen: "design",
       box: { ...template.box },
       templateId: template.id,
       showWritingLines: template.box.type === "envelope-v1" ? true : template.writingLines,
-      stationerySetSelection: template.box.type === "envelope-v1" ? "envelope-letter-card" : "envelope-only",
-      envelopeDesign: template.box.type === "envelope-v1" ? { ...ENVELOPE_LAYOUT_TEMPLATES.cute.settings } : { ...initialState.envelopeDesign },
-      backgroundColors: template.box.type === "envelope-v1"
+      stationerySetSelection: template.box.type === "envelope-v1" ? "envelope-letter" : "envelope-only",
+      envelopeDesign: themePack ? { ...themePack.preset.envelopeDesign } : template.box.type === "envelope-v1" ? { ...ENVELOPE_LAYOUT_TEMPLATES.cute.settings } : { ...initialState.envelopeDesign },
+      backgroundColors: themePack
+        ? { ...initialState.backgroundColors, ...themePack.preset.pageBackgrounds }
+        : template.box.type === "envelope-v1"
         ? { ...initialState.backgroundColors, main: ENVELOPE_LAYOUT_TEMPLATES.cute.backgroundColor, letter: ENVELOPE_LAYOUT_TEMPLATES.cute.backgroundColor, card: ENVELOPE_LAYOUT_TEMPLATES.cute.backgroundColor }
         : { ...initialState.backgroundColors },
+      activeEnvelopeFace: "envelope-front",
+      surfaceBackgroundColors: themePack ? { ...themePack.preset.surfaceBackgrounds } : template.box.type === "envelope-v1" ? {
+        "envelope-front": ENVELOPE_LAYOUT_TEMPLATES.cute.backgroundColor,
+        "envelope-flap": ENVELOPE_LAYOUT_TEMPLATES.cute.settings.flapColor,
+        "envelope-back": ENVELOPE_LAYOUT_TEMPLATES.cute.backgroundColor,
+      } : {},
+      lineColors: themePack ? { ...themePack.preset.lineColors } : { ...initialState.lineColors },
       openEditorSection: "stamps",
       includeCalibrationPage: false,
+      themePackId: template.themePackId ?? null,
     };
     dispatch({ type: "replace-state", state: next });
     setHasRestoredLocalDraft(false);
@@ -1563,6 +1773,35 @@ export function App() {
     setSaveState("dirty");
     setSaveMessage(`${template.name}（未保存）`);
   }, [confirmDiscard]);
+
+  const startTemplate = useCallback((template: PackageTemplate) => {
+    if (template.themePackId && !unlockedThemePackIds.includes(template.themePackId)) {
+      setPendingTemplate(template);
+      setUnlockPackId(template.themePackId);
+      window.sessionStorage.setItem("usapon-package-maker.pending-template", template.id);
+      return;
+    }
+    openTemplate(template);
+  }, [openTemplate, unlockedThemePackIds]);
+
+  const requestThemeUnlock = useCallback((themePackId: string) => {
+    setUnlockPackId(themePackId);
+  }, []);
+
+  const completeThemeUnlock = useCallback(async (passphrase: string) => {
+    if (!unlockPackId) return;
+    try {
+      const unlocked = await redeemThemePack(unlockPackId, passphrase);
+      setUnlockedThemePackIds(unlocked);
+      setUnlockPackId(null);
+      window.sessionStorage.removeItem("usapon-package-maker.pending-template");
+      const template = pendingTemplate;
+      setPendingTemplate(null);
+      if (template) openTemplate(template);
+    } catch {
+      throw new Error("合言葉が違うか、しばらく入力が制限されています。");
+    }
+  }, [openTemplate, pendingTemplate, unlockPackId]);
 
   const logout = useCallback(async () => {
     if (!confirmDiscard()) return;
@@ -1615,9 +1854,9 @@ export function App() {
       />
       {clientContext.isInstagramInAppBrowser && <InstagramBrowserNotice hasBrowserOnlyWork={saveState === "dirty" || saveState === "error" || saveState === "conflict"} onOpenGuide={() => setInstallGuideOpen(true)} />}
       {state.screen === "home" && <HomeScreen onStart={startNew} onTemplates={() => dispatch({ type: "go", screen: "templates" })} onResume={hasRestoredLocalDraft ? () => dispatch({ type: "go", screen: "design" }) : null} onMyBoxes={() => dispatch({ type: "go", screen: "my-boxes" })} />}
-      {state.screen === "templates" && <TemplateScreen onBack={() => dispatch({ type: "go", screen: "home" })} onSelect={startTemplate} />}
+      {state.screen === "templates" && <TemplateScreen onBack={() => dispatch({ type: "go", screen: "home" })} onSelect={startTemplate} unlockedThemePackIds={unlockedThemePackIds} />}
       {state.screen === "size" && <SizeScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
-      {state.screen === "design" && <DesignScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
+      {state.screen === "design" && <DesignScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} unlockedThemePackIds={unlockedThemePackIds} onUnlockThemePack={requestThemeUnlock} />}
       {state.screen === "print" && <PrintScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} clientContext={clientContext} onSuccessfulExport={offerInstallAfterSuccess} />}
       {CLOUD_SYNC_UI_ENABLED && state.screen === "my-boxes" && (
         <MyBoxesScreen
@@ -1646,6 +1885,13 @@ export function App() {
           onCancel={() => { setSaveState("dirty"); setSaveMessage("未保存の変更があります"); }}
         />
       )}
+      {unlockPackId && themePackById(unlockPackId) && <ThemePackUnlockDialog
+        pack={themePackById(unlockPackId)!}
+        user={user}
+        onLogin={() => { window.sessionStorage.setItem("usapon-package-maker.pending-theme-pack", unlockPackId); void login(); }}
+        onCancel={() => { window.sessionStorage.removeItem("usapon-package-maker.pending-template"); setUnlockPackId(null); setPendingTemplate(null); }}
+        onRedeem={completeThemeUnlock}
+      />}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import type { BoxInput, BoxType, DielinePageId, StationerySetSelection } from "../domain/boxes/types";
+import type { BoxInput, BoxType, DielinePageId, EnvelopeFaceId, StationerySetSelection } from "../domain/boxes/types";
 
 export type Screen = "home" | "size" | "templates" | "design" | "print" | "my-boxes";
 
@@ -7,6 +7,7 @@ export type QuarterTurn = 0 | 90 | 180 | 270;
 export type DesignElementRole = "background" | "stamp" | "text" | "logoText";
 export type EnvelopeTemplateStyle = "cute" | "adult" | "simple";
 export type EnvelopeFlapPattern = "solid" | "dots" | "stripes";
+export type PrintGuideMode = "assembly" | "design";
 export type EnvelopeDesignSettings = {
   style: EnvelopeTemplateStyle;
   flapAccentEnabled: boolean;
@@ -57,6 +58,8 @@ type ArtworkBase = {
   opacity: number;
   offsetXmm: number;
   offsetYmm: number;
+  surfaceId?: EnvelopeFaceId;
+  themePresetId?: string;
 };
 
 export type UploadedArtworkLayer = ArtworkBase & RuntimeAsset & {
@@ -97,6 +100,8 @@ export type StampItem = RuntimeAsset & {
   rotationDeg: number;
   visible: boolean;
   opacity: number;
+  surfaceId?: EnvelopeFaceId;
+  themePresetId?: string;
 };
 
 export type TextItem = {
@@ -118,6 +123,9 @@ export type TextItem = {
   strokeWidthMm: number;
   labelColor: string | null;
   labelPaddingMm: number;
+  rotationDeg?: number;
+  surfaceId?: EnvelopeFaceId;
+  themePresetId?: string;
 };
 
 export type DielineLineColors = {
@@ -134,6 +142,10 @@ export type AppState = {
   showWritingLines: boolean;
   stationerySetSelection: StationerySetSelection;
   envelopeDesign: EnvelopeDesignSettings;
+  activeEnvelopeFace: EnvelopeFaceId;
+  surfaceBackgroundColors: Partial<Record<EnvelopeFaceId, string>>;
+  themePackId: string | null;
+  printGuideMode: PrintGuideMode;
   activePageId: DielinePageId;
   backgroundColors: Record<DielinePageId, string>;
   artworkLayers: ArtworkLayer[];
@@ -157,6 +169,11 @@ export type AppAction =
   | { type: "set-writing-lines"; value: boolean }
   | { type: "set-stationery-set-selection"; value: StationerySetSelection }
   | { type: "update-envelope-design"; patch: Partial<EnvelopeDesignSettings> }
+  | { type: "set-envelope-face"; faceId: EnvelopeFaceId }
+  | { type: "set-surface-background-color"; faceId: EnvelopeFaceId; color: string }
+  | { type: "set-theme-pack"; themePackId: string | null }
+  | { type: "apply-theme-pack"; themePackId: string; backgroundColors: Partial<Record<DielinePageId, string>>; surfaceBackgroundColors: Partial<Record<EnvelopeFaceId, string>>; lineColors: DielineLineColors; envelopeDesign: EnvelopeDesignSettings; textColor: string; stamps: StampItem[] }
+  | { type: "set-print-guide-mode"; mode: PrintGuideMode }
   | { type: "set-active-page"; pageId: DielinePageId }
   | { type: "update-box"; field: keyof Omit<BoxInput, "type">; value: number }
   | { type: "set-background-color"; pageId: DielinePageId; color: string }

@@ -1,9 +1,10 @@
-import type { StationerySetSelection } from "../../domain/boxes/types";
+import type { EnvelopeFaceId, StationerySetSelection } from "../../domain/boxes/types";
 import { calculateLetterPaperSize, calculateMiniCardSize } from "../../domain/boxes/stationery";
 import type { BoxInput } from "../../domain/boxes/types";
 import { roundMm } from "../../domain/units";
 import type { EnvelopeDesignSettings, EnvelopeFlapPattern, EnvelopeTemplateStyle } from "../../app/app-types";
 import { ENVELOPE_LAYOUT_TEMPLATES } from "./envelope-layout-templates";
+import type { ThemePackDefinition } from "../theme-packs/theme-pack-catalog";
 
 const OPTIONS: Array<{ value: StationerySetSelection; label: string }> = [
   { value: "envelope-only", label: "封筒のみ" },
@@ -23,10 +24,18 @@ export function LetterSetPanel({
   canShare,
   shareMessage,
   onSelectionChange,
+  activeFace,
+  onFaceChange,
   onTemplateSelect,
   onEnvelopeDesignChange,
   onBoxDimensionChange,
   onShare,
+  themePack,
+  themePackUnlocked,
+  themePackActive,
+  applyingThemePack,
+  onUnlockThemePack,
+  onApplyThemePack,
 }: {
   box: BoxInput;
   selection: StationerySetSelection;
@@ -34,16 +43,38 @@ export function LetterSetPanel({
   canShare: boolean;
   shareMessage: string;
   onSelectionChange: (selection: StationerySetSelection) => void;
+  activeFace: EnvelopeFaceId;
+  onFaceChange: (faceId: EnvelopeFaceId) => void;
   onTemplateSelect: (style: EnvelopeTemplateStyle) => void;
   onEnvelopeDesignChange: (patch: Partial<EnvelopeDesignSettings>) => void;
   onBoxDimensionChange: (field: "widthMm" | "heightMm", value: number) => void;
   onShare: () => void;
+  themePack: ThemePackDefinition;
+  themePackUnlocked: boolean;
+  themePackActive: boolean;
+  applyingThemePack: boolean;
+  onUnlockThemePack: () => void;
+  onApplyThemePack: () => void;
 }) {
   const letter = calculateLetterPaperSize(box);
   const card = calculateMiniCardSize(box);
   return (
     <section className="letter-set-panel" aria-labelledby="letter-set-title">
       <div className="letter-set-heading"><span aria-hidden="true">✉</span><div><strong id="letter-set-title">レターセット</strong><small>封筒サイズに合わせて中身も自動計算</small></div></div>
+      <div className={`theme-pack-card ${themePackUnlocked ? "is-unlocked" : "is-locked"}`}>
+        <div><span>{themePackUnlocked ? "✓ アンロック済み" : "🔒 テーマパック"}</span><strong>{themePack.name}</strong><small>{themePack.description}</small></div>
+        {themePackUnlocked
+          ? <button type="button" className={themePackActive ? "is-active" : ""} disabled={applyingThemePack} onClick={onApplyThemePack}>{applyingThemePack ? "適用中…" : themePackActive ? "秋テーマをもう一度適用" : "セット全体に秋テーマを適用"}</button>
+          : <button type="button" onClick={onUnlockThemePack}>合言葉で解除</button>}
+      </div>
+      {box.envelopeConstruction === "kamasu" && <div className="envelope-face-picker" role="tablist" aria-label="編集する封筒の面">
+        {([
+          ["envelope-front", "A 表"],
+          ["envelope-flap", "B フタ"],
+          ["envelope-back", "C 裏"],
+        ] as Array<[EnvelopeFaceId, string]>).map(([faceId, label]) => <button key={faceId} type="button" role="tab" aria-selected={activeFace === faceId} className={activeFace === faceId ? "is-selected" : ""} onClick={() => onFaceChange(faceId)}>{label}</button>)}
+        <small>BとCは、組み立て後に正しく見える向きで配置します。</small>
+      </div>}
       <div className="envelope-template-picker" role="group" aria-label="封筒デザインテンプレート">
         {(Object.values(ENVELOPE_LAYOUT_TEMPLATES)).map((template) => (
           <button key={template.id} type="button" className={envelopeDesign.style === template.id ? "is-selected" : ""} aria-pressed={envelopeDesign.style === template.id} onClick={() => onTemplateSelect(template.id)}>

@@ -89,6 +89,29 @@ function builtInAssetUrl(ref: Extract<AssetRef, { kind: "builtin" }>) {
   return `${import.meta.env.BASE_URL}assets/stamps/${builtInStampForKey(ref.key).fileName}`;
 }
 
+export async function listThemePackEntitlements(): Promise<string[]> {
+  const { data, error } = await requireSupabase()
+    .from("theme_pack_entitlements")
+    .select("theme_pack_id");
+  if (error) throw error;
+  return (data as Array<{ theme_pack_id: string }>).map((row) => row.theme_pack_id);
+}
+
+export async function redeemThemePack(themePackId: string, passphrase: string): Promise<string[]> {
+  const { data, error } = await requireSupabase().functions.invoke("redeem-theme-pack", {
+    body: { themePackId, passphrase },
+  });
+  if (error) throw error;
+  const value = data as { unlockedThemePackIds?: string[] };
+  return value.unlockedThemePackIds ?? [themePackId];
+}
+
+export async function downloadThemeAsset(themePackId: string, fileName: string): Promise<Blob> {
+  const { data, error } = await requireSupabase().storage.from("theme-pack-assets").download(`${themePackId}/${fileName}`);
+  if (error) throw error;
+  return data;
+}
+
 async function createAssetResolver(document: BoxDocumentV1): Promise<AssetResolver> {
   const rows = await assetRows(collectUserAssetIds(document));
   const cache = new Map<string, Promise<{ dataUrl: string; blob?: Blob }>>();
@@ -98,9 +121,15 @@ async function createAssetResolver(document: BoxDocumentV1): Promise<AssetResolv
     if (existing) return existing;
     const loading = (async () => {
       if (ref.kind === "builtin") {
-        const response = await fetch(builtInAssetUrl(ref));
-        if (!response.ok) throw new Error("内蔵スタンプを読み込めませんでした。");
-        const loaded = await readStoredPatternBlob(await response.blob(), metadata.fileName, metadata.sourceType, key, ref);
+        const preset = builtInStampForKey(ref.key);
+        const blob = preset.themePackId
+          ? await downloadThemeAsset(preset.themePackId, preset.fileName)
+          : await (async () => {
+              const response = await fetch(builtInAssetUrl(ref));
+              if (!response.ok) throw new Error("内蔵スタンプを読み込めませんでした。");
+              return response.blob();
+            })();
+        const loaded = await readStoredPatternBlob(blob, metadata.fileName, metadata.sourceType, key, ref);
         return { dataUrl: loaded.dataUrl, blob: loaded.blob };
       }
       const row = rows.get(ref.assetId);

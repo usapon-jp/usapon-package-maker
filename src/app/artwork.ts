@@ -18,18 +18,20 @@ export const BUILT_IN_STAMPS = [
     key: "usapon-box-rabbits",
     fileName: "usapon-box-rabbits.png",
     name: "うさぽんBOX",
+    themePackId: null,
   },
   {
     key: POFUMOFU_STAMP_KEY,
     fileName: POFUMOFU_STAMP_FILE,
     name: "Pofumofu friends",
+    themePackId: null,
   },
-  { key: "autumn-rabbit-sweet-potato-car", fileName: "autumn-rabbit-sweet-potato-car.png", name: "おいもの車" },
-  { key: "autumn-rabbit-acorn-hug", fileName: "autumn-rabbit-acorn-hug.png", name: "どんぐりぎゅっ" },
-  { key: "autumn-rabbit-sweet-potato", fileName: "autumn-rabbit-sweet-potato.png", name: "おいもをもぐもぐ" },
-  { key: "autumn-rabbit-chestnut", fileName: "autumn-rabbit-chestnut.png", name: "栗からこんにちは" },
-  { key: "autumn-rabbit-sleeping-sweet-potato", fileName: "autumn-rabbit-sleeping-sweet-potato-no-text.png", name: "おいもの中でおやすみ" },
-] as const satisfies ReadonlyArray<{ key: BuiltInStampKey; fileName: string; name: string }>;
+  { key: "autumn-rabbit-sweet-potato-car", fileName: "autumn-rabbit-sweet-potato-car.png", name: "おいもの車", themePackId: "autumn-letter-set" },
+  { key: "autumn-rabbit-acorn-hug", fileName: "autumn-rabbit-acorn-hug.png", name: "どんぐりぎゅっ", themePackId: "autumn-letter-set" },
+  { key: "autumn-rabbit-sweet-potato", fileName: "autumn-rabbit-sweet-potato.png", name: "おいもをもぐもぐ", themePackId: "autumn-letter-set" },
+  { key: "autumn-rabbit-chestnut", fileName: "autumn-rabbit-chestnut.png", name: "栗からこんにちは", themePackId: "autumn-letter-set" },
+  { key: "autumn-rabbit-sleeping-sweet-potato", fileName: "autumn-rabbit-sleeping-sweet-potato-no-text.png", name: "おいもの中でおやすみ", themePackId: "autumn-letter-set" },
+] as const satisfies ReadonlyArray<{ key: BuiltInStampKey; fileName: string; name: string; themePackId: string | null }>;
 
 export function builtInStampForKey(key: BuiltInStampKey) {
   const preset = BUILT_IN_STAMPS.find((item) => item.key === key);

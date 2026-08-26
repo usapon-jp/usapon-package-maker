@@ -1,10 +1,10 @@
 import type { DielineGeometry } from "../../../domain/boxes/types";
 import { pointsToString } from "../geometry-utils";
 
-type Props = { geometry: DielineGeometry; patternId: string; exportMode: boolean };
+type Props = { geometry: DielineGeometry; patternId: string; exportMode: boolean; showAssemblyGuide?: boolean };
 
-export function GlueLayer({ geometry, patternId, exportMode }: Props) {
-  const printEnvelopeGlue = exportMode && geometry.type === "envelope-v1";
+export function GlueLayer({ geometry, patternId, exportMode, showAssemblyGuide = true }: Props) {
+  const printEnvelopeGlue = exportMode && geometry.type === "envelope-v1" && showAssemblyGuide;
   const giftGlueLabels = geometry.type === "gift-box-v1" || geometry.type === "envelope-v1"
     ? geometry.layers.glue.map((region) => ({
         id: `${region.id}-label`,

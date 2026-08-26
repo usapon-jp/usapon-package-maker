@@ -1,7 +1,7 @@
 import { useId, useRef, type PointerEvent } from "react";
 
-import type { ArtworkLayer as ArtworkItem, DielineLineColors, EnvelopeDesignSettings, StampItem, TextItem } from "../../app/app-types";
-import type { DielineGeometry } from "../../domain/boxes/types";
+import type { ArtworkLayer as ArtworkItem, DielineLineColors, EnvelopeDesignSettings, PrintGuideMode, StampItem, TextItem } from "../../app/app-types";
+import type { DielineGeometry, EnvelopeFaceId } from "../../domain/boxes/types";
 import { clamp } from "../../domain/units";
 import { pointsToString } from "./geometry-utils";
 import { CutLayer } from "./layers/CutLayer";
@@ -16,6 +16,7 @@ import { EnvelopeDesignLayer } from "./layers/EnvelopeDesignLayer";
 type LayersProps = {
   geometry: DielineGeometry;
   backgroundColor: string;
+  surfaceBackgroundColors?: Partial<Record<EnvelopeFaceId, string>>;
   artworkLayers: ArtworkItem[];
   stamps: StampItem[];
   texts: TextItem[];
@@ -28,6 +29,8 @@ type LayersProps = {
   includeFoldoverLines?: boolean;
   showWritingLines?: boolean;
   envelopeDesign?: EnvelopeDesignSettings;
+  activeEnvelopeFace?: EnvelopeFaceId;
+  printGuideMode?: PrintGuideMode;
   idPrefix: string;
   onArtworkPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
   onStampPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
@@ -38,6 +41,7 @@ type LayersProps = {
 export function DielineLayers({
   geometry,
   backgroundColor,
+  surfaceBackgroundColors = {},
   artworkLayers,
   stamps,
   texts,
@@ -50,6 +54,8 @@ export function DielineLayers({
   includeFoldoverLines = true,
   showWritingLines = false,
   envelopeDesign,
+  activeEnvelopeFace,
+  printGuideMode = "assembly",
   idPrefix,
   onArtworkPointerDown,
   onStampPointerDown,
@@ -58,6 +64,12 @@ export function DielineLayers({
 }: LayersProps) {
   const clipId = `${idPrefix}-artwork-clip`;
   const gluePatternId = `${idPrefix}-glue-hatch`;
+  const facePolygons: Partial<Record<EnvelopeFaceId, (typeof geometry.clipPolygons)[number]>> = {
+    "envelope-front": geometry.clipPolygons.find((polygon) => polygon.id === "envelope-front"),
+    "envelope-flap": geometry.clipPolygons.find((polygon) => polygon.id === "envelope-top-flap"),
+    "envelope-back": geometry.clipPolygons.find((polygon) => polygon.id === "envelope-back"),
+  };
+  const surfaceClipIds = Object.fromEntries(Object.entries(facePolygons).filter(([, polygon]) => polygon).map(([faceId]) => [faceId, `${idPrefix}-${faceId}-clip`])) as Partial<Record<EnvelopeFaceId, string>>;
   return (
     <>
       <defs>
@@ -66,10 +78,13 @@ export function DielineLayers({
             <polygon key={polygon.id} points={pointsToString(polygon.points)} />
           ))}
         </clipPath>
+        {Object.entries(facePolygons).map(([faceId, polygon]) => polygon ? <clipPath key={faceId} id={surfaceClipIds[faceId as EnvelopeFaceId]}><polygon points={pointsToString(polygon.points)} /></clipPath> : null)}
       </defs>
       <ArtworkLayer
         geometry={geometry}
         backgroundColor={backgroundColor}
+        surfaceBackgroundColors={surfaceBackgroundColors}
+        surfaceClipIds={surfaceClipIds}
         artworkLayers={artworkLayers}
         stamps={stamps}
         clipId={clipId}
@@ -96,13 +111,16 @@ export function DielineLayers({
           selectedTextId={selectedTextId}
           exportMode={exportMode}
           onPointerDown={onTextPointerDown}
+          surfaceClipIds={surfaceClipIds}
         />
       </g>
-      <GlueLayer geometry={geometry} patternId={gluePatternId} exportMode={exportMode} />
+      {!exportMode && activeEnvelopeFace && facePolygons[activeEnvelopeFace] && <polygon data-active-envelope-face={activeEnvelopeFace} points={pointsToString(facePolygons[activeEnvelopeFace]!.points)} fill="none" stroke="#ee6f83" strokeWidth="0.8" strokeDasharray="2 1.4" pointerEvents="none" />}
+      <GlueLayer geometry={geometry} patternId={gluePatternId} exportMode={exportMode} showAssemblyGuide={printGuideMode === "assembly"} />
       <FoldLayer geometry={geometry} color={lineColors.fold} />
       {(!exportMode || includeFoldoverLines) && <FoldoverLayer geometry={geometry} color={lineColors.fold} />}
       <CutLayer geometry={geometry} color={lineColors.cut} />
       {!exportMode && showGuides && <GuideLayer geometry={geometry} />}
+      {exportMode && printGuideMode === "assembly" && geometry.type === "envelope-v1" && <GuideLayer geometry={geometry} assemblyOnly />}
     </>
   );
 }
@@ -121,6 +139,7 @@ type Props = Omit<LayersProps, "idPrefix" | "onArtworkPointerDown" | "onStampPoi
 export function DielineSvg({
   geometry,
   backgroundColor,
+  surfaceBackgroundColors,
   artworkLayers,
   stamps,
   texts,
@@ -133,6 +152,8 @@ export function DielineSvg({
   includeFoldoverLines = true,
   showWritingLines = false,
   envelopeDesign,
+  activeEnvelopeFace,
+  printGuideMode,
   onSelectArtwork,
   onMoveArtwork,
   onSelectStamp,
@@ -222,6 +243,7 @@ export function DielineSvg({
       <DielineLayers
         geometry={geometry}
         backgroundColor={backgroundColor}
+        surfaceBackgroundColors={surfaceBackgroundColors}
         artworkLayers={artworkLayers}
         stamps={stamps}
         texts={texts}
@@ -234,6 +256,8 @@ export function DielineSvg({
         includeFoldoverLines={includeFoldoverLines}
         showWritingLines={showWritingLines}
         envelopeDesign={envelopeDesign}
+        activeEnvelopeFace={activeEnvelopeFace}
+        printGuideMode={printGuideMode}
         idPrefix={idPrefix}
         onArtworkPointerDown={handleArtworkPointerDown}
         onStampPointerDown={handleStampPointerDown}

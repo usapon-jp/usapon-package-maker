@@ -69,6 +69,10 @@ export async function loadLocalDraft(): Promise<LocalDraft | null> {
         showAddressLines: false,
         marginMm: 12,
       },
+      activeEnvelopeFace: draft.state.activeEnvelopeFace ?? "envelope-front",
+      surfaceBackgroundColors: draft.state.surfaceBackgroundColors ?? {},
+      themePackId: draft.state.themePackId ?? null,
+      printGuideMode: draft.state.printGuideMode ?? "assembly",
       backgroundColors: {
         ...draft.state.backgroundColors,
         letter: draft.state.backgroundColors.letter ?? "#fffdf9",

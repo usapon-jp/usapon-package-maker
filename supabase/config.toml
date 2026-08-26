@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.cleanup-box-assets]
 verify_jwt = false
+
+[functions.redeem-theme-pack]
+verify_jwt = true

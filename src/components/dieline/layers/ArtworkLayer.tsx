@@ -1,11 +1,14 @@
 import type { PointerEvent } from "react";
 
 import type { ArtworkLayer as ArtworkItem, StampItem, UploadedArtworkLayer } from "../../../app/app-types";
+import type { EnvelopeFaceId } from "../../../domain/boxes/types";
 import type { DielineGeometry } from "../../../domain/boxes/types";
 
 type Props = {
   geometry: DielineGeometry;
   backgroundColor: string;
+  surfaceBackgroundColors?: Partial<Record<EnvelopeFaceId, string>>;
+  surfaceClipIds?: Partial<Record<EnvelopeFaceId, string>>;
   artworkLayers: ArtworkItem[];
   stamps: StampItem[];
   clipId: string;
@@ -96,6 +99,8 @@ function UploadedArtwork({
 export function ArtworkLayer({
   geometry,
   backgroundColor,
+  surfaceBackgroundColors = {},
+  surfaceClipIds = {},
   artworkLayers,
   stamps,
   clipId,
@@ -111,13 +116,17 @@ export function ArtworkLayer({
     <>
       <g data-layer="artwork" clipPath={`url(#${clipId})`}>
         <rect width={geometry.bounds.widthMm} height={geometry.bounds.heightMm} fill={backgroundColor} />
+        {Object.entries(surfaceBackgroundColors).map(([surfaceId, color]) => color ? (
+          <rect key={surfaceId} width={geometry.bounds.widthMm} height={geometry.bounds.heightMm} fill={color} clipPath={surfaceClipIds[surfaceId as EnvelopeFaceId] ? `url(#${surfaceClipIds[surfaceId as EnvelopeFaceId]})` : undefined} />
+        ) : null)}
         {artworkLayers.map((item) => {
           const patternId = `${idPrefix}-${item.id}`;
+          const itemClip = item.surfaceId && surfaceClipIds[item.surfaceId] ? `url(#${surfaceClipIds[item.surfaceId]})` : undefined;
           if (!item.visible) return null;
           if (item.kind === "stripe-pattern") {
             const period = Math.max(item.stripeWidthMm + item.gapMm, item.stripeWidthMm + 0.5);
             return (
-              <g key={item.id} data-artwork-id={item.id} opacity={item.opacity}>
+              <g key={item.id} data-artwork-id={item.id} opacity={item.opacity} clipPath={itemClip}>
                 <defs>
                   <pattern id={patternId} width={period} height={period} patternUnits="userSpaceOnUse" patternContentUnits="userSpaceOnUse" patternTransform={`translate(${item.offsetXmm} ${item.offsetYmm}) rotate(${item.angleDeg})`}>
                     <rect width={item.stripeWidthMm} height={period} fill={item.color} />
@@ -130,7 +139,7 @@ export function ArtworkLayer({
           if (item.kind === "dot-pattern") {
             const spacing = Math.max(item.spacingMm, item.dotDiameterMm + 0.5);
             return (
-              <g key={item.id} data-artwork-id={item.id} opacity={item.opacity}>
+              <g key={item.id} data-artwork-id={item.id} opacity={item.opacity} clipPath={itemClip}>
                 <defs>
                   <pattern id={patternId} x={item.offsetXmm} y={item.offsetYmm} width={spacing} height={spacing * 2} patternUnits="userSpaceOnUse" patternContentUnits="userSpaceOnUse" patternTransform={`rotate(${item.angleDeg ?? 0})`}>
                     <circle cx={spacing / 4} cy={spacing / 2} r={item.dotDiameterMm / 2} fill={item.color} />
@@ -142,14 +151,13 @@ export function ArtworkLayer({
             );
           }
           return (
-            <UploadedArtwork
-              key={item.id}
+            <g key={item.id} clipPath={itemClip}><UploadedArtwork
               item={item}
               patternId={patternId}
               selected={selectedArtworkId === item.id}
               exportMode={exportMode}
               onPointerDown={onArtworkPointerDown}
-            />
+            /></g>
           );
         })}
       </g>
@@ -173,6 +181,7 @@ export function ArtworkLayer({
           return (
             <g
               key={item.id}
+              clipPath={item.surfaceId && surfaceClipIds[item.surfaceId] ? `url(#${surfaceClipIds[item.surfaceId]})` : undefined}
               data-stamp-id={item.id}
               opacity={item.opacity}
               transform={`translate(${item.xMm} ${item.yMm}) rotate(${item.rotationDeg})`}

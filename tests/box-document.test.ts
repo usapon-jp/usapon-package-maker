@@ -193,6 +193,9 @@ describe("BoxDocumentV1", () => {
         showWritingLines?: boolean;
         envelopeDesign?: unknown;
         stationerySetSelection?: string;
+        surfaceBackgroundColors?: unknown;
+        themePackId?: string | null;
+        printGuideMode?: string;
         backgroundColors: Record<string, string>;
       };
     };
@@ -200,6 +203,9 @@ describe("BoxDocumentV1", () => {
     delete legacy.design.showWritingLines;
     delete legacy.design.envelopeDesign;
     delete legacy.design.stationerySetSelection;
+    delete legacy.design.surfaceBackgroundColors;
+    delete legacy.design.themePackId;
+    delete legacy.design.printGuideMode;
     delete legacy.design.backgroundColors.letter;
     delete legacy.design.backgroundColors.card;
 
@@ -208,6 +214,9 @@ describe("BoxDocumentV1", () => {
     expect(restored.templateId).toBeNull();
     expect(restored.showWritingLines).toBe(false);
     expect(restored.stationerySetSelection).toBe("envelope-only");
+    expect(restored.surfaceBackgroundColors).toEqual({});
+    expect(restored.themePackId).toBeNull();
+    expect(restored.printGuideMode).toBe("assembly");
     expect(restored.envelopeDesign).toMatchObject({
       style: "simple",
       flapAccentEnabled: false,

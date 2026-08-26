@@ -16,22 +16,24 @@ function readFavorites(): string[] {
 
 function TemplatePreview({ template }: { template: PackageTemplate }) {
   const stamp = builtInStampForKey(template.previewStampKey);
+  const stampUrl = stamp.themePackId ? `${import.meta.env.BASE_URL}assets/theme-previews/${stamp.fileName}` : `${import.meta.env.BASE_URL}assets/stamps/${stamp.fileName}`;
   if (template.category === "envelope") {
     return (
       <div className="template-preview is-envelope" data-template-id={template.id} aria-hidden="true">
         <div className="template-envelope-net">
           <span>展開図</span>
-          <svg viewBox="0 0 320 249">
-            <path d="M 83 60 L 156 0 L 164 0 L 237 60 L 241 70 L 320 123 L 320 131 L 241 184 L 237 193 L 164 249 L 156 249 L 83 193 L 79 184 L 0 131 L 0 123 L 79 70 Z" />
-            <g><line x1="79" y1="70" x2="241" y2="70" /><line x1="79" y1="184" x2="241" y2="184" /><line x1="79" y1="70" x2="79" y2="184" /><line x1="241" y1="70" x2="241" y2="184" /></g>
+          <svg viewBox="0 0 186 258">
+            <path d="M 18 0 L 168 0 L 174 30 L 174 144 L 186 150 L 186 252 L 174 258 L 12 258 L 0 252 L 0 150 L 12 144 L 12 30 Z" />
+            <g><line x1="12" y1="30" x2="174" y2="30" /><line x1="12" y1="144" x2="174" y2="144" /><line x1="12" y1="144" x2="12" y2="258" /><line x1="174" y1="144" x2="174" y2="258" /></g>
+            <g className="template-envelope-face-labels"><text x="93" y="18">B</text><text x="93" y="90">A</text><text x="93" y="205">C</text></g>
           </svg>
         </div>
         <div className="template-envelope-arrow">→</div>
         <div className="template-envelope-finished">
           <span>完成</span>
           <div className="template-preview-paper">
-            <svg className="template-preview-envelope-fold" viewBox="0 0 162 114" preserveAspectRatio="none"><path d="M 1 1 L 81 68 L 161 1" /><path d="M 1 113 L 52 76 M 161 113 L 110 76" /></svg>
-            <img src={`${import.meta.env.BASE_URL}assets/stamps/${stamp.fileName}`} alt="" />
+            <svg className="template-preview-envelope-fold" viewBox="0 0 162 114" preserveAspectRatio="none"><rect x="1" y="1" width="160" height="112" rx="2" /><path d="M 1 1 L 81 36 L 161 1" /></svg>
+            <img src={stampUrl} alt="" />
           </div>
         </div>
       </div>
@@ -41,13 +43,13 @@ function TemplatePreview({ template }: { template: PackageTemplate }) {
     <div className={`template-preview is-${template.category}`} data-template-id={template.id} aria-hidden="true">
       <div className="template-preview-paper">
         {template.category === "letter-paper" && <span className="template-preview-lines" />}
-        <img src={`${import.meta.env.BASE_URL}assets/stamps/${stamp.fileName}`} alt="" />
+        <img src={stampUrl} alt="" />
       </div>
     </div>
   );
 }
 
-export function TemplateScreen({ onBack, onSelect }: { onBack: () => void; onSelect: (template: PackageTemplate) => void }) {
+export function TemplateScreen({ onBack, onSelect, unlockedThemePackIds }: { onBack: () => void; onSelect: (template: PackageTemplate) => void; unlockedThemePackIds: string[] }) {
   const [favorites, setFavorites] = useState(readFavorites);
 
   useEffect(() => {
@@ -67,16 +69,17 @@ export function TemplateScreen({ onBack, onSelect }: { onBack: () => void; onSel
 
       {series.map((group) => (
         <section className="template-series" key={group.id} aria-labelledby={`template-series-${group.id}`}>
-          <div className="template-series-heading"><div><p className="eyebrow">AUTUMN LETTER COLLECTION</p><h2 id={`template-series-${group.id}`}>{group.name}</h2></div><span>おそろいで作れる 3アイテム</span></div>
+          <div className="template-series-heading"><div><p className="eyebrow">{group.id === "autumn-letter-set" ? "AUTUMN LETTER COLLECTION" : "LETTER SET BASICS"}</p><h2 id={`template-series-${group.id}`}>{group.name}</h2></div><span>{PACKAGE_TEMPLATES.filter((template) => template.seriesId === group.id).length}アイテム</span></div>
           <div className="template-card-grid">
             {PACKAGE_TEMPLATES.filter((template) => template.seriesId === group.id).map((template) => {
               const favorite = favorites.includes(template.id);
+              const locked = Boolean(template.themePackId && !unlockedThemePackIds.includes(template.themePackId));
               return (
-                <article className="template-card panel-card" key={template.id}>
+                <article className={`template-card panel-card ${locked ? "is-locked" : ""}`} key={template.id}>
                   <button className={`template-favorite ${favorite ? "is-favorite" : ""}`} type="button" aria-label={`${template.name}をお気に入り${favorite ? "から外す" : "に追加"}`} aria-pressed={favorite} onClick={() => setFavorites((items) => favorite ? items.filter((id) => id !== template.id) : [...items, template.id])}>{favorite ? "♥" : "♡"}</button>
                   <button className="template-select" type="button" onClick={() => onSelect(template)}>
                     <TemplatePreview template={template} />
-                    <div className="template-card-copy"><div className="template-card-meta"><span>{template.categoryLabel}</span>{template.badge && <b>{template.badge}</b>}</div><h3>{template.name}</h3><p>{template.description}</p>{template.category === "envelope" && <div className="template-finished-size"><span>完成サイズ</span><strong>{template.box.widthMm} × {template.box.heightMm}mm</strong><small>展開 320 × 249mm・A3相当</small></div>}<small>{template.seriesName}</small><strong>この型でつくる →</strong></div>
+                    <div className="template-card-copy"><div className="template-card-meta"><span>{template.categoryLabel}</span>{template.badge && <b>{template.badge}</b>}</div><h3>{template.name}</h3><p>{template.description}</p>{template.category === "envelope" && <div className="template-finished-size"><span>完成サイズ</span><strong>{template.box.widthMm} × {template.box.heightMm}mm</strong><small>展開 186 × 258mm・A4縦</small></div>}<small>{template.seriesName}</small><strong>{locked ? "🔒 合言葉で解除" : "この型でつくる →"}</strong></div>
                   </button>
                 </article>
               );

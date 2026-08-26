@@ -1,13 +1,13 @@
 import type { DielineGeometry } from "../../../domain/boxes/types";
 
-export function GuideLayer({ geometry }: { geometry: DielineGeometry }) {
+export function GuideLayer({ geometry, assemblyOnly = false }: { geometry: DielineGeometry; assemblyOnly?: boolean }) {
   return (
     <g data-layer="guide" pointerEvents="none">
-      <g fill="none" stroke="#e5a8b1" strokeWidth="0.18" strokeDasharray="1 1.5" opacity="0.75">
+      {!assemblyOnly && <g fill="none" stroke="#e5a8b1" strokeWidth="0.18" strokeDasharray="1 1.5" opacity="0.75">
         {geometry.layers.guide.map((line) => (
           <line key={line.id} x1={line.from.x} y1={line.from.y} x2={line.to.x} y2={line.to.y} />
         ))}
-      </g>
+      </g>}
       {geometry.panels.map((panel) => (
         <text
           key={panel.id}

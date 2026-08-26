@@ -67,13 +67,15 @@ describe("封筒連動レターセット", () => {
     expect(source.stamps[0]).toEqual(stamp);
   });
 
-  it("共有先だけを置き換え、封筒の手動編集を保持する", () => {
+  it("共有由来だけを置き換え、封筒と共有先の手動編集を保持する", () => {
     const sourceStamp = { ...createStamp({ id: "source", fileName: "source.png", sourceType: "png", dataUrl: "data:image/png;base64,AA==", aspectRatio: 1 }, generateStationerySetDocument(envelope, "envelope-only").pages[0].geometry), pageId: "main" as const };
-    const targetStamp = { ...sourceStamp, id: "target", pageId: "letter" as const };
-    const state = { ...initialState, box: envelope, stamps: [sourceStamp], stationerySetSelection: "envelope-letter" as const };
+    const manualTargetStamp = { ...sourceStamp, id: "manual-target", pageId: "letter" as const };
+    const oldSharedStamp = { ...sourceStamp, id: "old--shared-letter", pageId: "letter" as const };
+    const targetStamp = { ...sourceStamp, id: "new--shared-letter", pageId: "letter" as const };
+    const state = { ...initialState, box: envelope, stamps: [sourceStamp, manualTargetStamp, oldSharedStamp], stationerySetSelection: "envelope-letter" as const };
     const next = appReducer(state, { type: "replace-stationery-set-design", pageIds: ["letter"], backgroundColors: { letter: "#f9dde2" }, artworkLayers: [], stamps: [targetStamp], texts: [] });
 
-    expect(next.stamps).toEqual([sourceStamp, targetStamp]);
+    expect(next.stamps).toEqual([sourceStamp, manualTargetStamp, targetStamp]);
     expect(next.backgroundColors.letter).toBe("#f9dde2");
     expect(next.backgroundColors.main).toBe(state.backgroundColors.main);
   });

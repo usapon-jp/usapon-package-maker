@@ -57,6 +57,7 @@ const TEXT_ANCHORS: Record<EnvelopeTemplateStyle, Array<[number, number]>> = {
 
 function arrangeArtwork(items: ArtworkLayer[], panel: Panel, style: EnvelopeTemplateStyle) {
   return items.map((item, index): ArtworkLayer => {
+    if (item.surfaceId && item.surfaceId !== "envelope-front") return item;
     if (item.kind === "stripe-pattern") {
       return {
         ...item,
@@ -98,6 +99,7 @@ function arrangeArtwork(items: ArtworkLayer[], panel: Panel, style: EnvelopeTemp
 
 function arrangeStamps(items: StampItem[], panel: Panel, style: EnvelopeTemplateStyle) {
   return items.map((item, index): StampItem => {
+    if (item.surfaceId && item.surfaceId !== "envelope-front") return item;
     const anchor = STAMP_ANCHORS[style][index % STAMP_ANCHORS[style].length];
     const point = at(panel, ...anchor);
     const widthRatio = style === "cute" ? 0.2 : style === "adult" ? 0.12 : 0.1;
@@ -114,6 +116,7 @@ function arrangeStamps(items: StampItem[], panel: Panel, style: EnvelopeTemplate
 
 function arrangeTexts(items: TextItem[], panel: Panel, style: EnvelopeTemplateStyle) {
   return items.map((item, index): TextItem => {
+    if (item.surfaceId && item.surfaceId !== "envelope-front") return item;
     const anchor = TEXT_ANCHORS[style][index % TEXT_ANCHORS[style].length];
     const point = at(panel, ...anchor);
     return {

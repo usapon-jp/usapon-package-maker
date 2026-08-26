@@ -88,6 +88,7 @@ export function calculateEnvelopeMetrics(input: Pick<BoxInput, "widthMm" | "heig
   }
   const sideSeamGapMm = clamp(round(width * (4 / 162)), 3, 6);
   return {
+    construction: "diamond",
     finishedWidthMm: width,
     finishedHeightMm: height,
     topFlapMm: round(height * (70 / 114)),
@@ -96,6 +97,26 @@ export function calculateEnvelopeMetrics(input: Pick<BoxInput, "widthMm" | "heig
     sideSeamGapMm,
     glueWidthMm: clamp(round(input.glueFlapMm), 8, 15),
     tipFlatMm: clamp(round(height * (8 / 114)), 4, 10),
+  };
+}
+
+export function calculateKamasuEnvelopeMetrics(input: Pick<BoxInput, "widthMm" | "heightMm" | "glueFlapMm">): EnvelopeMetrics {
+  const width = input.widthMm;
+  const height = input.heightMm;
+  if (![width, height].every((value) => Number.isFinite(value) && value > 0)) {
+    throw new RangeError("封筒の完成幅と完成高さは0より大きいmm値で指定してください。");
+  }
+  const glueWidthMm = clamp(round(input.glueFlapMm), 8, 15);
+  return {
+    construction: "kamasu",
+    finishedWidthMm: width,
+    finishedHeightMm: height,
+    topFlapMm: round(height * (30 / 114)),
+    bottomFlapMm: height,
+    sideFlapMm: glueWidthMm,
+    sideSeamGapMm: 0,
+    glueWidthMm,
+    tipFlatMm: clamp(round(width * (6 / 162)), 4, 10),
   };
 }
 
@@ -142,7 +163,71 @@ export function generateStationerySetDocument(input: BoxInput, selection: Statio
   return { type: input.type, input, pages };
 }
 
+function generateKamasuEnvelope(input: BoxInput): DielineGeometry {
+  assertDimensions(input);
+  const width = input.widthMm;
+  const height = input.heightMm;
+  const envelope = calculateKamasuEnvelopeMetrics(input);
+  const glue = envelope.glueWidthMm;
+  const flap = envelope.topFlapMm;
+  const x0 = glue;
+  const x1 = x0 + width;
+  const yA0 = flap;
+  const yA1 = yA0 + height;
+  const yC1 = yA1 + height;
+  const shoulder = envelope.tipFlatMm;
+  const front = rectangle("envelope-front", x0, yA0, width, height);
+  const flapShape = polygon("envelope-top-flap", [
+    { x: x0, y: yA0 },
+    { x: x0 + shoulder, y: 0 },
+    { x: x1 - shoulder, y: 0 },
+    { x: x1, y: yA0 },
+  ]);
+  const back = rectangle("envelope-back", x0, yA1, width, height);
+  const tabInset = clamp(round(height * 0.05), 4, 8);
+  const leftGlue = polygon("envelope-left-side-glue", [
+    { x: x0, y: yA1 }, { x: 0, y: yA1 + tabInset }, { x: 0, y: yC1 - tabInset }, { x: x0, y: yC1 },
+  ]);
+  const rightGlue = polygon("envelope-right-side-glue", [
+    { x: x1, y: yA1 }, { x: x1 + glue, y: yA1 + tabInset }, { x: x1 + glue, y: yC1 - tabInset }, { x: x1, y: yC1 },
+  ]);
+  const outerPoints = [
+    flapShape.points[1], flapShape.points[2], flapShape.points[3],
+    { x: x1, y: yA1 }, rightGlue.points[1], rightGlue.points[2], rightGlue.points[3],
+    { x: x0, y: yC1 }, leftGlue.points[2], leftGlue.points[1], { x: x0, y: yA1 }, flapShape.points[0],
+  ];
+  return {
+    type: input.type,
+    input,
+    bounds: { x: 0, y: 0, widthMm: round(width + glue * 2), heightMm: round(flap + height * 2) },
+    bodyTopMm: yA0,
+    bodyBottomMm: yC1,
+    envelope,
+    panels: [
+      { id: "panel-envelope-front", label: "A 表", x: x0, y: yA0, width, height },
+      { id: "panel-envelope-flap", label: "B フタ（完成向き）", x: x0, y: 0, width, height: flap },
+      { id: "panel-envelope-back", label: "C 裏（完成向き）", x: x0, y: yA1, width, height },
+      { id: "panel-envelope-left-glue", label: "のりしろ（完成時に隠れます）", x: 0, y: yA1, width: glue, height },
+      { id: "panel-envelope-right-glue", label: "のりしろ（完成時に隠れます）", x: x1, y: yA1, width: glue, height },
+    ],
+    clipPolygons: [front, flapShape, back, leftGlue, rightGlue],
+    layers: {
+      cut: [{ id: "envelope-outline", d: outline(outerPoints) }],
+      fold: [
+        { id: "envelope-flap-fold", from: { x: x0, y: yA0 }, to: { x: x1, y: yA0 } },
+        { id: "envelope-front-back-fold", from: { x: x0, y: yA1 }, to: { x: x1, y: yA1 } },
+        { id: "envelope-left-glue-fold", from: { x: x0, y: yA1 }, to: { x: x0, y: yC1 } },
+        { id: "envelope-right-glue-fold", from: { x: x1, y: yA1 }, to: { x: x1, y: yC1 } },
+      ],
+      foldover: [],
+      glue: [leftGlue, rightGlue],
+      guide: centerGuides({ id: "panel-envelope-front", label: "A 表", x: x0, y: yA0, width, height }),
+    },
+  };
+}
+
 export const generateEnvelope: BoxGenerator = (input): DielineGeometry => {
+  if (input.envelopeConstruction === "kamasu") return generateKamasuEnvelope(input);
   assertDimensions(input);
   const { widthMm: width, heightMm: height } = input;
   const envelope = calculateEnvelopeMetrics(input);
