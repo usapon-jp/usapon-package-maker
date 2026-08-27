@@ -19,7 +19,7 @@ import { readPatternFile } from "../lib/uploads/read-pattern";
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from "../lib/drafts/local-draft";
 import {
   currentUser,
-  deleteCloudAccount,
+  deletePackageCloudData,
   downloadThemeAsset,
   listThemePackEntitlements,
   openCloudProject,
@@ -238,7 +238,7 @@ function AppHeader({
               <strong>{user.user_metadata.full_name ?? "ログイン中"}</strong>
               <small>{user.email}</small>
               <button type="button" onClick={onLogout}>この端末からログアウト</button>
-              <button className="danger" type="button" onClick={onDeleteAccount}>アカウントと全データを削除</button>
+              <button className="danger" type="button" onClick={onDeleteAccount}>パッケージメーカーのクラウドデータを削除</button>
             </div>
           </details>
         ) : (
@@ -1821,18 +1821,19 @@ export function App() {
   }, [confirmDiscard]);
 
   const deleteAccount = useCallback(async () => {
-    const confirmation = window.prompt("作品・画像・ログイン情報をすべて完全に削除します。続ける場合は「削除」と入力してください。");
+    const confirmation = window.prompt("パッケージメーカーに保存した作品と画像を完全に削除します。他のうさぽんアプリのデータや共通ログインは削除されません。続ける場合は「削除」と入力してください。");
     if (confirmation !== "削除") return;
-    if (!window.confirm("本当に全データを削除しますか？この操作は取り消せません。")) return;
-    setSaveMessage("アカウントデータを削除しています…");
+    if (!window.confirm("本当にパッケージメーカーのクラウドデータを削除しますか？この操作は取り消せません。")) return;
+    setSaveMessage("クラウド作品と画像を削除しています…");
     try {
-      await deleteCloudAccount();
+      await deletePackageCloudData();
+      await signOutLocally();
       await clearLocalDraft();
       dispatch({ type: "replace-state", state: initialState });
       setUser(null);
       setWorkspace(null);
       setSaveState("idle");
-      setSaveMessage("アカウントとクラウドデータを削除しました");
+      setSaveMessage("パッケージメーカーのクラウドデータを削除しました");
     } catch (error) {
       setSaveState("error");
       setSaveMessage(cloudErrorMessage(error));

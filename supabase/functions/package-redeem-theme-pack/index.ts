@@ -1,4 +1,4 @@
-import { authenticatedUser, corsHeaders, json } from "../_shared/supabase.ts";
+import { authenticatedUser, corsHeaders, json, PACKAGE_SCHEMA } from "../_shared/supabase.ts";
 import { constantTimeEqual, normalizePassphrase, sha256Hex } from "./passphrase.ts";
 
 const AUTUMN_PACK_ID = "autumn-letter-set";
@@ -17,6 +17,8 @@ async function adminRest(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
   headers.set("apikey", apiKey);
   headers.set("Content-Type", "application/json");
+  headers.set("Accept-Profile", PACKAGE_SCHEMA);
+  headers.set("Content-Profile", PACKAGE_SCHEMA);
   if (apiKey.split(".").length === 3) headers.set("Authorization", `Bearer ${apiKey}`);
   const response = await fetch(`${url}/rest/v1/${path}`, { ...init, headers });
   if (!response.ok) {

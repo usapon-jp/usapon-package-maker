@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { constantTimeEqual, normalizePassphrase, sha256Hex } from "../supabase/functions/redeem-theme-pack/passphrase";
+import { constantTimeEqual, normalizePassphrase, sha256Hex } from "../supabase/functions/package-redeem-theme-pack/passphrase";
 
 describe("テーマパック合言葉", () => {
   it("前後空白とUnicode表現を正規化して同じハッシュにする", async () => {

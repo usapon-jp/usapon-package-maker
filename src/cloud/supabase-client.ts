@@ -3,6 +3,10 @@ import { createClient } from "@supabase/supabase-js";
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() ?? "";
 const supabasePublishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim() ?? "";
 
+export const PACKAGE_SCHEMA = "package";
+export const PACKAGE_BOX_ASSETS_BUCKET = "package-box-assets";
+export const PACKAGE_THEME_PACK_ASSETS_BUCKET = "package-theme-pack-assets";
+
 export const isCloudConfigured = Boolean(
   supabaseUrl.startsWith("https://")
   && supabasePublishableKey
@@ -24,6 +28,10 @@ export const supabase = isCloudConfigured
 export function requireSupabase() {
   if (!supabase) throw new Error("クラウド保存はまだ設定されていません。");
   return supabase;
+}
+
+export function requirePackageDatabase() {
+  return requireSupabase().schema(PACKAGE_SCHEMA);
 }
 
 export function authRedirectUrl() {

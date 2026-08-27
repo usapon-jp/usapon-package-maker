@@ -1,5 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
+export const PACKAGE_SCHEMA = "package";
+export const PACKAGE_BOX_ASSETS_BUCKET = "package-box-assets";
+
 const ALLOWED_ORIGINS = new Set([
   "https://package.usa-pon.com",
   "http://127.0.0.1:5174",
@@ -37,10 +40,15 @@ export function clients(request: Request) {
 }
 
 export async function authenticatedUser(request: Request) {
-  const { user, admin } = clients(request);
-  const { data, error } = await user.auth.getUser();
+  const { user: userClient, admin } = clients(request);
+  const { data, error } = await userClient.auth.getUser();
   if (error || !data.user) throw new Error("AUTH_REQUIRED");
-  return { user: data.user, scoped: user, admin };
+  return {
+    user: data.user,
+    scoped: userClient.schema(PACKAGE_SCHEMA),
+    admin,
+    packageAdmin: admin.schema(PACKAGE_SCHEMA),
+  };
 }
 
 export function safeFileName(value: string) {

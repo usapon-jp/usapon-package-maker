@@ -1,4 +1,4 @@
-import { authenticatedUser, clients, corsHeaders, json, safeFileName } from "../_shared/supabase.ts";
+import { authenticatedUser, clients, corsHeaders, json, PACKAGE_BOX_ASSETS_BUCKET, PACKAGE_SCHEMA, safeFileName } from "../_shared/supabase.ts";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -10,7 +10,7 @@ Deno.serve(async (request) => {
   let reservedId: string | null = null;
   let reservedPath: string | null = null;
   try {
-    const { user, admin } = await authenticatedUser(request);
+    const { user, admin, packageAdmin } = await authenticatedUser(request);
     const form = await request.formData();
     const file = form.get("file");
     const assetId = String(form.get("assetId") ?? "");
@@ -39,7 +39,7 @@ Deno.serve(async (request) => {
     const storagePath = `${user.id}/${assetId}.${extension}`;
     reservedId = assetId;
     reservedPath = storagePath;
-    const { data: reservation, error: reserveError } = await admin.rpc("reserve_box_asset_upload", {
+    const { data: reservation, error: reserveError } = await packageAdmin.rpc("reserve_box_asset_upload", {
       p_user_id: user.id,
       p_asset_id: assetId,
       p_storage_path: storagePath,
@@ -51,13 +51,13 @@ Deno.serve(async (request) => {
     if (reserveError) throw reserveError;
     if (reservation.status === "ready") return json(request, { asset: reservation });
 
-    const { error: uploadError } = await admin.storage.from("box-assets").upload(storagePath, file, {
+    const { error: uploadError } = await admin.storage.from(PACKAGE_BOX_ASSETS_BUCKET).upload(storagePath, file, {
       contentType: mimeType,
       upsert: false,
       cacheControl: "3600",
     });
     if (uploadError) throw uploadError;
-    const { data: asset, error: readyError } = await admin
+    const { data: asset, error: readyError } = await packageAdmin
       .from("box_assets")
       .update({ status: "ready", updated_at: new Date().toISOString() })
       .eq("id", assetId)
@@ -69,8 +69,8 @@ Deno.serve(async (request) => {
   } catch (error) {
     if (reservedId) {
       const { admin } = clients(request);
-      if (reservedPath) await admin.storage.from("box-assets").remove([reservedPath]);
-      await admin.from("box_assets").delete().eq("id", reservedId).eq("status", "pending");
+      if (reservedPath) await admin.storage.from(PACKAGE_BOX_ASSETS_BUCKET).remove([reservedPath]);
+      await admin.schema(PACKAGE_SCHEMA).from("box_assets").delete().eq("id", reservedId).eq("status", "pending");
     }
     const message = error instanceof Error
       ? error.message

@@ -1,16 +1,16 @@
 project_id = "usapon-package-maker"
 
-[functions.upload-box-asset]
+[functions.package-upload-box-asset]
 verify_jwt = true
 
-[functions.delete-box-project]
+[functions.package-delete-box-project]
 verify_jwt = true
 
-[functions.delete-account]
+[functions.package-delete-cloud-data]
 verify_jwt = true
 
-[functions.cleanup-box-assets]
+[functions.package-cleanup-box-assets]
 verify_jwt = false
 
-[functions.redeem-theme-pack]
+[functions.package-redeem-theme-pack]
 verify_jwt = true

@@ -4,7 +4,13 @@ import { collectUserAssetIds, hydrateBoxDocument, parseBoxDocument, serializeBox
 import type { AppState, AssetRef, RuntimeAsset } from "../app/app-types";
 import { builtInStampForKey } from "../app/artwork";
 import { readStoredPatternBlob } from "../lib/uploads/read-pattern";
-import { authRedirectUrl, requireSupabase } from "./supabase-client";
+import {
+  authRedirectUrl,
+  PACKAGE_BOX_ASSETS_BUCKET,
+  PACKAGE_THEME_PACK_ASSETS_BUCKET,
+  requirePackageDatabase,
+  requireSupabase,
+} from "./supabase-client";
 import type { CloudProject, CloudProjectSummary, ProjectWorkspace } from "./types";
 
 type ProjectRow = {
@@ -67,7 +73,7 @@ export async function signOutLocally() {
 }
 
 export async function listCloudProjects(): Promise<CloudProjectSummary[]> {
-  const { data, error } = await requireSupabase()
+  const { data, error } = await requirePackageDatabase()
     .from("box_projects")
     .select("id,name,document,revision,created_at,updated_at")
     .order("updated_at", { ascending: false });
@@ -77,7 +83,7 @@ export async function listCloudProjects(): Promise<CloudProjectSummary[]> {
 
 async function assetRows(ids: string[]): Promise<Map<string, AssetRow>> {
   if (!ids.length) return new Map();
-  const { data, error } = await requireSupabase()
+  const { data, error } = await requirePackageDatabase()
     .from("box_assets")
     .select("id,storage_path,file_name,mime_type,byte_size,aspect_ratio")
     .in("id", ids);
@@ -90,7 +96,7 @@ function builtInAssetUrl(ref: Extract<AssetRef, { kind: "builtin" }>) {
 }
 
 export async function listThemePackEntitlements(): Promise<string[]> {
-  const { data, error } = await requireSupabase()
+  const { data, error } = await requirePackageDatabase()
     .from("theme_pack_entitlements")
     .select("theme_pack_id");
   if (error) throw error;
@@ -98,7 +104,7 @@ export async function listThemePackEntitlements(): Promise<string[]> {
 }
 
 export async function redeemThemePack(themePackId: string, passphrase: string): Promise<string[]> {
-  const { data, error } = await requireSupabase().functions.invoke("redeem-theme-pack", {
+  const { data, error } = await requireSupabase().functions.invoke("package-redeem-theme-pack", {
     body: { themePackId, passphrase },
   });
   if (error) throw error;
@@ -107,7 +113,7 @@ export async function redeemThemePack(themePackId: string, passphrase: string): 
 }
 
 export async function downloadThemeAsset(themePackId: string, fileName: string): Promise<Blob> {
-  const { data, error } = await requireSupabase().storage.from("theme-pack-assets").download(`${themePackId}/${fileName}`);
+  const { data, error } = await requireSupabase().storage.from(PACKAGE_THEME_PACK_ASSETS_BUCKET).download(`${themePackId}/${fileName}`);
   if (error) throw error;
   return data;
 }
@@ -134,7 +140,7 @@ async function createAssetResolver(document: BoxDocumentV1): Promise<AssetResolv
       }
       const row = rows.get(ref.assetId);
       if (!row) throw new Error(`${metadata.fileName} のクラウド画像が見つかりません。`);
-      const { data, error } = await requireSupabase().storage.from("box-assets").download(row.storage_path);
+      const { data, error } = await requireSupabase().storage.from(PACKAGE_BOX_ASSETS_BUCKET).download(row.storage_path);
       if (error) throw error;
       const loaded = await readStoredPatternBlob(data, row.file_name, row.mime_type === "image/svg+xml" ? "svg" : "png", row.id, ref);
       return { dataUrl: loaded.dataUrl, blob: loaded.blob };
@@ -145,7 +151,7 @@ async function createAssetResolver(document: BoxDocumentV1): Promise<AssetResolv
 }
 
 export async function openCloudProject(id: string): Promise<{ project: CloudProject; state: AppState }> {
-  const { data, error } = await requireSupabase()
+  const { data, error } = await requirePackageDatabase()
     .from("box_projects")
     .select("id,name,document,revision,created_at,updated_at")
     .eq("id", id)
@@ -177,7 +183,7 @@ async function uploadMissingAssets(state: AppState, document: BoxDocumentV1) {
     form.set("aspectRatio", String(asset.aspectRatio));
     form.set("sourceType", asset.sourceType);
     form.set("file", new File([asset.blob], asset.fileName, { type: asset.sourceType === "svg" ? "image/svg+xml" : "image/png" }));
-    const { error } = await requireSupabase().functions.invoke("upload-box-asset", { body: form });
+    const { error } = await requireSupabase().functions.invoke("package-upload-box-asset", { body: form });
     if (error) throw error;
   }
 }
@@ -193,7 +199,7 @@ export async function saveCloudProject(state: AppState, name: string, existing: 
   const document = serializeBoxDocument(state);
   await uploadMissingAssets(state, document);
   const id = existing?.id ?? crypto.randomUUID();
-  const { data, error } = await requireSupabase().rpc("save_box_project", {
+  const { data, error } = await requirePackageDatabase().rpc("save_box_project", {
     p_id: id,
     p_name: name,
     p_document: document,
@@ -208,7 +214,7 @@ export async function saveCloudProject(state: AppState, name: string, existing: 
 }
 
 export async function renameCloudProject(project: ProjectWorkspace, name: string): Promise<ProjectWorkspace> {
-  const { data, error } = await requireSupabase().rpc("rename_box_project", {
+  const { data, error } = await requirePackageDatabase().rpc("rename_box_project", {
     p_id: project.id,
     p_name: name,
     p_expected_revision: project.revision,
@@ -221,7 +227,7 @@ export async function renameCloudProject(project: ProjectWorkspace, name: string
 }
 
 export async function duplicateCloudProject(project: ProjectWorkspace): Promise<ProjectWorkspace> {
-  const { data, error } = await requireSupabase().rpc("duplicate_box_project", {
+  const { data, error } = await requirePackageDatabase().rpc("duplicate_box_project", {
     p_source_id: project.id,
     p_name: `${project.name.slice(0, 76)} コピー`,
   });
@@ -230,11 +236,11 @@ export async function duplicateCloudProject(project: ProjectWorkspace): Promise<
 }
 
 export async function deleteCloudProject(id: string) {
-  const { error } = await requireSupabase().functions.invoke("delete-box-project", { body: { projectId: id } });
+  const { error } = await requireSupabase().functions.invoke("package-delete-box-project", { body: { projectId: id } });
   if (error) throw error;
 }
 
-export async function deleteCloudAccount() {
-  const { error } = await requireSupabase().functions.invoke("delete-account", { body: { confirmation: "削除" } });
+export async function deletePackageCloudData() {
+  const { error } = await requireSupabase().functions.invoke("package-delete-cloud-data", { body: { confirmation: "削除" } });
   if (error) throw error;
 }

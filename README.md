@@ -86,18 +86,21 @@ Googleから取得する情報は氏名、メールアドレス、プロフィ�
 
 ブラウザへ渡す値はPublishable Keyだけです。`service_role`はEdge Functionsの実行環境以外へ置かないでください。
 
-1. 東京リージョンの専用Supabaseプロジェクトを用意する
-2. `supabase/migrations/202608120001_cloud_box_sync.sql`を適用する
-3. `upload-box-asset`、`delete-box-project`、`delete-account`、`cleanup-box-assets`をデプロイする
-4. Google Providerを有効にし、Site URLを`https://package.usa-pon.com/`へ設定する
-5. Redirect URLsへ`https://package.usa-pon.com/`と`http://127.0.0.1:5174/`を追加する
-6. GitHub Repository Variablesへ`VITE_SUPABASE_URL`と`VITE_SUPABASE_PUBLISHABLE_KEY`を登録する
+本番は共有Supabase（論理名 `usapon-main`）を使い、DBを `package` スキーマ、Storageを `package-box-assets`／`package-theme-pack-assets`、Edge Functionsを `package-` 接頭辞で隔離します。
+
+1. `20260827134001`〜`20260827134006`のpackage migrationを、共有本番の既存migration履歴と照合して適用する
+2. Data APIの公開スキーマへ、既存項目を残したまま`package`を追加する
+3. `package-upload-box-asset`、`package-delete-box-project`、`package-delete-cloud-data`、`package-cleanup-box-assets`、`package-redeem-theme-pack`をデプロイする
+4. 共有本番のGoogle Providerを利用し、既存Site URLを変更せずRedirect URLsへ`https://package.usa-pon.com/`と開発URLを追加する
+5. GitHub Repository Variablesへ共有本番の`VITE_SUPABASE_URL`と`VITE_SUPABASE_PUBLISHABLE_KEY`を登録する
 
 ローカル開発では`.env.example`を`.env.local`へコピーし、同じ2値を設定します。秘密値を`VITE_`で始めないでください。
 
+共通Authユーザーは他のうさぽんアプリでも使うため、パッケージメーカーの削除操作は`package`内の作品・画像・権利情報だけを削除し、`auth.users`は削除しません。旧専用プロジェクトからの移行と`usapon-lab`への転用手順は[`docs/supabase-topology-migration.md`](docs/supabase-topology-migration.md)を参照してください。
+
 ## クラウド保存の検証境界
 
-モック／ローカルテストに加えて、公開完了前に実SupabaseでRLS、Storage、OAuth、保存競合、アカウント削除を確認します。Google OAuthのProduction公開とブランド確認が終わるまでは、テストユーザー以外のログインを完成扱いにしません。
+モック／ローカルテストに加えて、公開完了前に実SupabaseでRLS、Storage、OAuth、保存競合、パッケージデータ削除を確認します。Google OAuthのProduction公開とブランド確認が終わるまでは、テストユーザー以外のログインを完成扱いにしません。
 
 ## MVP対象外
 
