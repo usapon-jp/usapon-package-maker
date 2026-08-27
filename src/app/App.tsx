@@ -71,6 +71,7 @@ import { LetterSetSelectScreen } from "../features/letter-set/LetterSetSelectScr
 import { BottomNavBar, type BottomNavTab } from "../components/navigation/BottomNavBar";
 import { SampleGuideModal } from "../components/modals/SampleGuideModal";
 import { AssemblyGuideModal } from "../components/modals/AssemblyGuideModal";
+import { MobileSettingsSheet } from "../components/modals/MobileSettingsSheet";
 import { EyeIcon, SaveIcon } from "../components/common/UiIcons";
 
 // 既存のクラウド保存利用者がいるため、端末内下書き保存と併用して提供する。
@@ -533,6 +534,7 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   });
   const [favoriteSizeName, setFavoriteSizeName] = useState("");
   const [favoriteSizeMessage, setFavoriteSizeMessage] = useState("");
+  const [sizeMobileTab, setSizeMobileTab] = useState<"dimensions" | "box-type" | "paper-structure" | "favorites">("dimensions");
 
   useEffect(() => {
     try {
@@ -562,97 +564,113 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
         <p>入力値は完成箱の罫線間寸法です。商品が入る余裕を含めて入力してください。</p>
       </div>
 
+      <div className="size-mobile-tabs" role="tablist" aria-label="サイズ設定項目">
+        <button type="button" role="tab" aria-selected={sizeMobileTab === "dimensions"} className={sizeMobileTab === "dimensions" ? "is-selected" : ""} onClick={() => setSizeMobileTab("dimensions")}>寸法</button>
+        <button type="button" role="tab" aria-selected={sizeMobileTab === "box-type"} className={sizeMobileTab === "box-type" ? "is-selected" : ""} onClick={() => setSizeMobileTab("box-type")}>箱形式</button>
+        <button type="button" role="tab" aria-selected={sizeMobileTab === "paper-structure"} className={sizeMobileTab === "paper-structure" ? "is-selected" : ""} onClick={() => setSizeMobileTab("paper-structure")}>用紙・構造</button>
+        <button type="button" role="tab" aria-selected={sizeMobileTab === "favorites"} className={sizeMobileTab === "favorites" ? "is-selected" : ""} onClick={() => setSizeMobileTab("favorites")}>お気に入り</button>
+      </div>
+
       <div className="size-layout">
         <section className="panel-card form-card">
-          <div className="card-title"><span>1</span><div><h2>箱形式</h2><p>{boxCopy.structure}</p></div></div>
-          <div className="box-type-grid" role="group" aria-label="箱形式を選択">
-            {SIZE_BOX_TYPES.map((type) => {
-              const copy = BOX_TYPE_COPY[type];
-              return (
-              <button
-                key={type}
-                className={`box-type-button ${state.box.type === type ? "is-selected" : ""}`}
-                type="button"
-                aria-pressed={state.box.type === type}
-                onClick={() => dispatch({ type: "set-box-type", boxType: type })}
-              >
-                <span aria-hidden="true"><BoxTypeIcon className="box-type-icon" type={type} /></span>
-                <strong>{copy.name}</strong>
-                <small>{copy.description}</small>
-              </button>
-              );
-            })}
+          <div className={`size-section size-section-dimensions ${sizeMobileTab === "dimensions" ? "is-mobile-active" : ""}`}>
+            <div className="form-section-heading"><h3>仕上がり寸法</h3><p>{twoPiece ? "幅 W／奥行 D／高さ H を指定" : shallowBox ? "表面を W × H、箱の深さを D で指定" : "幅 W／奥行 D／高さ H を指定"}</p></div>
+            <div className="dimension-grid">
+              <NumberField label="幅" shortLabel="W" value={state.box.widthMm} min={10} max={400} onChange={(value) => dispatch({ type: "update-box", field: "widthMm", value })} />
+              {twoPiece ? (
+                <>
+                  <NumberField label="奥行" shortLabel="D" value={state.box.heightMm} min={10} max={500} onChange={(value) => dispatch({ type: "update-box", field: "heightMm", value })} />
+                  <NumberField label="高さ" shortLabel="H" value={state.box.depthMm} min={10} max={300} onChange={(value) => dispatch({ type: "update-box", field: "depthMm", value })} />
+                </>
+              ) : shallowBox ? (
+                <>
+                  <NumberField label="高さ" shortLabel="H" value={state.box.heightMm} min={10} max={500} onChange={(value) => dispatch({ type: "update-box", field: "heightMm", value })} />
+                  <NumberField label="深さ" shortLabel="D" value={state.box.depthMm} min={twoPiece ? 10 : 5} max={300} onChange={(value) => dispatch({ type: "update-box", field: "depthMm", value })} />
+                </>
+              ) : (
+                <>
+                  <NumberField label="奥行" shortLabel="D" value={state.box.depthMm} min={5} max={300} onChange={(value) => dispatch({ type: "update-box", field: "depthMm", value })} />
+                  <NumberField label="高さ" shortLabel="H" value={state.box.heightMm} min={10} max={500} onChange={(value) => dispatch({ type: "update-box", field: "heightMm", value })} />
+                </>
+              )}
+            </div>
           </div>
-          <div className="form-divider" />
-          <div className="form-section-heading"><h3>仕上がり寸法</h3><p>{twoPiece ? "幅 W／奥行 D／高さ H を指定" : shallowBox ? "表面を W × H、箱の深さを D で指定" : "幅 W／奥行 D／高さ H を指定"}</p></div>
-          <div className="dimension-grid">
-            <NumberField label="幅" shortLabel="W" value={state.box.widthMm} min={10} max={400} onChange={(value) => dispatch({ type: "update-box", field: "widthMm", value })} />
-            {twoPiece ? (
+
+          <div className={`size-section size-section-box-type ${sizeMobileTab === "box-type" ? "is-mobile-active" : ""}`}>
+            <div className="card-title"><span>1</span><div><h2>箱形式</h2><p>{boxCopy.structure}</p></div></div>
+            <div className="box-type-grid" role="group" aria-label="箱形式を選択">
+              {SIZE_BOX_TYPES.map((type) => {
+                const copy = BOX_TYPE_COPY[type];
+                return (
+                <button
+                  key={type}
+                  className={`box-type-button ${state.box.type === type ? "is-selected" : ""}`}
+                  type="button"
+                  aria-pressed={state.box.type === type}
+                  onClick={() => dispatch({ type: "set-box-type", boxType: type })}
+                >
+                  <span aria-hidden="true"><BoxTypeIcon className="box-type-icon" type={type} /></span>
+                  <strong>{copy.name}</strong>
+                  <small>{copy.description}</small>
+                </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className={`size-section size-section-paper-structure ${sizeMobileTab === "paper-structure" ? "is-mobile-active" : ""}`}>
+            <div className="form-section-heading"><h3>用紙・構造オプション</h3><p>紙厚やのりしろ幅を調整</p></div>
+            <div className="option-grid">
+              <NumberField label="紙の厚み" value={state.box.paperThicknessMm} min={0.1} max={2} step={0.01} onChange={(value) => dispatch({ type: "update-box", field: "paperThicknessMm", value })} hint={twoPiece ? "300gsm厚紙目安：0.4mm" : "コピー用紙：0.09mm／厚紙：0.2〜0.4mm"} />
+              <NumberField label="のりしろ幅" value={state.box.glueFlapMm} min={5} max={40} step={0.5} onChange={(value) => dispatch({ type: "update-box", field: "glueFlapMm", value })} hint={twoPiece ? "12mm推奨" : state.box.type === "gift-box-v1" ? "側面固定幅" : "12〜15mm推奨"} />
+            </div>
+            {twoPiece && (
               <>
-                <NumberField label="奥行" shortLabel="D" value={state.box.heightMm} min={10} max={500} onChange={(value) => dispatch({ type: "update-box", field: "heightMm", value })} />
-                <NumberField label="高さ" shortLabel="H" value={state.box.depthMm} min={10} max={300} onChange={(value) => dispatch({ type: "update-box", field: "depthMm", value })} />
-              </>
-            ) : shallowBox ? (
-              <>
-                <NumberField label="高さ" shortLabel="H" value={state.box.heightMm} min={10} max={500} onChange={(value) => dispatch({ type: "update-box", field: "heightMm", value })} />
-                <NumberField label="深さ" shortLabel="D" value={state.box.depthMm} min={twoPiece ? 10 : 5} max={300} onChange={(value) => dispatch({ type: "update-box", field: "depthMm", value })} />
-              </>
-            ) : (
-              <>
-                <NumberField label="奥行" shortLabel="D" value={state.box.depthMm} min={5} max={300} onChange={(value) => dispatch({ type: "update-box", field: "depthMm", value })} />
-                <NumberField label="高さ" shortLabel="H" value={state.box.heightMm} min={10} max={500} onChange={(value) => dispatch({ type: "update-box", field: "heightMm", value })} />
+                <div className="form-divider" />
+                <div className="form-section-heading"><h3>蓋の調整</h3><p>本体寸法は変えず、蓋だけの深さと嵌合余裕を調整</p></div>
+                <div className="option-grid">
+                  <NumberField label="蓋の深さ" value={state.box.lidDepthMm ?? state.box.depthMm} min={10} max={state.box.depthMm} step={1} onChange={(value) => dispatch({ type: "update-box", field: "lidDepthMm", value })} hint="全かぶせは本体深さと同じ40mm" />
+                  <NumberField label="蓋の片側余裕" value={state.box.lidClearanceMm ?? 0.6} min={0.1} max={2} step={0.1} onChange={(value) => dispatch({ type: "update-box", field: "lidClearanceMm", value })} hint="初期値0.6mm" />
+                </div>
+                <div className="form-divider" />
+                <div className="form-section-heading"><h3>二重側面</h3><p>側面上端を内側へ折り返す長さ</p></div>
+                <div className="option-grid">
+                  <NumberField label="折り返し" value={state.box.foldoverMm ?? 25} min={5} max={40} step={1} onChange={(value) => dispatch({ type: "update-box", field: "foldoverMm", value })} hint="基準25mm" />
+                </div>
               </>
             )}
-          </div>
-          <div className="form-divider" />
-          <div className="option-grid">
-            <NumberField label="紙の厚み" value={state.box.paperThicknessMm} min={0.1} max={2} step={0.01} onChange={(value) => dispatch({ type: "update-box", field: "paperThicknessMm", value })} hint={twoPiece ? "300gsm厚紙の試作目安：0.4mm（プリンター対応を確認）" : "コピー用紙の目安：0.09mm／厚紙：0.2〜0.4mm"} />
-            <NumberField label="のりしろ幅" value={state.box.glueFlapMm} min={5} max={40} step={0.5} onChange={(value) => dispatch({ type: "update-box", field: "glueFlapMm", value })} hint={twoPiece ? "四隅に8〜10mm幅の強粘着両面テープを貼れる12mm推奨" : state.box.type === "gift-box-v1" ? "前後の壁と左右の壁を固定する幅" : "接着しやすい12〜15mmがおすすめ"} />
-          </div>
-          <div className="form-divider" />
-          <section className="favorite-size-section" aria-labelledby="favorite-size-title">
-            <div className="form-section-heading"><h3 id="favorite-size-title">お気に入り寸法</h3><p>現在の箱形式と寸法一式を、名前を付けて端末内へ登録</p></div>
-            <div className="favorite-size-register">
-              <label>寸法名<input type="text" maxLength={40} value={favoriteSizeName} placeholder="例：プレゼント用の箱" onChange={(event) => setFavoriteSizeName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveFavoriteSize(); }} /></label>
-              <button type="button" onClick={saveFavoriteSize}>☆ 現在の寸法を登録</button>
+            <div className="measurement-note">
+              <strong>{twoPiece ? "A4 2枚で組み立て" : shallowBox ? "1枚で組み立て" : "寸法の考え方"}</strong>
+              <p>{twoPiece
+                ? "1ページ目が蓋、2ページ目が本体です。両方の四隅を接着し、側面上端を内側へ折り返して切断面を隠します。"
+                : state.box.type === "gift-box-v1"
+                  ? "底面・4側面・ヒンジフタはすべてつながっています。4つののりしろで浅いトレーを作り、左右フラップを内側へ折ってフタの舌を前面へ差し込みます。"
+                  : "紙厚は差し込み部の逃げに反映します。"}</p>
             </div>
-            {favoriteSizeMessage && <p className="favorite-size-message" role="status">{favoriteSizeMessage}</p>}
-            {favoriteSizes.length > 0 ? (
-              <div className="favorite-size-list">
-                {favoriteSizes.map((favorite) => (
-                  <article key={favorite.id}>
-                    <button type="button" className="favorite-size-apply" onClick={() => { dispatch({ type: "replace-box", box: favorite.box }); setFavoriteSizeMessage(`「${favorite.name}」を呼び出しました。`); }}>
-                      <strong>{favorite.name}</strong>
-                      <small>{BOX_TYPE_COPY[favorite.box.type].name}／W {favorite.box.widthMm} × D {favorite.box.depthMm} × H {favorite.box.heightMm}mm</small>
-                    </button>
-                    <button type="button" className="favorite-size-delete" aria-label={`${favorite.name}を削除`} onClick={() => { setFavoriteSizes((sizes) => sizes.filter((item) => item.id !== favorite.id)); setFavoriteSizeMessage(`「${favorite.name}」を削除しました。`); }}>×</button>
-                  </article>
-                ))}
+          </div>
+
+          <div className={`size-section size-section-favorites ${sizeMobileTab === "favorites" ? "is-mobile-active" : ""}`}>
+            <section className="favorite-size-section" aria-labelledby="favorite-size-title">
+              <div className="form-section-heading"><h3 id="favorite-size-title">お気に入り寸法</h3><p>現在の箱形式と寸法一式を、名前を付けて端末内へ登録</p></div>
+              <div className="favorite-size-register">
+                <label>寸法名<input type="text" maxLength={40} value={favoriteSizeName} placeholder="例：プレゼント用の箱" onChange={(event) => setFavoriteSizeName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") saveFavoriteSize(); }} /></label>
+                <button type="button" onClick={saveFavoriteSize}>☆ 現在の寸法を登録</button>
               </div>
-            ) : <p className="favorite-size-empty">よく使う寸法を登録すると、次回からワンタップで呼び出せます。</p>}
-          </section>
-          {twoPiece && (
-            <>
-              <div className="form-divider" />
-              <div className="form-section-heading"><h3>蓋の調整</h3><p>本体寸法は変えず、蓋だけの深さと嵌合余裕を調整</p></div>
-              <div className="option-grid">
-                <NumberField label="蓋の深さ" value={state.box.lidDepthMm ?? state.box.depthMm} min={10} max={state.box.depthMm} step={1} onChange={(value) => dispatch({ type: "update-box", field: "lidDepthMm", value })} hint="全かぶせは本体深さと同じ40mm。浅蓋にも変更できます" />
-                <NumberField label="蓋の片側余裕" value={state.box.lidClearanceMm ?? 0.6} min={0.1} max={2} step={0.1} onChange={(value) => dispatch({ type: "update-box", field: "lidClearanceMm", value })} hint="試作初期値0.6mm。きつい時0.8mm、緩い時0.4mm" />
-              </div>
-              <div className="form-divider" />
-              <div className="form-section-heading"><h3>二重側面</h3><p>側面上端を内側へ折り返す長さ</p></div>
-              <div className="option-grid">
-                <NumberField label="折り返し" value={state.box.foldoverMm ?? 25} min={5} max={40} step={1} onChange={(value) => dispatch({ type: "update-box", field: "foldoverMm", value })} hint="基準25mm。4cm側面の上側25mmが二重になります" />
-              </div>
-            </>
-          )}
-          <div className="measurement-note">
-            <strong>{twoPiece ? "A4 2枚で組み立て" : shallowBox ? "1枚で組み立て" : "寸法の考え方"}</strong>
-            <p>{twoPiece
-              ? "1ページ目が蓋、2ページ目が本体です。両方の四隅を接着し、側面上端を内側へ折り返して切断面を隠します。蓋内寸には紙厚と片側余裕を加えています。"
-              : state.box.type === "gift-box-v1"
-                ? "底面・4側面・ヒンジフタはすべてつながっています。4つののりしろで浅いトレーを作り、左右フラップを内側へ折ってフタの舌を前面へ差し込みます。"
-                : "紙厚は差し込み部の逃げに反映します。印刷後は実際の紙で一度試作してください。"}</p>
+              {favoriteSizeMessage && <p className="favorite-size-message" role="status">{favoriteSizeMessage}</p>}
+              {favoriteSizes.length > 0 ? (
+                <div className="favorite-size-list">
+                  {favoriteSizes.map((favorite) => (
+                    <article key={favorite.id}>
+                      <button type="button" className="favorite-size-apply" onClick={() => { dispatch({ type: "replace-box", box: favorite.box }); setFavoriteSizeMessage(`「${favorite.name}」を呼び出しました。`); }}>
+                        <strong>{favorite.name}</strong>
+                        <small>{BOX_TYPE_COPY[favorite.box.type].name}／W {favorite.box.widthMm} × D {favorite.box.depthMm} × H {favorite.box.heightMm}mm</small>
+                      </button>
+                      <button type="button" className="favorite-size-delete" aria-label={`${favorite.name}を削除`} onClick={() => { setFavoriteSizes((sizes) => sizes.filter((item) => item.id !== favorite.id)); setFavoriteSizeMessage(`「${favorite.name}」を削除しました。`); }}>×</button>
+                    </article>
+                  ))}
+                </div>
+              ) : <p className="favorite-size-empty">よく使う寸法を登録すると、次回からワンタップで呼び出せます。</p>}
+            </section>
           </div>
         </section>
 
@@ -1044,6 +1062,8 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     setLetterSetShareMessage(`「${templateDefinition.label}」で${arrangedLabels.join("・")}を整えました。ここから手動で調整できます。`);
   };
 
+  const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
+
   return (
     <main className="tool-page design-page antigravity-design-page">
       <div className="page-heading horizontal-heading">
@@ -1056,204 +1076,10 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
 
       <div className="editor-category-tabs" role="tablist" aria-label="編集内容">
         {([['artwork','背景'],['stamps','スタンプ'],['text','文字']] as Array<[EditorSection,string]>).map(([section,label]) => <button key={section} type="button" role="tab" aria-selected={state.openEditorSection === section} className={state.openEditorSection === section ? "is-selected" : ""} onClick={() => dispatch({ type: "set-open-editor-section", section })}>{label}</button>)}
+        <button type="button" role="tab" aria-selected={mobileSettingsOpen} className={mobileSettingsOpen ? "is-selected" : ""} onClick={() => setMobileSettingsOpen(true)}>⚙ 詳細</button>
       </div>
-      <details className="editor-utility-menu"><summary>配置・表示の詳細</summary><div>{state.box.type !== "envelope-v1" && <button type="button" onClick={() => dispatch({ type: "set-open-editor-section", section: "auto-layout" })}>自動配置</button>}<button type="button" onClick={() => dispatch({ type: "set-open-editor-section", section: "display" })}>表示</button><button type="button" onClick={() => dispatch({ type: "set-open-editor-section", section: "lines" })}>線・印刷</button></div></details>
 
       <div className={`editor-layout ${state.openEditorSection === "artwork" ? "is-background-editing" : ""}`}>
-        <aside className="editor-controls panel-card">
-          {state.box.type === "envelope-v1" && (
-            <details className="letter-set-advanced-settings"><summary>レターセット・テーマの詳細設定</summary><LetterSetPanel
-              box={state.box}
-              selection={state.stationerySetSelection}
-              envelopeDesign={state.envelopeDesign}
-              canShare={pages.length > 1}
-              shareMessage={letterSetShareMessage}
-              onSelectionChange={(value) => { dispatch({ type: "set-stationery-set-selection", value }); setLetterSetShareMessage(""); }}
-              activeFace={state.activeEnvelopeFace}
-              onFaceChange={(faceId) => dispatch({ type: "set-envelope-face", faceId })}
-              onTemplateSelect={applyEnvelopeTemplateChoice}
-              onEnvelopeDesignChange={(patch) => dispatch({ type: "update-envelope-design", patch })}
-              onBoxDimensionChange={(field, value) => { if (Number.isFinite(value) && value > 0) dispatch({ type: "update-box", field, value }); }}
-              onShare={shareEnvelopeDesignWithSet}
-              themePack={AUTUMN_THEME_PACK}
-              themePackUnlocked={autumnUnlocked}
-              themePackActive={state.themePackId === AUTUMN_THEME_PACK.id}
-              applyingThemePack={applyingThemePack}
-              onUnlockThemePack={() => onUnlockThemePack(AUTUMN_THEME_PACK.id)}
-              onApplyThemePack={() => { void applyAutumnThemePack(); }}
-            /></details>
-          )}
-          {state.box.type !== "envelope-v1" && <AccordionSection section="auto-layout" openSection={state.openEditorSection} title="いい感じに配置" icon="✦" onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
-            <AutoLayoutPanel
-              settings={autoLayoutSettings}
-              result={autoLayoutResult}
-              disabled={autoLayoutDisabled}
-              onSettingsChange={(settings) => {
-                setAutoLayoutSettings(settings);
-                setAutoLayoutResult(null);
-                autoLayoutRun.current = 0;
-              }}
-              onArrange={() => runAutoLayout(false)}
-              onArrangeAgain={() => runAutoLayout(true)}
-            />
-          </AccordionSection>}
-          <AccordionSection section="artwork" openSection={state.openEditorSection} title="背景・柄" icon="▧" count={pageArtworkLayers.length} onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
-            {faceEditing && <div className="background-scope-picker" role="group" aria-label="背景を変える範囲">{([['all','全体'],['face','この面'],['part','部分']] as const).map(([scope,label]) => <button key={scope} type="button" className={backgroundScope === scope ? "is-selected" : ""} onClick={() => setBackgroundScope(scope)}>{label}</button>)}</div>}
-            {backgroundScope !== "part" || !faceEditing ? <DesignColorControl className="background-color-control" label={faceEditing ? backgroundScope === "all" ? "セット全体の背景色" : `${state.activeEnvelopeFace === "envelope-front" ? "A 表" : state.activeEnvelopeFace === "envelope-flap" ? "B フタ" : "C 裏"}の背景色` : "基本背景色"} value={faceEditing ? state.surfaceBackgroundColors[state.activeEnvelopeFace] ?? design.backgroundColor : design.backgroundColor} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={setScopedBackgroundColor} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} /> : <p className="background-part-help">部分へ柄や画像を追加し、中央の展開図で位置と大きさを調整します。</p>}
-            {state.box.type === "two-piece-gift-box-v1" && activePage.id === "lid" && (
-              <div className="background-copy-control">
-                <button className="outline-button full-button" type="button" onClick={copyLidBackgroundToBase}>背景を本体にもコピー</button>
-                <small>本体の背景色と背景・柄を置き換えます。スタンプと文字はコピーも削除もしません。</small>
-                {backgroundCopyMessage && <p role="status">{backgroundCopyMessage}</p>}
-              </div>
-            )}
-            <div className="preset-grid" aria-label="基本柄プリセット">
-              <button type="button" onClick={() => { const item = createStripePattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "stripe-pattern").length + 1, activePage.id); if (faceEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="stripe-preview" /><strong>ストライプ</strong><small>幅・間隔・向きを調整</small></button>
-              <button type="button" onClick={() => { const item = createDotPattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "dot-pattern").length + 1, activePage.id); if (faceEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="dot-preview" /><strong>水玉</strong><small>色・大きさ・間隔を調整</small></button>
-            </div>
-            <input ref={artworkFileInput} type="file" accept="image/png,image/svg+xml,.png,.svg" multiple hidden onChange={handleArtworkFiles} />
-            <button className="upload-button compact-upload" type="button" disabled={uploadingArtwork} onClick={() => artworkFileInput.current?.click()}><span>↑</span>{uploadingArtwork ? "読み込み中…" : "自分の画像を追加"}</button>
-            {artworkUploadError && <p className="field-error preserve-lines">{artworkUploadError}</p>}
-
-            {pageArtworkLayers.length > 0 && (
-              <div className="layer-list" aria-label="背景・柄レイヤー">
-                {pageArtworkLayers.map((item) => (
-                  <div key={item.id} className={`layer-row ${state.selectedArtworkId === item.id ? "is-selected" : ""}`}>
-                    <button className="layer-select" type="button" onClick={() => dispatch({ type: "select-artwork", id: item.id })}><span>{artworkKindLabel(item)}</span><b>{item.name}</b></button>
-                    <button className="visibility-button" type="button" aria-label={`${item.name}を${item.visible ? "非表示" : "表示"}`} onClick={() => dispatch({ type: "update-artwork", id: item.id, patch: { visible: !item.visible } })}>{item.visible ? "●" : "○"}</button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {selectedArtwork && (
-              <div className="selected-layer-controls">
-                <strong className="selected-layer-title">{selectedArtwork.name}</strong>
-                <label className="range-control"><span>透明度 <output>{Math.round(selectedArtwork.opacity * 100)}%</output></span><input type="range" min="0.1" max="1" step="0.05" value={selectedArtwork.opacity} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { opacity: Number(event.target.value) } })} /></label>
-                {selectedArtwork.kind === "stripe-pattern" && (
-                  <>
-                    <DesignColorControl label="ストライプ色" value={selectedArtwork.color} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={(color) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
-                    <div className="mini-number-grid"><NumberField label="線幅" value={selectedArtwork.stripeWidthMm} min={1} max={50} step={1} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { stripeWidthMm: value } })} /><NumberField label="間隔" value={selectedArtwork.gapMm} min={1} max={50} step={1} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { gapMm: value } })} /></div>
-                    <label className="select-row">向き<select value={selectedArtwork.angleDeg} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { angleDeg: Number(event.target.value) as 0 | 45 | 90 | 135 } })}><option value="0">縦</option><option value="45">斜め 45°</option><option value="90">横</option><option value="135">斜め 135°</option></select></label>
-                  </>
-                )}
-                {selectedArtwork.kind === "dot-pattern" && (
-                  <>
-                    <DesignColorControl label="水玉色" value={selectedArtwork.color} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={(color) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
-                    <label className="range-control"><span>水玉の大きさ <output>{mm(selectedArtwork.dotDiameterMm)}</output></span><input aria-label="水玉の大きさ" type="range" min="1" max="60" step="1" value={selectedArtwork.dotDiameterMm} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { dotDiameterMm: Number(event.target.value) } })} /></label>
-                    <label className="range-control"><span>水玉の間隔 <output>{mm(selectedArtwork.spacingMm)}</output></span><input aria-label="水玉の間隔" type="range" min="2" max="100" step="1" value={selectedArtwork.spacingMm} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { spacingMm: Number(event.target.value) } })} /></label>
-                  </>
-                )}
-                {selectedArtwork.kind === "uploaded-artwork" && (
-                  <>
-                    <FineTuneControl label="画像の幅" value={selectedArtwork.widthMm} min={2} max={200} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { widthMm: value } })} />
-                    <label className="toggle-row"><span><strong>リピート</strong><small>画像を繰り返して全面へ配置</small></span><input type="checkbox" checked={selectedArtwork.repeat} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { repeat: event.target.checked } })} /></label>
-                    <button className="rotate-button" type="button" onClick={() => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { rotationDeg: rotateQuarterTurn(selectedArtwork.rotationDeg) } })}>↻ 90°回転 <span>{selectedArtwork.rotationDeg}°</span></button>
-                  </>
-                )}
-                <div className="background-position-controls">
-                  <FineTuneControl label="横位置 X" value={roundMm(selectedArtwork.offsetXmm, 1)} min={-geometry.bounds.widthMm} max={geometry.bounds.widthMm} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { offsetXmm: value } })} />
-                  <FineTuneControl label="縦位置 Y" value={roundMm(selectedArtwork.offsetYmm, 1)} min={-geometry.bounds.heightMm} max={geometry.bounds.heightMm} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { offsetYmm: value } })} />
-                </div>
-                <div className="layer-action-row"><button type="button" onClick={() => dispatch({ type: "move-artwork", id: selectedArtwork.id, direction: "backward" })}>← 背面</button><button type="button" onClick={() => dispatch({ type: "move-artwork", id: selectedArtwork.id, direction: "forward" })}>前面 →</button><button type="button" onClick={() => dispatch({ type: "duplicate-artwork", id: selectedArtwork.id, newId: crypto.randomUUID() })}>複製</button><button className="danger" type="button" onClick={() => dispatch({ type: "remove-artwork", id: selectedArtwork.id })}>削除</button></div>
-              </div>
-            )}
-          </AccordionSection>
-
-          <AccordionSection section="stamps" openSection={state.openEditorSection} title="スタンプ" icon="★" count={pageStamps.length} onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
-            {recommendedStampSets.map((set) => (
-              <div className="recommended-stamp-set" key={set.id}>
-                <div className="recommended-stamp-heading"><span>おすすめ素材</span><strong>{set.name}</strong><small>{set.description}</small></div>
-                <div className="stamp-preset-grid">
-                  {set.stampKeys.map((key) => {
-                    const preset = BUILT_IN_STAMPS.find((item) => item.key === key);
-                    if (!preset) return null;
-                    return <button key={preset.key} className="stamp-preset-card is-recommended" type="button" disabled={uploadingStamp} onClick={() => { void addPresetStamp(preset); }}><img src={stampPreviewUrl(preset)} alt={preset.name} /><span><strong>{preset.name}</strong><small>自由に動かして使えます</small></span><b>＋</b></button>;
-                  })}
-                </div>
-              </div>
-            ))}
-            {recommendedStampSets.length > 0 && <p className="other-stamps-heading">ほかのスタンプ</p>}
-            <div className="stamp-preset-grid">
-              {otherStamps.map((preset) => (
-                <button key={preset.key} className="stamp-preset-card" type="button" disabled={uploadingStamp} onClick={() => { void addPresetStamp(preset); }}>
-                  <img src={stampPreviewUrl(preset)} alt={preset.name} />
-                  <span><strong>{preset.name}</strong><small>プリセットを追加</small></span><b>＋</b>
-                </button>
-              ))}
-            </div>
-            <input ref={stampFileInput} type="file" accept="image/png,image/svg+xml,.png,.svg" multiple hidden onChange={handleStampFiles} />
-            <button className="upload-button compact-upload" type="button" disabled={uploadingStamp} onClick={() => stampFileInput.current?.click()}><span>↑</span>{uploadingStamp ? "読み込み中…" : "自分のスタンプを追加"}</button>
-            {stampUploadError && <p className="field-error preserve-lines">{stampUploadError}</p>}
-            {pageStamps.length > 0 && <div className="layer-list" aria-label="スタンプレイヤー">{pageStamps.map((item) => <div key={item.id} className={`layer-row ${state.selectedStampId === item.id ? "is-selected" : ""}`}><button className="layer-select" type="button" onClick={() => dispatch({ type: "select-stamp", id: item.id })}><span>STAMP</span><b>{item.name}</b></button><button className="visibility-button" type="button" aria-label={`${item.name}を${item.visible ? "非表示" : "表示"}`} onClick={() => dispatch({ type: "update-stamp", id: item.id, patch: { visible: !item.visible } })}>{item.visible ? "●" : "○"}</button></div>)}</div>}
-            {selectedStamp && (
-              <div className="selected-layer-controls">
-                <strong className="selected-layer-title">{selectedStamp.name}</strong>
-                <label className="range-control"><span>スタンプの幅 <output>{mm(selectedStamp.widthMm)}</output></span><input type="range" min="2" max="200" step="1" value={selectedStamp.widthMm} onChange={(event) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { widthMm: Number(event.target.value) } })} /></label>
-                <label className="range-control"><span>透明度 <output>{Math.round(selectedStamp.opacity * 100)}%</output></span><input type="range" min="0.1" max="1" step="0.05" value={selectedStamp.opacity} onChange={(event) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { opacity: Number(event.target.value) } })} /></label>
-                <button className="rotate-button" type="button" onClick={() => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { rotationDeg: rotateByDegrees(selectedStamp.rotationDeg) } })}>↻ 90°回転 <span>{Math.round(selectedStamp.rotationDeg)}°</span></button>
-                <div className="mini-number-grid"><NumberField label="横位置 X" value={roundMm(selectedStamp.xMm, 1)} min={0} max={geometry.bounds.widthMm} step={1} onChange={(value) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { xMm: value } })} /><NumberField label="縦位置 Y" value={roundMm(selectedStamp.yMm, 1)} min={0} max={geometry.bounds.heightMm} step={1} onChange={(value) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { yMm: value } })} /></div>
-                <p className="drag-hint">プレビュー上でも移動できます。</p>
-                <div className="layer-action-row"><button type="button" onClick={() => dispatch({ type: "move-stamp", id: selectedStamp.id, direction: "backward" })}>← 背面</button><button type="button" onClick={() => dispatch({ type: "move-stamp", id: selectedStamp.id, direction: "forward" })}>前面 →</button><button type="button" onClick={() => dispatch({ type: "duplicate-stamp", id: selectedStamp.id, newId: crypto.randomUUID() })}>複製</button><button className="danger" type="button" onClick={() => dispatch({ type: "remove-stamp", id: selectedStamp.id })}>削除</button></div>
-              </div>
-            )}
-          </AccordionSection>
-
-          <AccordionSection section="text" openSection={state.openEditorSection} title="テキスト" icon="T" count={pageTexts.length} onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
-            <button className="outline-button full-button" type="button" onClick={addText}>＋ テキストを追加</button>
-            {pageTexts.length > 0 && (
-              <div className="text-list">
-                {pageTexts.map((item) => <button key={item.id} className={state.selectedTextId === item.id ? "is-selected" : ""} type="button" onClick={() => dispatch({ type: "select-text", id: item.id })}>{item.text || "（空のテキスト）"}</button>)}
-              </div>
-            )}
-            {selectedText && (
-              <div className="selected-text-controls">
-                <label className="text-input-label">文字<textarea rows={2} maxLength={80} value={selectedText.text} onChange={(event) => dispatch({ type: "update-text", id: selectedText.id, patch: { text: event.target.value } })} /></label>
-                <label className="range-control"><span>文字サイズ <output>{mm(selectedText.fontSizeMm)}</output></span><input type="range" min="2" max="18" step="0.5" value={selectedText.fontSizeMm} onChange={(event) => dispatch({ type: "update-text", id: selectedText.id, patch: { fontSizeMm: Number(event.target.value) } })} /></label>
-                <DesignColorControl label="文字色" value={selectedText.color} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={(color) => dispatch({ type: "update-text", id: selectedText.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
-                <div className="mini-number-grid">
-                  <NumberField label="横位置 X" value={roundMm(selectedText.xMm, 1)} min={0} max={geometry.bounds.widthMm} step={1} onChange={(value) => dispatch({ type: "update-text", id: selectedText.id, patch: { xMm: value } })} />
-                  <NumberField label="縦位置 Y" value={roundMm(selectedText.yMm, 1)} min={0} max={geometry.bounds.heightMm} step={1} onChange={(value) => dispatch({ type: "update-text", id: selectedText.id, patch: { yMm: value } })} />
-                </div>
-                <p className="drag-hint">プレビュー上の文字を指やマウスで動かせます。</p>
-                <button className="delete-button" type="button" onClick={() => dispatch({ type: "remove-text", id: selectedText.id })}>このテキストを削除</button>
-              </div>
-            )}
-          </AccordionSection>
-
-          <AccordionSection section="display" openSection={state.openEditorSection} title="表示" icon="◉" onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
-            {geometry.type === "letter-paper-v1" && <label className="toggle-row"><span><strong>便箋の罫線</strong><small>印刷される横罫線をON/OFF</small></span><input type="checkbox" checked={state.showWritingLines} onChange={(event) => dispatch({ type: "set-writing-lines", value: event.target.checked })} /></label>}
-            <label className="toggle-row"><span><strong>ガイド表示</strong><small>面名と中心線。PDFには印刷しません</small></span><input type="checkbox" checked={state.showGuides} onChange={() => dispatch({ type: "toggle-guides" })} /></label>
-          </AccordionSection>
-
-          <AccordionSection section="lines" openSection={state.openEditorSection} title="線の色" icon="／" onOpen={(section) => dispatch({ type: "set-open-editor-section", section })}>
-            <p className="control-help">カット線（実線）と通常の折り線（点線）は、画面とPDFに同じ色で反映されます。折り返し補助線は印刷画面でPDFだけ非表示にできます。</p>
-            <div className="line-color-grid">
-              <label className="line-color-row">
-                <span><strong>カット線</strong><small>実線</small></span>
-                <input aria-label="カット線の色" type="color" value={state.lineColors.cut} onChange={(event) => dispatch({ type: "set-line-color", layer: "cut", color: event.target.value })} />
-              </label>
-              <label className="line-color-row">
-                <span><strong>折り線</strong><small>点線</small></span>
-                <input aria-label="折り線の色" type="color" value={state.lineColors.fold} onChange={(event) => dispatch({ type: "set-line-color", layer: "fold", color: event.target.value })} />
-              </label>
-            </div>
-            <div className="line-color-presets" aria-label="線色プリセット">
-              {LINE_COLOR_PRESETS.map((preset) => (
-                <button
-                  key={preset.label}
-                  type="button"
-                  className={state.lineColors.cut === preset.colors.cut && state.lineColors.fold === preset.colors.fold ? "is-selected" : ""}
-                  onClick={() => dispatch({ type: "set-line-colors", colors: preset.colors })}
-                >
-                  <i style={{ background: preset.colors.cut }} /><i style={{ background: preset.colors.fold }} />
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-          </AccordionSection>
-        </aside>
-
         <section className="editor-canvas-panel panel-card">
           <div className="canvas-toolbar">
             <LineLegend geometry={geometry} lineColors={state.lineColors} />
@@ -1287,7 +1113,217 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
           </div>
           {geometry.type === "envelope-v1" ? <p className="canvas-caption envelope-canvas-caption"><strong>完成品：横 {mm(geometry.input.widthMm)} × 縦 {mm(geometry.input.heightMm)}{geometry.input.widthMm === 162 && geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong>{geometry.envelope?.construction === "kamasu" ? <><span>カマス貼り ／ B フタ {mm(geometry.envelope.topFlapMm)} ／ 左右のりしろ 各{mm(geometry.envelope.glueWidthMm)}</span><span>C 裏の左右を内側へ折り、A 表を重ねて貼ります。B フタとC 裏は完成時の向きで配置されます。</span></> : <><span>上 {mm(geometry.envelope?.topFlapMm ?? 0)} ／ 下 {mm(geometry.envelope?.bottomFlapMm ?? 0)} ／ 左右 各{mm(geometry.envelope?.sideFlapMm ?? 0)}</span><span>左右 → 下の順に折り、貼って袋状にします。</span></>}</p> : <p className="canvas-caption">画面では見やすい大きさに拡大表示しています。印刷寸法は下のmm値とPDFの実寸座標が基準です。</p>}
         </section>
+
+        <aside className="editor-controls panel-card">
+          {state.openEditorSection === "artwork" && (
+            <div className="drawer-section">
+              {faceEditing && <div className="background-scope-picker" role="group" aria-label="背景を変える範囲">{([['all','全体'],['face','この面'],['part','部分']] as const).map(([scope,label]) => <button key={scope} type="button" className={backgroundScope === scope ? "is-selected" : ""} onClick={() => setBackgroundScope(scope)}>{label}</button>)}</div>}
+              {backgroundScope !== "part" || !faceEditing ? <DesignColorControl className="background-color-control" label={faceEditing ? backgroundScope === "all" ? "セット全体の背景色" : `${state.activeEnvelopeFace === "envelope-front" ? "A 表" : state.activeEnvelopeFace === "envelope-flap" ? "B フタ" : "C 裏"}の背景色` : "基本背景色"} value={faceEditing ? state.surfaceBackgroundColors[state.activeEnvelopeFace] ?? design.backgroundColor : design.backgroundColor} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={setScopedBackgroundColor} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} /> : <p className="background-part-help">部分へ柄や画像を追加し、中央の展開図で位置と大きさを調整します。</p>}
+              {state.box.type === "two-piece-gift-box-v1" && activePage.id === "lid" && (
+                <div className="background-copy-control">
+                  <button className="outline-button full-button" type="button" onClick={copyLidBackgroundToBase}>背景を本体にもコピー</button>
+                  <small>本体の背景色と背景・柄を置き換えます。スタンプと文字はコピーも削除もしません。</small>
+                  {backgroundCopyMessage && <p role="status">{backgroundCopyMessage}</p>}
+                </div>
+              )}
+              <div className="preset-grid" aria-label="基本柄プリセット">
+                <button type="button" onClick={() => { const item = createStripePattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "stripe-pattern").length + 1, activePage.id); if (faceEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="stripe-preview" /><strong>ストライプ</strong><small>幅・間隔・向きを調整</small></button>
+                <button type="button" onClick={() => { const item = createDotPattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "dot-pattern").length + 1, activePage.id); if (faceEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="dot-preview" /><strong>水玉</strong><small>色・大きさ・間隔を調整</small></button>
+              </div>
+              <input ref={artworkFileInput} type="file" accept="image/png,image/svg+xml,.png,.svg" multiple hidden onChange={handleArtworkFiles} />
+              <button className="upload-button compact-upload" type="button" disabled={uploadingArtwork} onClick={() => artworkFileInput.current?.click()}><span>↑</span>{uploadingArtwork ? "読み込み中…" : "自分の画像を追加"}</button>
+              {artworkUploadError && <p className="field-error preserve-lines">{artworkUploadError}</p>}
+
+              {pageArtworkLayers.length > 0 && (
+                <div className="layer-list" aria-label="背景・柄レイヤー">
+                  {pageArtworkLayers.map((item) => (
+                    <div key={item.id} className={`layer-row ${state.selectedArtworkId === item.id ? "is-selected" : ""}`}>
+                      <button className="layer-select" type="button" onClick={() => dispatch({ type: "select-artwork", id: item.id })}><span>{artworkKindLabel(item)}</span><b>{item.name}</b></button>
+                      <button className="visibility-button" type="button" aria-label={`${item.name}を${item.visible ? "非表示" : "表示"}`} onClick={() => dispatch({ type: "update-artwork", id: item.id, patch: { visible: !item.visible } })}>{item.visible ? "●" : "○"}</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {selectedArtwork && (
+                <div className="selected-layer-controls">
+                  <strong className="selected-layer-title">{selectedArtwork.name}</strong>
+                  <label className="range-control"><span>透明度 <output>{Math.round(selectedArtwork.opacity * 100)}%</output></span><input type="range" min="0.1" max="1" step="0.05" value={selectedArtwork.opacity} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { opacity: Number(event.target.value) } })} /></label>
+                  {selectedArtwork.kind === "stripe-pattern" && (
+                    <>
+                      <DesignColorControl label="ストライプ色" value={selectedArtwork.color} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={(color) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
+                      <div className="mini-number-grid"><NumberField label="線幅" value={selectedArtwork.stripeWidthMm} min={1} max={50} step={1} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { stripeWidthMm: value } })} /><NumberField label="間隔" value={selectedArtwork.gapMm} min={1} max={50} step={1} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { gapMm: value } })} /></div>
+                      <label className="select-row">向き<select value={selectedArtwork.angleDeg} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { angleDeg: Number(event.target.value) as 0 | 45 | 90 | 135 } })}><option value="0">縦</option><option value="45">斜め 45°</option><option value="90">横</option><option value="135">斜め 135°</option></select></label>
+                    </>
+                  )}
+                  {selectedArtwork.kind === "dot-pattern" && (
+                    <>
+                      <DesignColorControl label="水玉色" value={selectedArtwork.color} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={(color) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
+                      <label className="range-control"><span>水玉の大きさ <output>{mm(selectedArtwork.dotDiameterMm)}</output></span><input aria-label="水玉の大きさ" type="range" min="1" max="60" step="1" value={selectedArtwork.dotDiameterMm} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { dotDiameterMm: Number(event.target.value) } })} /></label>
+                      <label className="range-control"><span>水玉の間隔 <output>{mm(selectedArtwork.spacingMm)}</output></span><input aria-label="水玉の間隔" type="range" min="2" max="100" step="1" value={selectedArtwork.spacingMm} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { spacingMm: Number(event.target.value) } })} /></label>
+                    </>
+                  )}
+                  {selectedArtwork.kind === "uploaded-artwork" && (
+                    <>
+                      <FineTuneControl label="画像の幅" value={selectedArtwork.widthMm} min={2} max={200} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { widthMm: value } })} />
+                      <label className="toggle-row"><span><strong>リピート</strong><small>画像を繰り返して全面へ配置</small></span><input type="checkbox" checked={selectedArtwork.repeat} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { repeat: event.target.checked } })} /></label>
+                      <button className="rotate-button" type="button" onClick={() => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { rotationDeg: rotateQuarterTurn(selectedArtwork.rotationDeg) } })}>↻ 90°回転 <span>{selectedArtwork.rotationDeg}°</span></button>
+                    </>
+                  )}
+                  <div className="background-position-controls">
+                    <FineTuneControl label="横位置 X" value={roundMm(selectedArtwork.offsetXmm, 1)} min={-geometry.bounds.widthMm} max={geometry.bounds.widthMm} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { offsetXmm: value } })} />
+                    <FineTuneControl label="縦位置 Y" value={roundMm(selectedArtwork.offsetYmm, 1)} min={-geometry.bounds.heightMm} max={geometry.bounds.heightMm} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { offsetYmm: value } })} />
+                  </div>
+                  <div className="layer-action-row"><button type="button" onClick={() => dispatch({ type: "move-artwork", id: selectedArtwork.id, direction: "backward" })}>← 背面</button><button type="button" onClick={() => dispatch({ type: "move-artwork", id: selectedArtwork.id, direction: "forward" })}>前面 →</button><button type="button" onClick={() => dispatch({ type: "duplicate-artwork", id: selectedArtwork.id, newId: crypto.randomUUID() })}>複製</button><button className="danger" type="button" onClick={() => dispatch({ type: "remove-artwork", id: selectedArtwork.id })}>削除</button></div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {state.openEditorSection === "stamps" && (
+            <div className="drawer-section">
+              {recommendedStampSets.map((set) => (
+                <div className="recommended-stamp-set" key={set.id}>
+                  <div className="recommended-stamp-heading"><span>おすすめ素材</span><strong>{set.name}</strong><small>{set.description}</small></div>
+                  <div className="stamp-preset-grid">
+                    {set.stampKeys.map((key) => {
+                      const preset = BUILT_IN_STAMPS.find((item) => item.key === key);
+                      if (!preset) return null;
+                      return <button key={preset.key} className="stamp-preset-card is-recommended" type="button" disabled={uploadingStamp} onClick={() => { void addPresetStamp(preset); }}><img src={stampPreviewUrl(preset)} alt={preset.name} /><span><strong>{preset.name}</strong><small>自由に動かして使えます</small></span><b>＋</b></button>;
+                    })}
+                  </div>
+                </div>
+              ))}
+              {recommendedStampSets.length > 0 && <p className="other-stamps-heading">ほかのスタンプ</p>}
+              <div className="stamp-preset-grid">
+                {otherStamps.map((preset) => (
+                  <button key={preset.key} className="stamp-preset-card" type="button" disabled={uploadingStamp} onClick={() => { void addPresetStamp(preset); }}>
+                    <img src={stampPreviewUrl(preset)} alt={preset.name} />
+                    <span><strong>{preset.name}</strong><small>プリセットを追加</small></span><b>＋</b>
+                  </button>
+                ))}
+              </div>
+              <input ref={stampFileInput} type="file" accept="image/png,image/svg+xml,.png,.svg" multiple hidden onChange={handleStampFiles} />
+              <button className="upload-button compact-upload" type="button" disabled={uploadingStamp} onClick={() => stampFileInput.current?.click()}><span>↑</span>{uploadingStamp ? "読み込み中…" : "自分のスタンプを追加"}</button>
+              {stampUploadError && <p className="field-error preserve-lines">{stampUploadError}</p>}
+              {pageStamps.length > 0 && <div className="layer-list" aria-label="スタンプレイヤー">{pageStamps.map((item) => <div key={item.id} className={`layer-row ${state.selectedStampId === item.id ? "is-selected" : ""}`}><button className="layer-select" type="button" onClick={() => dispatch({ type: "select-stamp", id: item.id })}><span>STAMP</span><b>{item.name}</b></button><button className="visibility-button" type="button" aria-label={`${item.name}を${item.visible ? "非表示" : "表示"}`} onClick={() => dispatch({ type: "update-stamp", id: item.id, patch: { visible: !item.visible } })}>{item.visible ? "●" : "○"}</button></div>)}</div>}
+              {selectedStamp && (
+                <div className="selected-layer-controls">
+                  <strong className="selected-layer-title">{selectedStamp.name}</strong>
+                  <label className="range-control"><span>スタンプの幅 <output>{mm(selectedStamp.widthMm)}</output></span><input type="range" min="2" max="200" step="1" value={selectedStamp.widthMm} onChange={(event) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { widthMm: Number(event.target.value) } })} /></label>
+                  <label className="range-control"><span>透明度 <output>{Math.round(selectedStamp.opacity * 100)}%</output></span><input type="range" min="0.1" max="1" step="0.05" value={selectedStamp.opacity} onChange={(event) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { opacity: Number(event.target.value) } })} /></label>
+                  <button className="rotate-button" type="button" onClick={() => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { rotationDeg: rotateByDegrees(selectedStamp.rotationDeg) } })}>↻ 90°回転 <span>{Math.round(selectedStamp.rotationDeg)}°</span></button>
+                  <div className="mini-number-grid"><NumberField label="横位置 X" value={roundMm(selectedStamp.xMm, 1)} min={0} max={geometry.bounds.widthMm} step={1} onChange={(value) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { xMm: value } })} /><NumberField label="縦位置 Y" value={roundMm(selectedStamp.yMm, 1)} min={0} max={geometry.bounds.heightMm} step={1} onChange={(value) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { yMm: value } })} /></div>
+                  <p className="drag-hint">プレビュー上でも移動できます。</p>
+                  <div className="layer-action-row"><button type="button" onClick={() => dispatch({ type: "move-stamp", id: selectedStamp.id, direction: "backward" })}>← 背面</button><button type="button" onClick={() => dispatch({ type: "move-stamp", id: selectedStamp.id, direction: "forward" })}>前面 →</button><button type="button" onClick={() => dispatch({ type: "duplicate-stamp", id: selectedStamp.id, newId: crypto.randomUUID() })}>複製</button><button className="danger" type="button" onClick={() => dispatch({ type: "remove-stamp", id: selectedStamp.id })}>削除</button></div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {state.openEditorSection === "text" && (
+            <div className="drawer-section">
+              <button className="outline-button full-button" type="button" onClick={addText}>＋ テキストを追加</button>
+              {pageTexts.length > 0 && (
+                <div className="text-list">
+                  {pageTexts.map((item) => <button key={item.id} className={state.selectedTextId === item.id ? "is-selected" : ""} type="button" onClick={() => dispatch({ type: "select-text", id: item.id })}>{item.text || "（空のテキスト）"}</button>)}
+                </div>
+              )}
+              {selectedText && (
+                <div className="selected-text-controls">
+                  <label className="text-input-label">文字<textarea rows={2} maxLength={80} value={selectedText.text} onChange={(event) => dispatch({ type: "update-text", id: selectedText.id, patch: { text: event.target.value } })} /></label>
+                  <label className="range-control"><span>文字サイズ <output>{mm(selectedText.fontSizeMm)}</output></span><input type="range" min="2" max="18" step="0.5" value={selectedText.fontSizeMm} onChange={(event) => dispatch({ type: "update-text", id: selectedText.id, patch: { fontSizeMm: Number(event.target.value) } })} /></label>
+                  <DesignColorControl label="文字色" value={selectedText.color} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={(color) => dispatch({ type: "update-text", id: selectedText.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
+                  <div className="mini-number-grid">
+                    <NumberField label="横位置 X" value={roundMm(selectedText.xMm, 1)} min={0} max={geometry.bounds.widthMm} step={1} onChange={(value) => dispatch({ type: "update-text", id: selectedText.id, patch: { xMm: value } })} />
+                    <NumberField label="縦位置 Y" value={roundMm(selectedText.yMm, 1)} min={0} max={geometry.bounds.heightMm} step={1} onChange={(value) => dispatch({ type: "update-text", id: selectedText.id, patch: { yMm: value } })} />
+                  </div>
+                  <p className="drag-hint">プレビュー上の文字を指やマウスで動かせます。</p>
+                  <button className="delete-button" type="button" onClick={() => dispatch({ type: "remove-text", id: selectedText.id })}>このテキストを削除</button>
+                </div>
+              )}
+            </div>
+          )}
+        </aside>
       </div>
+
+      <MobileSettingsSheet open={mobileSettingsOpen} onClose={() => setMobileSettingsOpen(false)} title="詳細設定・ツール">
+        <div className="mobile-settings-stack">
+          {state.box.type !== "envelope-v1" && (
+            <div className="settings-panel-block">
+              <h3>いい感じに配置</h3>
+              <AutoLayoutPanel
+                settings={autoLayoutSettings}
+                result={autoLayoutResult}
+                disabled={autoLayoutDisabled}
+                onSettingsChange={(settings) => {
+                  setAutoLayoutSettings(settings);
+                  setAutoLayoutResult(null);
+                  autoLayoutRun.current = 0;
+                }}
+                onArrange={() => runAutoLayout(false)}
+                onArrangeAgain={() => runAutoLayout(true)}
+              />
+            </div>
+          )}
+          {state.box.type === "envelope-v1" && (
+            <div className="settings-panel-block">
+              <h3>レターセット・テーマ設定</h3>
+              <LetterSetPanel
+                box={state.box}
+                selection={state.stationerySetSelection}
+                envelopeDesign={state.envelopeDesign}
+                canShare={pages.length > 1}
+                shareMessage={letterSetShareMessage}
+                onSelectionChange={(value) => { dispatch({ type: "set-stationery-set-selection", value }); setLetterSetShareMessage(""); }}
+                activeFace={state.activeEnvelopeFace}
+                onFaceChange={(faceId) => dispatch({ type: "set-envelope-face", faceId })}
+                onTemplateSelect={applyEnvelopeTemplateChoice}
+                onEnvelopeDesignChange={(patch) => dispatch({ type: "update-envelope-design", patch })}
+                onBoxDimensionChange={(field, value) => { if (Number.isFinite(value) && value > 0) dispatch({ type: "update-box", field, value }); }}
+                onShare={shareEnvelopeDesignWithSet}
+                themePack={AUTUMN_THEME_PACK}
+                themePackUnlocked={autumnUnlocked}
+                themePackActive={state.themePackId === AUTUMN_THEME_PACK.id}
+                applyingThemePack={applyingThemePack}
+                onUnlockThemePack={() => onUnlockThemePack(AUTUMN_THEME_PACK.id)}
+                onApplyThemePack={() => { void applyAutumnThemePack(); }}
+              />
+            </div>
+          )}
+          <div className="settings-panel-block">
+            <h3>表示設定</h3>
+            {geometry.type === "letter-paper-v1" && <label className="toggle-row"><span><strong>便箋の罫線</strong><small>印刷される横罫線をON/OFF</small></span><input type="checkbox" checked={state.showWritingLines} onChange={(event) => dispatch({ type: "set-writing-lines", value: event.target.checked })} /></label>}
+            <label className="toggle-row"><span><strong>ガイド表示</strong><small>面名と中心線。PDFには印刷しません</small></span><input type="checkbox" checked={state.showGuides} onChange={() => dispatch({ type: "toggle-guides" })} /></label>
+          </div>
+          <div className="settings-panel-block">
+            <h3>線の色設定</h3>
+            <div className="line-color-grid">
+              <label className="line-color-row">
+                <span><strong>カット線</strong><small>実線</small></span>
+                <input aria-label="カット線の色" type="color" value={state.lineColors.cut} onChange={(event) => dispatch({ type: "set-line-color", layer: "cut", color: event.target.value })} />
+              </label>
+              <label className="line-color-row">
+                <span><strong>折り線</strong><small>点線</small></span>
+                <input aria-label="折り線の色" type="color" value={state.lineColors.fold} onChange={(event) => dispatch({ type: "set-line-color", layer: "fold", color: event.target.value })} />
+              </label>
+            </div>
+            <div className="line-color-presets" aria-label="線色プリセット">
+              {LINE_COLOR_PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  className={state.lineColors.cut === preset.colors.cut && state.lineColors.fold === preset.colors.fold ? "is-selected" : ""}
+                  onClick={() => dispatch({ type: "set-line-colors", colors: preset.colors })}
+                >
+                  <i style={{ background: preset.colors.cut }} /><i style={{ background: preset.colors.fold }} />
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </MobileSettingsSheet>
 
       {sampleGuideOpen && <SampleGuideModal geometry={geometry} state={state} onClose={() => setSampleGuideOpen(false)} />}
 

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { BottomNavBar } from "../src/components/navigation/BottomNavBar";
 import { LetterSetSelectScreen } from "../src/features/letter-set/LetterSetSelectScreen";
+import { MobileSettingsSheet } from "../src/components/modals/MobileSettingsSheet";
 
 describe("モバイル中心のレターセットUI", () => {
   it("4つの組み合わせだけをシンプルに表示する", () => {
@@ -20,5 +21,18 @@ describe("モバイル中心のレターセットUI", () => {
     const markup = renderToStaticMarkup(<BottomNavBar activeTab="letter-set" onChange={() => undefined} />);
     for (const label of ["BOX", "レターセット", "新規", "マイデザイン", "設定"]) expect(markup).toContain(label);
     expect(markup).not.toContain("購入");
+  });
+
+  it("モバイル用詳細設定シートを表示する", () => {
+    const markup = renderToStaticMarkup(
+      <MobileSettingsSheet open={true} title="詳細設定・ツール" onClose={() => undefined}>
+        <div>設定コンテンツ</div>
+      </MobileSettingsSheet>
+    );
+    expect(markup).toContain("詳細設定・ツール");
+    expect(markup).toContain("設定コンテンツ");
+    expect(markup).toContain('role="dialog"');
+    expect(markup).toContain('aria-modal="true"');
+    expect(markup).toContain('tabindex="-1"');
   });
 });
