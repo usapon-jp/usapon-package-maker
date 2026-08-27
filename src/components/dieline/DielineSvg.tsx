@@ -114,7 +114,7 @@ export function DielineLayers({
           surfaceClipIds={surfaceClipIds}
         />
       </g>
-      {!exportMode && activeEnvelopeFace && facePolygons[activeEnvelopeFace] && <polygon data-active-envelope-face={activeEnvelopeFace} points={pointsToString(facePolygons[activeEnvelopeFace]!.points)} fill="none" stroke="#ee6f83" strokeWidth="0.8" strokeDasharray="2 1.4" pointerEvents="none" />}
+      {!exportMode && activeEnvelopeFace && facePolygons[activeEnvelopeFace] && <polygon data-active-envelope-face={activeEnvelopeFace} points={pointsToString(facePolygons[activeEnvelopeFace]!.points)} fill="rgba(238,111,131,.10)" stroke="#ee6f83" strokeWidth="0.8" strokeDasharray="2 1.4" pointerEvents="none" />}
       <GlueLayer geometry={geometry} patternId={gluePatternId} exportMode={exportMode} showAssemblyGuide={printGuideMode === "assembly"} />
       <FoldLayer geometry={geometry} color={lineColors.fold} />
       {(!exportMode || includeFoldoverLines) && <FoldoverLayer geometry={geometry} color={lineColors.fold} />}
@@ -133,6 +133,7 @@ type Props = Omit<LayersProps, "idPrefix" | "onArtworkPointerDown" | "onStampPoi
   onRotateStamp: (id: string) => void;
   onSelectText: (id: string | null) => void;
   onMoveText: (id: string, xMm: number, yMm: number) => void;
+  onSelectEnvelopeFace?: (faceId: EnvelopeFaceId) => void;
   className?: string;
 };
 
@@ -161,6 +162,7 @@ export function DielineSvg({
   onRotateStamp,
   onSelectText,
   onMoveText,
+  onSelectEnvelopeFace,
   className,
 }: Props) {
   const rawId = useId();
@@ -176,6 +178,30 @@ export function DielineSvg({
     point.x = event.clientX;
     point.y = event.clientY;
     return point.matrixTransform(svg.getScreenCTM()?.inverse());
+  };
+
+  const handleEnvelopeFacePointerDown = (event: PointerEvent<SVGSVGElement>) => {
+    if (exportMode || !onSelectEnvelopeFace || geometry.envelope?.construction !== "kamasu") return;
+    const point = pointFromEvent(event);
+    const faces: Array<[EnvelopeFaceId, string]> = [
+      ["envelope-front", "envelope-front"],
+      ["envelope-flap", "envelope-top-flap"],
+      ["envelope-back", "envelope-back"],
+    ];
+    const selected = faces.find(([, polygonId]) => {
+      const polygon = geometry.clipPolygons.find((candidate) => candidate.id === polygonId);
+      if (!polygon) return false;
+      let inside = false;
+      for (let index = 0, previous = polygon.points.length - 1; index < polygon.points.length; previous = index++) {
+        const currentPoint = polygon.points[index]!;
+        const previousPoint = polygon.points[previous]!;
+        const crosses = currentPoint.y > point.y !== previousPoint.y > point.y
+          && point.x < ((previousPoint.x - currentPoint.x) * (point.y - currentPoint.y)) / (previousPoint.y - currentPoint.y) + currentPoint.x;
+        if (crosses) inside = !inside;
+      }
+      return inside;
+    });
+    if (selected) onSelectEnvelopeFace(selected[0]);
   };
 
   const handleTextPointerDown = (event: PointerEvent<SVGGElement>, id: string) => {
@@ -225,6 +251,7 @@ export function DielineSvg({
       viewBox={`${-padding} ${-padding} ${geometry.bounds.widthMm + padding * 2} ${geometry.bounds.heightMm + padding * 2}`}
       role="img"
       aria-label="箱の実寸展開図プレビュー"
+      onPointerDownCapture={handleEnvelopeFacePointerDown}
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) {
           onSelectArtwork(null);
@@ -240,6 +267,15 @@ export function DielineSvg({
         drag.current = null;
       }}
     >
+      {!exportMode && onSelectEnvelopeFace && geometry.envelope?.construction === "kamasu" && (
+        <g className="envelope-face-hit-areas" aria-label="編集する封筒の面">
+          {([
+            ["envelope-front", geometry.clipPolygons.find((polygon) => polygon.id === "envelope-front")],
+            ["envelope-flap", geometry.clipPolygons.find((polygon) => polygon.id === "envelope-top-flap")],
+            ["envelope-back", geometry.clipPolygons.find((polygon) => polygon.id === "envelope-back")],
+          ] as Array<[EnvelopeFaceId, (typeof geometry.clipPolygons)[number] | undefined]>).map(([faceId, polygon]) => polygon ? <polygon key={faceId} data-envelope-face-hit={faceId} points={pointsToString(polygon.points)} fill="transparent" stroke="none" pointerEvents="none" /> : null)}
+        </g>
+      )}
       <DielineLayers
         geometry={geometry}
         backgroundColor={backgroundColor}

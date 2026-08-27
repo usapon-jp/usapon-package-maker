@@ -22,7 +22,7 @@ function isSharedStationeryItem(item: { id: string }) {
 }
 
 export const initialState: AppState = {
-  screen: "home",
+  screen: "letter-set",
   box: {
     type: "straight-tuck-carton-v1",
     widthMm: 40,

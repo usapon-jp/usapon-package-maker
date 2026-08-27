@@ -1,6 +1,6 @@
 import type { BoxInput, BoxType, DielinePageId, EnvelopeFaceId, StationerySetSelection } from "../domain/boxes/types";
 
-export type Screen = "home" | "size" | "templates" | "design" | "print" | "my-boxes";
+export type Screen = "home" | "size" | "templates" | "letter-set" | "design" | "print" | "my-boxes";
 
 export type ImageSourceType = "png" | "svg";
 export type QuarterTurn = 0 | 90 | 180 | 270;
