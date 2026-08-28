@@ -8,7 +8,7 @@ import { MyBoxesScreen } from "../components/cloud/MyBoxesScreen";
 import { InstallGuide } from "../components/pwa/InstallGuide";
 import { generateDielineDocument } from "../domain/boxes/registry";
 import type { BoxType, DielineGeometry, DielinePage, DielinePageId, EnvelopeFaceId, Panel, StationerySetSelection } from "../domain/boxes/types";
-import { generateStationerySetDocument } from "../domain/boxes/stationery";
+import { generateStationerySetDocument, shouldShowAssemblyGuide } from "../domain/boxes/stationery";
 import { evaluateA4Fit, type A4FitResult, type FitStatus } from "../domain/paper/a4";
 import { printImposition } from "../domain/paper/imposition";
 import { clamp, roundMm } from "../domain/units";
@@ -72,6 +72,10 @@ import { BottomNavBar, type BottomNavTab } from "../components/navigation/Bottom
 import { SampleGuideModal } from "../components/modals/SampleGuideModal";
 import { AssemblyGuideModal } from "../components/modals/AssemblyGuideModal";
 import { MobileSettingsSheet } from "../components/modals/MobileSettingsSheet";
+import { NewCreationSheet } from "../components/modals/NewCreationSheet";
+import { SettingsSheetModal } from "../components/modals/SettingsSheetModal";
+import { AssembledEnvelopePreview } from "../components/common/AssembledEnvelopePreview";
+import { FinishedStationeryPreview } from "../components/common/FinishedStationeryPreview";
 import { EyeIcon, SaveIcon } from "../components/common/UiIcons";
 
 // 既存のクラウド保存利用者がいるため、端末内下書き保存と併用して提供する。
@@ -203,18 +207,45 @@ function AppHeader({
   onDeleteAccount: () => void;
 }) {
   const saveLabel = saveState === "saving" ? "保存中…" : saveState === "saved" ? "保存済み" : saveState === "error" ? "保存失敗" : saveState === "conflict" ? "更新あり" : "保存";
+  const isEnvelope = templateId === "y2-kamasu-envelope";
+  const backTarget: Screen | null =
+    screen === "design" ? (isEnvelope ? "letter-set" : templateId ? "templates" : "size") :
+    screen === "print" ? "design" :
+    screen === "my-boxes" ? (isEnvelope ? "letter-set" : "home") :
+    screen === "templates" ? "home" :
+    screen === "size" ? "templates" :
+    screen === "letter-set" ? "home" :
+    null;
+
+  const screenTitle =
+    screen === "size" ? "BOXサイズ" :
+    screen === "design" ? (isEnvelope ? "レターデザイン" : "BOXデザイン") :
+    screen === "print" ? "印刷前確認" :
+    screen === "my-boxes" ? "マイデザイン" :
+    screen === "templates" ? "型を選ぶ" :
+    "セット選択";
+
   return (
-    <header className="app-header">
-      <button className="brand-button" type="button" onClick={() => onGo("home")} aria-label="トップへ戻る">
-        <span className="brand-icon-frame" aria-hidden="true">
-          <img
-            className="brand-icon"
-            src={`${import.meta.env.BASE_URL}assets/usapon-brand-icon.png`}
-            alt=""
-          />
-        </span>
-        <span><strong>うさぽん</strong><small>パッケージメーカー</small></span>
-      </button>
+    <header className={`app-header ${screen === "design" || screen === "print" || screen === "size" ? "is-editor-header" : ""}`}>
+      <div className="brand-button-group">
+        {backTarget && (
+          <button className="mobile-header-back-button" type="button" onClick={() => onGo(backTarget)} aria-label="戻る">
+            ← 戻る
+          </button>
+        )}
+        <button className="brand-button" type="button" onClick={() => onGo("home")} aria-label="トップへ戻る">
+          <span className="brand-icon-frame" aria-hidden="true">
+            <img
+              className="brand-icon"
+              src={`${import.meta.env.BASE_URL}assets/usapon-brand-icon.png`}
+              alt=""
+            />
+          </span>
+          <span><strong>うさぽん</strong><small>パッケージメーカー</small></span>
+        </button>
+        <span className="mobile-header-title-pill">{screenTitle}</span>
+      </div>
+
       {screen !== "home" && screen !== "my-boxes" && screen !== "templates" && screen !== "letter-set" && (
         <nav className="step-nav" aria-label="作成ステップ">
           {([templateId === "y2-kamasu-envelope" ? "letter-set" : templateId ? "templates" : "size", "design", "print"] as const).map((step, index) => (
@@ -231,7 +262,7 @@ function AppHeader({
       )}
       {CLOUD_SYNC_UI_ENABLED && <div className="cloud-header-actions">
         {saveMessage && <small className={`save-indicator is-${saveState}`} role="status">{saveMessage}</small>}
-        <button className="my-boxes-button" type="button" onClick={() => onGo("my-boxes")}>▦ <span>マイボックス</span></button>
+        <button className="my-boxes-button" type="button" onClick={() => onGo("my-boxes")}>▦ <span>マイデザイン</span></button>
         {screen !== "home" && screen !== "my-boxes" && screen !== "templates" && screen !== "letter-set" && (
           <button className={`cloud-save-button is-${saveState}`} type="button" disabled={saveState === "saving"} onClick={onSave}>☁ {saveLabel}</button>
         )}
@@ -352,9 +383,9 @@ function HomeScreen({ onStart, onTemplates, onResume, onMyBoxes }: { onStart: ()
           </button>
           {CLOUD_SYNC_UI_ENABLED && <button className="choice-card cloud-choice-card" type="button" onClick={onMyBoxes}>
             <span className="choice-icon" aria-hidden="true">☁</span>
-            <strong>保存した箱を開く</strong>
+            <strong>保存した作品を開く</strong>
             <p>Googleログインして、別の端末で作った作品を続きから編集</p>
-            <b>マイボックスを見る　→</b>
+            <b>マイデザインを見る　→</b>
           </button>}
         </div>
       </section>
@@ -1067,7 +1098,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   return (
     <main className="tool-page design-page antigravity-design-page">
       <div className="page-heading horizontal-heading">
-        <div><button className="back-button" type="button" onClick={() => dispatch({ type: "go", screen: state.box.type === "envelope-v1" ? "letter-set" : template ? "templates" : "size" })}>← 選び直す</button><p className="eyebrow">DESIGN</p><h1>{state.box.type === "envelope-v1" ? "レターセットをデザイン" : template ? `${template.categoryLabel}をデザイン` : "デザイン編集"}</h1></div>
+        <div><p className="eyebrow">DESIGN</p><h1>{state.box.type === "envelope-v1" ? "レターセットをデザイン" : template ? `${template.categoryLabel}をデザイン` : "デザイン編集"}</h1></div>
         <FitNotice geometry={geometry} fit={fit} compact />
       </div>
       <PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} />
@@ -1328,7 +1359,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
       {sampleGuideOpen && <SampleGuideModal geometry={geometry} state={state} onClose={() => setSampleGuideOpen(false)} />}
 
       <div className="sticky-actions">
-        <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: template ? "templates" : "size" })}>{template ? "型を選び直す" : "サイズに戻る"}</button>
+        <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: state.box.type === "envelope-v1" ? "letter-set" : template ? "templates" : "size" })}>{state.box.type === "envelope-v1" ? "セットを選び直す" : template ? "型を選び直す" : "サイズに戻る"}</button>
         <button className="primary-button" type="button" onClick={() => dispatch({ type: "go", screen: "print" })}>PDFを確認 <span>▣</span></button>
       </div>
     </main>
@@ -1423,31 +1454,75 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
       <div className="print-view-tabs" role="tablist" aria-label="確認表示"><button type="button" role="tab" aria-selected={viewMode === "dieline"} className={viewMode === "dieline" ? "is-selected" : ""} onClick={() => setViewMode("dieline")}>展開図</button><button type="button" role="tab" aria-selected={viewMode === "finished"} className={viewMode === "finished" ? "is-selected" : ""} onClick={() => setViewMode("finished")}>完成イメージ</button></div>
       <div className="print-summary-pills"><span><b>A4</b>A4実寸</span><span><b>200</b>200dpi</span><span><b>{activePage.geometry.input.widthMm}×{activePage.geometry.input.heightMm}</b>完成サイズ mm</span></div>
 
+      <div style={{ display: "none" }} aria-hidden="true">
+        {pages.map((page) => (
+          <A4ExportSvg
+            key={`export-${page.id}`}
+            ref={(element) => {
+              if (element) {
+                dielineSvgs.current[page.id] = element;
+              } else {
+                delete dielineSvgs.current[page.id];
+              }
+            }}
+            pageId={page.id}
+            geometry={page.geometry}
+            fit={page.fit}
+            {...pageDesign(state, page.id)}
+            lineColors={state.lineColors}
+            includeFoldoverLines={state.printFoldoverLines}
+            showWritingLines={state.showWritingLines}
+            envelopeDesign={state.envelopeDesign}
+            printGuideMode={state.printGuideMode}
+          />
+        ))}
+      </div>
+
       <div className="print-layout">
-        {viewMode === "dieline" ? <div className={`print-page-grid ${pages.length > 1 ? "is-multiple" : ""}`}>
-          {pages.map((page) => {
-            const design = pageDesign(state, page.id);
-            return (
-              <section className={`paper-preview-wrap ${page.fit.orientation}`} key={page.id}>
-                <div className="paper-label">{page.label}／A4 {page.fit.orientation === "portrait" ? "縦 210 × 297mm" : "横 297 × 210mm"}</div>
-                <div className="paper-preview">
-                  <A4ExportSvg
-                    ref={(element) => { dielineSvgs.current[page.id] = element; }}
-                    pageId={page.id}
-                    geometry={page.geometry}
-                    fit={page.fit}
-                    {...design}
-                    lineColors={state.lineColors}
-                    includeFoldoverLines={state.printFoldoverLines}
-                    showWritingLines={state.showWritingLines}
-                    envelopeDesign={state.envelopeDesign}
-                    printGuideMode={state.printGuideMode}
-                  />
+        {viewMode === "dieline" ? (
+          <div className="print-page-grid">
+            <section className={`paper-preview-wrap ${activePage.fit.orientation}`} key={activePage.id}>
+              <div className="paper-label">{activePage.label}／A4 {activePage.fit.orientation === "portrait" ? "縦 210 × 297mm" : "横 297 × 210mm"}</div>
+              <div className="paper-preview">
+                <A4ExportSvg
+                  pageId={activePage.id}
+                  geometry={activePage.geometry}
+                  fit={activePage.fit}
+                  {...pageDesign(state, activePage.id)}
+                  lineColors={state.lineColors}
+                  includeFoldoverLines={state.printFoldoverLines}
+                  showWritingLines={state.showWritingLines}
+                  envelopeDesign={state.envelopeDesign}
+                  printGuideMode={state.printGuideMode}
+                />
+              </div>
+            </section>
+          </div>
+        ) : (
+          <div className="finished-preview-stage">
+            {activePage.id === "main" ? (
+              envelopePage ? (
+                <AssembledEnvelopePreview state={state} />
+              ) : (
+                <div className="finished-box-preview-card">
+                  <span>{state.box.type === "two-piece-gift-box-v1" ? "二分割箱" : state.box.type === "gift-box-v1" ? "ギフト箱" : "キャラメル箱"}</span>
+                  <strong>{mm(state.box.widthMm)} × {mm(state.box.depthMm)} × {mm(state.box.heightMm)} mm</strong>
                 </div>
-              </section>
-            );
-          })}
-        </div> : <div className="finished-preview-stage"><div className="finished-envelope-preview"><span>B フタ</span><strong>A 表</strong><small>C 裏は背面</small></div>{pages.some((page) => page.id === "letter") && <div className="finished-letter-preview">便箋</div>}{pages.some((page) => page.id === "card") && <div className="finished-card-preview">ミニカード</div>}<button type="button" className="outline-button" onClick={() => setAssemblyGuideOpen(true)}>作り方を見る</button></div>}
+              )
+            ) : (
+              <FinishedStationeryPreview
+                state={state}
+                pageId={activePage.id as "letter" | "card"}
+                geometry={activePage.geometry}
+              />
+            )}
+            {shouldShowAssemblyGuide(state.box.type, activePage.id) && (
+              <button type="button" className="outline-button" onClick={() => setAssemblyGuideOpen(true)}>
+                封筒の作り方ガイドを見る
+              </button>
+            )}
+          </div>
+        )}
 
         <aside className="print-settings panel-card">
           <p className="eyebrow">PRINT SETTINGS</p>
@@ -1518,7 +1593,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
       <div className="hidden-export-svg" aria-hidden="true"><CalibrationSvg ref={calibrationSvg} /></div>
       <div className="sticky-actions">
         <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: "design" })}>編集に戻る</button>
-        {state.box.type !== "envelope-v1" && <button className="outline-button" type="button" onClick={() => dispatch({ type: "go", screen: "size" })}>寸法を変更</button>}
+        <button className="primary-button" type="button" onClick={handleExport} disabled={hasOverflow || exporting}>{exporting ? "PDF作成中…" : "PDFを保存"}</button>
       </div>
       {assemblyGuideOpen && <AssemblyGuideModal onClose={() => setAssemblyGuideOpen(false)} />}
     </main>
@@ -1532,7 +1607,7 @@ function SaveNameDialog({ initialName, onCancel, onSave }: { initialName: string
       <section className="app-modal" role="dialog" aria-modal="true" aria-labelledby="save-name-title">
         <p className="eyebrow">CLOUD SAVE</p>
         <h2 id="save-name-title">作品名を付けて保存</h2>
-        <p>マイボックスで見つけやすい名前を入力してください。</p>
+        <p>マイデザインで見つけやすい名前を入力してください。</p>
         <label>作品名<input autoFocus maxLength={80} value={name} onChange={(event) => setName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && name.trim()) onSave(name.trim()); }} /></label>
         <small>{name.length} / 80文字</small>
         <div className="modal-actions"><button type="button" onClick={onCancel}>キャンセル</button><button className="primary-button" type="button" disabled={!name.trim()} onClick={() => onSave(name.trim())}>保存する</button></div>
@@ -1628,6 +1703,10 @@ export function App() {
     return { ...page, fit: evaluateA4Fit(imposition.widthMm, imposition.heightMm) };
   }), [document]);
   const activePage = pages.find((page) => page.id === state.activePageId) ?? pages[0];
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [state.screen, state.activePageId]);
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("install") === "1" && !installContext.isStandalone) {
@@ -1924,6 +2003,49 @@ export function App() {
     }
   }, []);
 
+  const [newCreationSheetOpen, setNewCreationSheetOpen] = useState(false);
+  const [settingsSheetOpen, setSettingsSheetOpen] = useState(false);
+
+  const isBoxType = state.box.type !== "envelope-v1";
+  const bottomNavActiveTab: BottomNavTab =
+    state.screen === "my-boxes" ? "my-designs" :
+    state.screen === "letter-set" ? "letter-set" :
+    (state.screen === "size" || state.screen === "design" || state.screen === "print")
+      ? (isBoxType ? "box" : "letter-set")
+      : "letter-set";
+
+  const handleBottomNavChange = (tab: BottomNavTab) => {
+    if (tab === "new") {
+      setNewCreationSheetOpen(true);
+      return;
+    }
+    if (tab === "settings") {
+      setSettingsSheetOpen(true);
+      return;
+    }
+    if (tab === "my-designs") {
+      dispatch({ type: "go", screen: "my-boxes" });
+      return;
+    }
+    if (tab === "box") {
+      if (!isBoxType || state.screen === "letter-set") {
+        startNew();
+      } else {
+        dispatch({ type: "go", screen: "design" });
+      }
+      return;
+    }
+    if (tab === "letter-set") {
+      if (isBoxType) {
+        if (confirmDiscard()) {
+          dispatch({ type: "go", screen: "letter-set" });
+        }
+      } else {
+        dispatch({ type: "go", screen: "design" });
+      }
+    }
+  };
+
   return (
     <div className="app-shell">
       <AppHeader
@@ -1948,19 +2070,44 @@ export function App() {
         <MyBoxesScreen
           user={user}
           onLogin={() => { void login(); }}
-          onBack={() => dispatch({ type: "go", screen: "letter-set" })}
-          onNew={startNew}
+          onBack={() => dispatch({ type: "go", screen: isBoxType ? "home" : "letter-set" })}
+          onNew={() => setNewCreationSheetOpen(true)}
           onOpen={openProject}
           onWorkspaceChange={(updated) => { if (workspace?.id === updated.id) setWorkspace(updated); }}
         />
       )}
-      <footer className="app-footer"><strong>うさぽん パッケージメーカー</strong><span>未保存は端末内／保存作品は非公開クラウド</span><button type="button" onClick={() => setInstallGuideOpen(true)}>ホーム画面に追加する</button><a href={`${import.meta.env.BASE_URL}privacy.html`}>プライバシーポリシー</a></footer>
-      <BottomNavBar activeTab={(state.screen === "size" ? "box" : state.screen === "my-boxes" ? "my-designs" : "letter-set") as BottomNavTab} onChange={(tab) => {
-        if (tab === "box") startNew();
-        else if (tab === "letter-set" || tab === "new") dispatch({ type: "go", screen: "letter-set" });
-        else if (tab === "my-designs") dispatch({ type: "go", screen: "my-boxes" });
-        else setInstallGuideOpen(true);
-      }} />
+      {state.screen !== "design" && state.screen !== "print" && (
+        <footer className="app-footer"><strong>うさぽん パッケージメーカー</strong><span>未保存は端末内／保存作品は非公開クラウド</span><button type="button" onClick={() => setInstallGuideOpen(true)}>ホーム画面に追加する</button><a href={`${import.meta.env.BASE_URL}privacy.html`}>プライバシーポリシー</a></footer>
+      )}
+      <BottomNavBar activeTab={bottomNavActiveTab} onChange={handleBottomNavChange} />
+
+      {newCreationSheetOpen && (
+        <NewCreationSheet
+          onSelectBox={() => {
+            startNew();
+          }}
+          onSelectLetterSet={() => {
+            if (isBoxType) {
+              if (confirmDiscard()) dispatch({ type: "go", screen: "letter-set" });
+            } else {
+              dispatch({ type: "go", screen: "letter-set" });
+            }
+          }}
+          onClose={() => setNewCreationSheetOpen(false)}
+        />
+      )}
+
+      {settingsSheetOpen && (
+        <SettingsSheetModal
+          user={user}
+          onLogin={() => { void login(); }}
+          onLogout={() => { void logout(); }}
+          onDeleteAccount={() => { void deleteAccount(); }}
+          onOpenPwaGuide={() => setInstallGuideOpen(true)}
+          onClose={() => setSettingsSheetOpen(false)}
+        />
+      )}
+
       <InstallGuide
         open={installGuideOpen}
         context={installContext}

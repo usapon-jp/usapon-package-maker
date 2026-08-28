@@ -9,6 +9,10 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
+export function shouldShowAssemblyGuide(boxType: string, pageId: string): boolean {
+  return boxType === "envelope-v1" && pageId === "main";
+}
+
 function polygon(id: string, points: Point[]): PolygonShape {
   return { id, points };
 }

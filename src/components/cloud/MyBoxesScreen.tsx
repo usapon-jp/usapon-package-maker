@@ -111,19 +111,19 @@ export function MyBoxesScreen({ user, onLogin, onBack, onNew, onOpen, onWorkspac
     <main className="tool-page my-boxes-page">
       <div className="page-heading horizontal-heading my-boxes-heading">
         <div>
-          <button className="back-button" type="button" onClick={onBack}>← トップ</button>
-          <p className="eyebrow">CLOUD LIBRARY</p>
-          <h1>マイボックス</h1>
-          <p>Googleアカウントに保存した作品を、どの端末からでも開けます。</p>
+          <button className="back-button" type="button" onClick={onBack}>← 戻る</button>
+          <p className="eyebrow">MY DESIGNS</p>
+          <h1>マイデザイン</h1>
+          <p>Googleアカウントに保存した作品（BOX・レターセット）をどの端末からでも開けます。</p>
         </div>
-        {user && <button className="primary-button my-boxes-new" type="button" onClick={onNew}>＋ 新しいボックス</button>}
+        {user && <button className="primary-button my-boxes-new" type="button" onClick={onNew}>＋ 新しい作品</button>}
       </div>
 
       {!user ? (
         <section className="panel-card cloud-signin-card">
           <span aria-hidden="true">☁</span>
           <h2>Googleログインが必要です</h2>
-          <p>ログインすると、保存した箱をMac・スマホ・iPadで共有できます。</p>
+          <p>ログインすると、保存した作品をMac・スマホ・iPadで共有できます。</p>
           <button className="google-login-button" type="button" onClick={onLogin}><b>G</b> Googleでログイン</button>
         </section>
       ) : (
@@ -135,8 +135,8 @@ export function MyBoxesScreen({ user, onLogin, onBack, onNew, onOpen, onWorkspac
           ) : projects.length === 0 ? (
             <section className="panel-card cloud-empty-card">
               <span aria-hidden="true">□</span><h2>保存した作品はまだありません</h2>
-              <p>箱を作り、画面上部の「保存」を押すとここに並びます。</p>
-              <button className="primary-button" type="button" onClick={onNew}>最初のボックスを作る</button>
+              <p>作品を作り、画面上部の「保存」を押すとここに並びます。</p>
+              <button className="primary-button" type="button" onClick={onNew}>新しい作品を作る</button>
             </section>
           ) : (
             <section className="my-boxes-grid" aria-label="保存した作品">
