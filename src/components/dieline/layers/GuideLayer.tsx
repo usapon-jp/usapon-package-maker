@@ -9,14 +9,10 @@ export function GuideLayer({ geometry, assemblyOnly = false }: { geometry: Dieli
         ))}
       </g>}
       {geometry.panels.map((panel) => {
-        // GlueLayer owns these labels in the print-only assembly guide.
-        // Omitting them here prevents duplicate text in the exported PDF.
-        if (assemblyOnly && panel.id.includes("-glue")) return null;
-
-        // The side glue flaps on a Kamasu envelope are only 12 mm wide.
-        // Keep their print label short so it stays within the A4 page rather
-        // than extending beyond the cutting line.
-        const label = panel.id.includes("-glue") ? "のりしろ" : panel.label;
+        // GlueLayer owns the glue-flap labels in both editor and print views.
+        // Keeping them out of this panel guide prevents duplicate text and
+        // avoids a long label overflowing the narrow 12 mm side flap.
+        if (panel.id.includes("-glue")) return null;
 
         return (
           <text
@@ -27,7 +23,7 @@ export function GuideLayer({ geometry, assemblyOnly = false }: { geometry: Dieli
             fill="#a86c75"
             textAnchor="middle"
           >
-            {label}
+            {panel.label}
           </text>
         );
       })}
