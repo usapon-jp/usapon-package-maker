@@ -10,7 +10,7 @@ import {
 
 const STYLE_NUMBER_LIMITS: Record<string, [number, number]> = {
   width: [24, 2400], maxWidth: [24, 2400], minWidth: [0, 2400], height: [24, 2400], minHeight: [0, 2400],
-  marginTop: [-200, 400], marginRight: [-200, 400], marginBottom: [-200, 400], marginLeft: [-200, 400],
+  marginTop: [0, 400], marginRight: [0, 400], marginBottom: [0, 400], marginLeft: [0, 400],
   paddingTop: [0, 240], paddingRight: [0, 240], paddingBottom: [0, 240], paddingLeft: [0, 240], gap: [0, 160],
   fontSize: [8, 96], fontWeight: [100, 900], lineHeight: [0.8, 3], borderWidth: [0, 24], borderRadius: [0, 200], opacity: [0, 1],
   gridColumns: [1, 12], order: [-50, 50],
@@ -22,9 +22,10 @@ const TOKEN_NUMBER_LIMITS: Record<string, [number, number]> = {
 
 const COLOR_PATTERN = /^(#[0-9a-f]{3,8}|rgba?\([0-9.,% ]+\)|transparent)$/i;
 const STYLE_ENUMS: Record<string, readonly string[]> = {
-  textAlign: ["left", "center", "right"], flexDirection: ["row", "column"],
+  textAlign: ["left", "center", "right"], flexDirection: ["row", "column"], flexWrap: ["nowrap", "wrap"],
   justifyContent: ["flex-start", "center", "flex-end", "space-between", "space-around"],
   alignItems: ["stretch", "flex-start", "center", "flex-end"],
+  horizontalPosition: ["left", "center", "right"],
 };
 
 function clampNumber(value: unknown, [minimum, maximum]: [number, number]) {
@@ -42,7 +43,7 @@ const STYLE_GROUPS: Record<string, keyof UIEditorTarget["capabilities"]> = {
   paddingTop: "spacing", paddingRight: "spacing", paddingBottom: "spacing", paddingLeft: "spacing", gap: "spacing",
   fontSize: "typography", fontWeight: "typography", lineHeight: "typography", textAlign: "typography",
   backgroundColor: "appearance", color: "appearance", borderColor: "appearance", borderWidth: "appearance", borderRadius: "appearance", opacity: "appearance",
-  flexDirection: "layout", justifyContent: "layout", alignItems: "layout", gridColumns: "layout",
+  flexDirection: "layout", flexWrap: "layout", justifyContent: "layout", alignItems: "layout", horizontalPosition: "layout", gridColumns: "layout",
   order: "reorder", hidden: "visibility",
 };
 

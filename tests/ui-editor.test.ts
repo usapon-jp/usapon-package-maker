@@ -97,10 +97,33 @@ describe("共通UI Editor設定", () => {
     const config = updateComponentPatch(emptyUIEditorConfig(PACKAGE_UI_EDITOR_REGISTRY.appId), "design.canvas", "mobile", { width: 360, height: 420 });
     const css = buildUIEditorStyles(config);
     expect(css).toContain("width:360px!important");
-    expect(css).toContain("max-width:none!important");
+    expect(css).toContain("max-width:100%!important");
     expect(css).toContain("height:420px!important");
     expect(css).toContain("max-height:none!important");
     expect(css).toContain("flex-basis:auto!important");
+  });
+
+  it("パネル配置は親幅を超えず横並び時に自動で折り返す", () => {
+    let config = emptyUIEditorConfig(PACKAGE_UI_EDITOR_REGISTRY.appId);
+    config = updateComponentPatch(config, "design.canvas", "tablet", { width: 420, horizontalPosition: "right" });
+    config = updateComponentPatch(config, "design.workspace", "tablet", { flexDirection: "row", flexWrap: "wrap", gap: 12 });
+    const css = buildUIEditorStyles(config);
+
+    expect(css).toContain("max-width:100%!important");
+    expect(css).toContain("margin-left:auto!important");
+    expect(css).toContain("margin-right:0!important");
+    expect(css).toContain("flex-wrap:wrap!important");
+  });
+
+  it("重なりを招く負の外側余白を保存しない", () => {
+    const clean = sanitizeUIEditorConfig({
+      schemaVersion: 1,
+      appId: "package-maker",
+      components: { "design.canvas": { tablet: { marginTop: -80, marginLeft: -30 } } },
+    }, PACKAGE_UI_EDITOR_REGISTRY);
+
+    expect(clean.components["design.canvas"]?.tablet?.marginTop).toBe(0);
+    expect(clean.components["design.canvas"]?.tablet?.marginLeft).toBe(0);
   });
 });
 

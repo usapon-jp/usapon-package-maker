@@ -29,8 +29,10 @@ export type UIStylePatch = {
   borderRadius?: number;
   opacity?: number;
   flexDirection?: "row" | "column";
+  flexWrap?: "nowrap" | "wrap";
   justifyContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around";
   alignItems?: "stretch" | "flex-start" | "center" | "flex-end";
+  horizontalPosition?: "left" | "center" | "right";
   gridColumns?: number;
   order?: number;
   hidden?: boolean;
@@ -71,6 +73,7 @@ export type UIEditorTarget = {
   label: string;
   screen: string;
   capabilities: UIEditorCapabilities;
+  layoutParentId?: string;
   protected?: boolean;
 };
 

@@ -12,7 +12,7 @@ const STYLE_NAMES: Partial<Record<keyof UIStylePatch, string>> = {
   paddingTop: "padding-top", paddingRight: "padding-right", paddingBottom: "padding-bottom", paddingLeft: "padding-left",
   gap: "gap", fontSize: "font-size", fontWeight: "font-weight", lineHeight: "line-height", textAlign: "text-align",
   backgroundColor: "background-color", color: "color", borderColor: "border-color", borderWidth: "border-width", borderRadius: "border-radius",
-  opacity: "opacity", flexDirection: "flex-direction", justifyContent: "justify-content", alignItems: "align-items", order: "order",
+  opacity: "opacity", flexDirection: "flex-direction", flexWrap: "flex-wrap", justifyContent: "justify-content", alignItems: "align-items", order: "order",
 };
 
 const UNIT_LESS = new Set<keyof UIStylePatch>(["fontWeight", "lineHeight", "opacity", "order"]);
@@ -33,7 +33,7 @@ function styleRules(patch: UIStylePatch) {
     const key = rawKey as keyof UIStylePatch;
     if (key === "width" && typeof value === "number") {
       if (patch.minWidth === undefined) rules.push("min-width:0!important");
-      if (patch.maxWidth === undefined) rules.push("max-width:none!important");
+      if (patch.maxWidth === undefined) rules.push("max-width:100%!important");
       rules.push("flex-basis:auto!important", "flex-grow:0!important", "flex-shrink:0!important");
     }
     if (key === "height" && typeof value === "number") {
@@ -49,7 +49,16 @@ function styleRules(patch: UIStylePatch) {
       rules.push("display:grid!important", `grid-template-columns:repeat(${value},minmax(0,1fr))!important`);
       continue;
     }
-    if (key === "flexDirection" && typeof value === "string") rules.push("display:flex!important");
+    if (key === "horizontalPosition") {
+      if (value === "left") rules.push("margin-left:0!important", "margin-right:auto!important");
+      if (value === "center") rules.push("margin-left:auto!important", "margin-right:auto!important");
+      if (value === "right") rules.push("margin-left:auto!important", "margin-right:0!important");
+      continue;
+    }
+    if (key === "flexDirection" && typeof value === "string") {
+      rules.push("display:flex!important");
+      if (patch.flexWrap === undefined) rules.push("flex-wrap:wrap!important");
+    }
     const property = STYLE_NAMES[key];
     if (!property) continue;
     const needsPx = typeof value === "number" && !UNIT_LESS.has(key);
