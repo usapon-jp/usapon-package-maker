@@ -6,10 +6,11 @@ interface Props {
   onLogout: () => void;
   onDeleteAccount: () => void;
   onOpenPwaGuide: () => void;
+  isStandalone?: boolean;
   onClose: () => void;
 }
 
-export function SettingsSheetModal({ user, onLogin, onLogout, onDeleteAccount, onOpenPwaGuide, onClose }: Props) {
+export function SettingsSheetModal({ user, onLogin, onLogout, onDeleteAccount, onOpenPwaGuide, isStandalone = false, onClose }: Props) {
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <section className="app-modal bottom-sheet-modal settings-sheet-modal" data-ui-id="global.settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-sheet-title">
@@ -28,14 +29,20 @@ export function SettingsSheetModal({ user, onLogin, onLogout, onDeleteAccount, o
         <div className="settings-section">
           <p className="settings-section-title">アプリ化（PWA）</p>
           <div className="settings-option-list">
-            <button type="button" className="settings-option-item" onClick={() => { onOpenPwaGuide(); onClose(); }}>
+            {isStandalone ? <div className="settings-option-item is-installed" role="status">
+              <span className="option-icon">✓</span>
+              <div>
+                <strong>ホーム画面版で起動中</strong>
+                <small>すでにアプリとして追加されています</small>
+              </div>
+            </div> : <button type="button" className="settings-option-item" onClick={() => { onOpenPwaGuide(); onClose(); }}>
               <span className="option-icon">📱</span>
               <div>
                 <strong>ホーム画面に追加（アプリ化）</strong>
                 <small>iPhone/Androidのホーム画面へ追加して快適に使う手順</small>
               </div>
               <span>→</span>
-            </button>
+            </button>}
           </div>
         </div>
 

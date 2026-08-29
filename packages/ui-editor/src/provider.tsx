@@ -50,10 +50,15 @@ function installPreviewBridge(registry: UIEditorRegistry, setConfig: (config: UI
 
   const onClick = (event: MouseEvent) => {
     if (!selectionEnabled) return;
-    const element = (event.target as HTMLElement | null)?.closest<HTMLElement>("[data-ui-id]");
+    const clicked = event.target as HTMLElement | null;
+    const interactive = clicked?.closest<HTMLElement>('button,a,input,select,textarea,[role="button"],[role="tab"]');
+    const element = clicked?.closest<HTMLElement>("[data-ui-id]");
     if (!element || !targetIds.has(element.dataset.uiId ?? "")) return;
     event.preventDefault();
     event.stopPropagation();
+    if (interactive) {
+      window.parent.postMessage({ source: MESSAGE_SOURCE, type: "interaction-blocked" }, window.location.origin);
+    }
     sendSelection(element);
   };
   const onMessage = (event: MessageEvent) => {

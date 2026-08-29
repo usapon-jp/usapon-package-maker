@@ -65,6 +65,20 @@ describe("Mobile Workspace Refactorings & Components", () => {
     expect(loggedInMarkup).toContain("test@example.com");
     expect(loggedInMarkup).toContain("この端末からログアウト");
     expect(loggedInMarkup).toContain("クラウドデータを削除");
+
+    const standaloneMarkup = renderToStaticMarkup(
+      <SettingsSheetModal
+        user={null}
+        onLogin={() => undefined}
+        onLogout={() => undefined}
+        onDeleteAccount={() => undefined}
+        onOpenPwaGuide={() => undefined}
+        isStandalone
+        onClose={() => undefined}
+      />
+    );
+    expect(standaloneMarkup).toContain("ホーム画面版で起動中");
+    expect(standaloneMarkup).not.toContain("ホーム画面に追加（アプリ化）");
   });
 
   it("AssembledEnvelopePreview renders composite single SVG view with front/back tabs", () => {

@@ -2088,7 +2088,7 @@ export function App() {
         />
       )}
       {state.screen !== "size" && state.screen !== "design" && state.screen !== "print" && (
-        <footer className="app-footer"><strong>うさぽん パッケージメーカー</strong><span>未保存は端末内／保存作品は非公開クラウド</span><button type="button" onClick={() => setInstallGuideOpen(true)}>ホーム画面に追加する</button><a href={`${import.meta.env.BASE_URL}privacy.html`}>プライバシーポリシー</a></footer>
+        <footer className="app-footer"><strong>うさぽん パッケージメーカー</strong><span>未保存は端末内／保存作品は非公開クラウド</span>{installContext.isStandalone ? <span>ホーム画面版で起動中</span> : <button type="button" onClick={() => setInstallGuideOpen(true)}>ホーム画面に追加する</button>}<a href={`${import.meta.env.BASE_URL}privacy.html`}>プライバシーポリシー</a></footer>
       )}
       <BottomNavBar activeTab={bottomNavActiveTab} onChange={handleBottomNavChange} />
 
@@ -2115,6 +2115,7 @@ export function App() {
           onLogout={() => { void logout(); }}
           onDeleteAccount={() => { void deleteAccount(); }}
           onOpenPwaGuide={() => setInstallGuideOpen(true)}
+          isStandalone={installContext.isStandalone}
           onClose={() => setSettingsSheetOpen(false)}
         />
       )}
