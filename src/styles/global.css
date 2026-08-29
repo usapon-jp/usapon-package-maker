@@ -46,6 +46,7 @@
 .sample-guide-button { display: inline-flex; align-items: center; gap: 5px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 999px; color: var(--pink-dark); background: white; cursor: pointer; font-size: 12px; font-weight: 800; min-height: 44px; }
 .sample-guide-button svg { width: 17px; height: 17px; }
 .editor-category-tabs { display: grid; grid-template-columns: repeat(4,1fr); gap: 5px; width: min(560px,100%); margin: 0 auto 10px; padding: 5px; border: 1px solid var(--line); border-radius: 16px; background: #f8efeb; }
+.editor-category-tabs.is-below-canvas { display: none; }
 .print-view-tabs { display: grid; grid-template-columns: repeat(2,1fr); gap: 5px; width: min(560px,100%); margin: 0 auto 10px; padding: 5px; border: 1px solid var(--line); border-radius: 16px; background: #f8efeb; }
 .editor-category-tabs button,.print-view-tabs button { padding: 10px 4px; border: 0; border-radius: 12px; color: #806d67; background: transparent; cursor: pointer; font-size: 12px; font-weight: 900; min-height: 44px; text-align: center; }
 .editor-category-tabs button.is-selected,.print-view-tabs button.is-selected { color: var(--pink-dark); background: white; box-shadow: 0 4px 14px rgba(91,59,50,.08); }
@@ -214,6 +215,26 @@
 }
 
 @media (max-width: 600px) {
+  body.has-fixed-workspace {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  .app-shell.is-fixed-workspace {
+    height: 100dvh;
+    min-height: 100dvh;
+    padding-bottom: 78px !important;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  .app-shell.is-fixed-workspace > .app-header {
+    position: relative !important;
+    top: auto !important;
+  }
+
   .app-shell { padding-bottom: 78px; }
   .app-header { position: sticky; z-index: 40; top: 0; background: rgba(255,253,250,.96); backdrop-filter: blur(14px); }
   .letter-set-start-screen { width: min(100% - 24px,920px); padding-top: 12px; }
@@ -1388,13 +1409,27 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
   }
 
   .antigravity-design-page .page-part-tabs {
-    margin-bottom: 2px !important;
+    display: grid !important;
+    grid-auto-flow: column !important;
+    grid-auto-columns: minmax(0, 1fr) !important;
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    margin: 0 0 4px !important;
+    padding: 3px !important;
+    gap: 3px !important;
+    box-sizing: border-box !important;
   }
   .antigravity-design-page .page-part-tabs button {
-    min-height: 32px !important;
-    height: 32px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 34px !important;
+    height: 34px !important;
     font-size: 12px !important;
-    padding: 2px 8px !important;
+    padding: 2px 4px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    box-sizing: border-box !important;
   }
 
   /* 4-COLUMN GRID FOR EDITOR CATEGORY TABS, 2-COLUMN FOR PRINT VIEW TABS */
@@ -1404,10 +1439,19 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
     gap: 4px !important;
     padding: 3px !important;
     margin-bottom: 4px !important;
-    height: 50px !important;
-    min-height: 50px !important;
-    max-height: 50px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    max-height: 42px !important;
     box-sizing: border-box !important;
+  }
+  .antigravity-design-page > .editor-category-tabs.is-top {
+    display: none !important;
+  }
+  .antigravity-design-page .editor-layout > .editor-category-tabs.is-below-canvas {
+    display: grid !important;
+    flex: 0 0 42px !important;
+    width: 100% !important;
+    margin: 0 !important;
   }
   .print-view-tabs {
     display: grid !important;
@@ -1433,11 +1477,62 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
     line-height: 1 !important;
     box-sizing: border-box !important;
   }
+  .editor-category-tabs button {
+    min-height: 36px !important;
+    height: 36px !important;
+    max-height: 36px !important;
+  }
 
   .size-page .size-layout {
     display: flex !important;
     flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    min-height: 0 !important;
     gap: 4px !important;
+    overflow: hidden !important;
+  }
+  .size-page .form-card,
+  .size-page .size-preview-card {
+    align-self: stretch !important;
+    width: 100% !important;
+    max-width: none !important;
+    box-sizing: border-box !important;
+  }
+  .size-page .size-layout.is-dimensions .form-card {
+    order: -2 !important;
+    flex: 0 0 auto !important;
+    min-height: 0 !important;
+    padding: 12px 14px 14px !important;
+    overflow: visible !important;
+  }
+  .size-page .size-layout.is-dimensions .size-preview-card {
+    order: -1 !important;
+    display: flex !important;
+    flex: 1 1 auto !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    padding: 8px 10px !important;
+  }
+  .size-page .size-layout.is-dimensions .size-page-preview-grid,
+  .size-page .size-layout.is-dimensions .size-page-preview-item {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+  }
+  .size-page .size-layout.is-dimensions .size-paper-stage {
+    flex: 1 1 auto !important;
+    height: auto !important;
+    min-height: 150px !important;
+  }
+  .size-page .size-layout:not(.is-dimensions) .form-card {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+  }
+  .size-page {
+    height: calc(100dvh - 50px - 78px) !important;
+    max-height: calc(100dvh - 50px - 78px) !important;
   }
   .antigravity-design-page .editor-layout {
     display: flex !important;
@@ -1445,26 +1540,52 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
     flex: 1 !important;
     min-height: 0 !important;
     gap: 6px !important;
+    padding-bottom: 0 !important;
     overflow: hidden !important;
   }
   .mobile-face-toolbar {
-    margin-bottom: 2px !important;
+    display: grid !important;
+    grid-template-columns: minmax(0, 3fr) minmax(68px, 1fr) !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    margin: 0 0 4px !important;
     padding: 0 !important;
+    gap: 4px !important;
+    box-sizing: border-box !important;
+  }
+  .compact-face-picker {
+    width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 2px !important;
+    gap: 3px !important;
+    border-radius: 13px !important;
+    box-sizing: border-box !important;
   }
   .compact-face-picker button {
-    min-height: 28px !important;
-    height: 28px !important;
-    padding: 2px 6px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 32px !important;
+    height: 32px !important;
+    padding: 2px 3px !important;
     font-size: 12px !important;
+    box-sizing: border-box !important;
   }
   .sample-guide-button {
-    min-height: 28px !important;
-    height: 28px !important;
-    padding: 2px 8px !important;
+    display: flex !important;
+    justify-content: center !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 36px !important;
+    height: 36px !important;
+    padding: 2px 4px !important;
     font-size: 12px !important;
+    border-radius: 13px !important;
+    box-sizing: border-box !important;
   }
   /* REALLOCATE FREE SPACE: LARGER CANVAS (260PX) AND STAGE (>=175PX) AT 390PX */
   .antigravity-design-page .editor-canvas-panel {
+    position: relative !important;
     display: flex !important;
     flex-direction: column !important;
     flex: 0 0 260px !important;
@@ -1474,6 +1595,60 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
     padding: 4px !important;
     overflow: hidden !important;
     box-sizing: border-box !important;
+  }
+  .antigravity-design-page .canvas-toolbar {
+    position: absolute !important;
+    z-index: 5 !important;
+    top: 8px !important;
+    right: 8px !important;
+    left: 8px !important;
+    display: block !important;
+    height: 0 !important;
+    margin: 0 !important;
+    pointer-events: none !important;
+  }
+  .antigravity-design-page .canvas-toolbar .line-legend {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    display: flex !important;
+    gap: 6px !important;
+    padding: 4px 6px !important;
+    border: 1px solid rgba(232, 215, 210, .9) !important;
+    border-radius: 10px !important;
+    background: rgba(255, 253, 250, .9) !important;
+    box-shadow: 0 3px 10px rgba(83, 60, 53, .06) !important;
+    backdrop-filter: blur(6px) !important;
+  }
+  .antigravity-design-page .canvas-toolbar .line-legend span {
+    gap: 3px !important;
+    white-space: nowrap !important;
+  }
+  .antigravity-design-page .canvas-toolbar .line-legend span::before {
+    width: 13px !important;
+  }
+  .antigravity-design-page .canvas-toolbar .dimension-pill {
+    position: absolute !important;
+    top: 32px !important;
+    right: 0 !important;
+    display: grid !important;
+    gap: 1px !important;
+    min-width: 116px !important;
+    padding: 4px 7px !important;
+    border: 1px solid rgba(239, 208, 214, .9) !important;
+    border-radius: 10px !important;
+    background: rgba(255, 242, 245, .9) !important;
+    box-shadow: 0 3px 10px rgba(104, 60, 68, .06) !important;
+    backdrop-filter: blur(6px) !important;
+    line-height: 1.25 !important;
+    text-align: left !important;
+  }
+  .antigravity-design-page .canvas-toolbar .dimension-pill i {
+    display: none !important;
+  }
+  .antigravity-design-page .canvas-toolbar .dimension-pill b {
+    font-weight: 800 !important;
+    white-space: nowrap !important;
   }
   .antigravity-design-page .editor-stage {
     flex: 1 !important;
@@ -1490,10 +1665,19 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
     align-self: stretch !important;
     flex: 1 !important;
     height: auto !important;
-    min-height: 140px !important;
-    max-height: calc(100dvh - 590px) !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding-bottom: 84px !important;
     overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
     box-sizing: border-box !important;
+  }
+  .antigravity-design-page {
+    height: calc(100dvh - 50px - 78px) !important;
+    max-height: calc(100dvh - 50px - 78px) !important;
+    overflow: hidden !important;
+    overscroll-behavior: none;
   }
   .design-page > .sticky-actions {
     position: fixed !important;
@@ -1611,14 +1795,15 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
     min-height: 135px !important;
   }
   .antigravity-design-page .editor-controls {
-    min-height: 120px !important;
-    max-height: calc(100dvh - 510px) !important;
+    min-height: 0 !important;
+    max-height: none !important;
   }
 }
 
 @media (min-width: 376px) and (max-width: 600px) {
   .antigravity-design-page .editor-controls {
-    min-height: 180px !important;
+    min-height: 0 !important;
+    max-height: none !important;
   }
 }
 

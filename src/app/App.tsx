@@ -602,7 +602,7 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
         <button type="button" role="tab" aria-selected={sizeMobileTab === "favorites"} className={sizeMobileTab === "favorites" ? "is-selected" : ""} onClick={() => setSizeMobileTab("favorites")}>お気に入り</button>
       </div>
 
-      <div className="size-layout">
+      <div className={`size-layout is-${sizeMobileTab}`}>
         <section className="panel-card form-card">
           <div className={`size-section size-section-dimensions ${sizeMobileTab === "dimensions" ? "is-mobile-active" : ""}`}>
             <div className="form-section-heading"><h3>仕上がり寸法</h3><p>{twoPiece ? "幅 W／奥行 D／高さ H を指定" : shallowBox ? "表面を W × H、箱の深さを D で指定" : "幅 W／奥行 D／高さ H を指定"}</p></div>
@@ -1094,6 +1094,12 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   };
 
   const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
+  const editorCategoryTabs = (placement: "top" | "below-canvas") => (
+    <div className={`editor-category-tabs is-${placement}`} role="tablist" aria-label="編集内容">
+      {([['artwork','背景'],['stamps','スタンプ'],['text','文字']] as Array<[EditorSection,string]>).map(([section,label]) => <button key={section} type="button" role="tab" aria-selected={state.openEditorSection === section} className={state.openEditorSection === section ? "is-selected" : ""} onClick={() => dispatch({ type: "set-open-editor-section", section })}>{label}</button>)}
+      <button type="button" role="tab" aria-selected={mobileSettingsOpen} className={mobileSettingsOpen ? "is-selected" : ""} onClick={() => setMobileSettingsOpen(true)}>⚙ 詳細</button>
+    </div>
+  );
 
   return (
     <main className="tool-page design-page antigravity-design-page">
@@ -1105,16 +1111,13 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
 
       {faceEditing && <div className="mobile-face-toolbar"><div className="envelope-face-picker compact-face-picker" role="tablist" aria-label="編集する封筒の面">{([['envelope-front','A 表'],['envelope-flap','B フタ'],['envelope-back','C 裏']] as Array<[EnvelopeFaceId,string]>).map(([faceId,label]) => <button key={faceId} type="button" role="tab" aria-selected={state.activeEnvelopeFace === faceId} className={state.activeEnvelopeFace === faceId ? "is-selected" : ""} onClick={() => dispatch({ type: "set-envelope-face", faceId })}>{label}</button>)}</div><button className="sample-guide-button" type="button" onClick={() => setSampleGuideOpen(true)}><EyeIcon />見本</button></div>}
 
-      <div className="editor-category-tabs" role="tablist" aria-label="編集内容">
-        {([['artwork','背景'],['stamps','スタンプ'],['text','文字']] as Array<[EditorSection,string]>).map(([section,label]) => <button key={section} type="button" role="tab" aria-selected={state.openEditorSection === section} className={state.openEditorSection === section ? "is-selected" : ""} onClick={() => dispatch({ type: "set-open-editor-section", section })}>{label}</button>)}
-        <button type="button" role="tab" aria-selected={mobileSettingsOpen} className={mobileSettingsOpen ? "is-selected" : ""} onClick={() => setMobileSettingsOpen(true)}>⚙ 詳細</button>
-      </div>
+      {editorCategoryTabs("top")}
 
       <div className={`editor-layout ${state.openEditorSection === "artwork" ? "is-background-editing" : ""}`}>
         <section className="editor-canvas-panel panel-card">
           <div className="canvas-toolbar">
             <LineLegend geometry={geometry} lineColors={state.lineColors} />
-            <span className="dimension-pill">{geometry.type === "envelope-v1" ? `完成 ${mm(geometry.input.widthMm)} × ${mm(geometry.input.heightMm)} ／ 展開 ${mm(geometry.bounds.widthMm)} × ${mm(geometry.bounds.heightMm)}` : `${mm(geometry.bounds.widthMm)} × ${mm(geometry.bounds.heightMm)}`}</span>
+            <span className="dimension-pill">{geometry.type === "envelope-v1" ? <><b>完成 {mm(geometry.input.widthMm)} × {mm(geometry.input.heightMm)}</b><i aria-hidden="true">／</i><b>展開 {mm(geometry.bounds.widthMm)} × {mm(geometry.bounds.heightMm)}</b></> : <b>{mm(geometry.bounds.widthMm)} × {mm(geometry.bounds.heightMm)}</b>}</span>
           </div>
           <div className="dieline-stage editor-stage">
             <DielineSvg
@@ -1144,6 +1147,8 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
           </div>
           {geometry.type === "envelope-v1" ? <p className="canvas-caption envelope-canvas-caption"><strong>完成品：横 {mm(geometry.input.widthMm)} × 縦 {mm(geometry.input.heightMm)}{geometry.input.widthMm === 162 && geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong>{geometry.envelope?.construction === "kamasu" ? <><span>カマス貼り ／ B フタ {mm(geometry.envelope.topFlapMm)} ／ 左右のりしろ 各{mm(geometry.envelope.glueWidthMm)}</span><span>C 裏の左右を内側へ折り、A 表を重ねて貼ります。B フタとC 裏は完成時の向きで配置されます。</span></> : <><span>上 {mm(geometry.envelope?.topFlapMm ?? 0)} ／ 下 {mm(geometry.envelope?.bottomFlapMm ?? 0)} ／ 左右 各{mm(geometry.envelope?.sideFlapMm ?? 0)}</span><span>左右 → 下の順に折り、貼って袋状にします。</span></>}</p> : <p className="canvas-caption">画面では見やすい大きさに拡大表示しています。印刷寸法は下のmm値とPDFの実寸座標が基準です。</p>}
         </section>
+
+        {editorCategoryTabs("below-canvas")}
 
         <aside className="editor-controls panel-card">
           {state.openEditorSection === "artwork" && (
@@ -1709,6 +1714,12 @@ export function App() {
   }, [state.screen, state.activePageId]);
 
   useEffect(() => {
+    const fixedWorkspace = state.screen === "size" || state.screen === "design" || state.screen === "print";
+    window.document.body.classList.toggle("has-fixed-workspace", fixedWorkspace);
+    return () => window.document.body.classList.remove("has-fixed-workspace");
+  }, [state.screen]);
+
+  useEffect(() => {
     if (new URLSearchParams(window.location.search).get("install") === "1" && !installContext.isStandalone) {
       setInstallGuideOpen(true);
     }
@@ -2047,7 +2058,7 @@ export function App() {
   };
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${state.screen === "size" || state.screen === "design" || state.screen === "print" ? "is-fixed-workspace" : ""}`}>
       <AppHeader
         screen={state.screen}
         templateId={state.templateId}
@@ -2076,7 +2087,7 @@ export function App() {
           onWorkspaceChange={(updated) => { if (workspace?.id === updated.id) setWorkspace(updated); }}
         />
       )}
-      {state.screen !== "design" && state.screen !== "print" && (
+      {state.screen !== "size" && state.screen !== "design" && state.screen !== "print" && (
         <footer className="app-footer"><strong>うさぽん パッケージメーカー</strong><span>未保存は端末内／保存作品は非公開クラウド</span><button type="button" onClick={() => setInstallGuideOpen(true)}>ホーム画面に追加する</button><a href={`${import.meta.env.BASE_URL}privacy.html`}>プライバシーポリシー</a></footer>
       )}
       <BottomNavBar activeTab={bottomNavActiveTab} onChange={handleBottomNavChange} />
