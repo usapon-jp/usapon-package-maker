@@ -8,10 +8,18 @@ import {
   withoutComponentPatch,
   withoutScreenPatches,
 } from "@usapon/ui-editor/runtime";
+import { shouldCloseEditorSheet } from "@usapon/ui-editor/editor";
 import { PACKAGE_UI_EDITOR_REGISTRY } from "../src/ui-editor/registry";
 import migration from "../supabase/migrations/202608290001_package_ui_editor.sql?raw";
 
 describe("共通UI Editor設定", () => {
+  it("編集シートは十分な下スワイプまたは速いフリックで閉じる", () => {
+    expect(shouldCloseEditorSheet(72, 500)).toBe(true);
+    expect(shouldCloseEditorSheet(24, 40)).toBe(true);
+    expect(shouldCloseEditorSheet(40, 500)).toBe(false);
+    expect(shouldCloseEditorSheet(-30, 20)).toBe(false);
+  });
+
   it("編集対象のdata-ui-idが重複しない", () => {
     const ids = PACKAGE_UI_EDITOR_REGISTRY.targets.map((target) => target.id);
     expect(new Set(ids).size).toBe(ids.length);

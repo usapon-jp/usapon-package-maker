@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 
 import {
   emptyUIEditorConfig,
@@ -24,6 +24,15 @@ const MESSAGE_SOURCE = "usapon-ui-editor";
 const EDITOR_RETURN_KEY = "usapon-ui-editor.return";
 const PREVIEW_WIDTHS = { mobile: 390, tablet: 768, desktop: 1440 } as const;
 const PREVIEW_HEIGHTS = { mobile: 844, tablet: 1024, desktop: 900 } as const;
+const SHEET_CLOSE_DISTANCE = 72;
+const SHEET_FLICK_DISTANCE = 24;
+const SHEET_FLICK_VELOCITY = 0.45;
+
+export function shouldCloseEditorSheet(distanceY: number, elapsedMs: number) {
+  const distance = Math.max(0, distanceY);
+  return distance >= SHEET_CLOSE_DISTANCE
+    || (distance >= SHEET_FLICK_DISTANCE && distance / Math.max(1, elapsedMs) >= SHEET_FLICK_VELOCITY);
+}
 
 type ShellProps = {
   registry: UIEditorRegistry;
@@ -113,9 +122,11 @@ export function UIEditorShell({ registry, storage, auth, previewUrl }: ShellProp
   const [selectionMode, setSelectionMode] = useState(true);
   const [panelMode, setPanelMode] = useState<"part" | "tokens">("part");
   const [panelOpen, setPanelOpen] = useState(true);
+  const [panelDragY, setPanelDragY] = useState(0);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const draggedPanelHandle = useRef(false);
   const config = history.items[history.index];
 
   const initialize = useCallback(async () => {
@@ -149,7 +160,7 @@ export function UIEditorShell({ registry, storage, auth, previewUrl }: ShellProp
       const data = event.data as { source?: string; type?: string; payload?: UIEditorSelection };
       if (data.source !== MESSAGE_SOURCE) return;
       if (data.type === "ready") { send("config", config); send("mode", selectionMode ? "select" : "interact"); }
-      if (data.type === "selection" && data.payload) { setSelection(data.payload); setPanelMode("part"); setPanelOpen(true); }
+      if (data.type === "selection" && data.payload) { setSelection(data.payload); setPanelMode("part"); }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
@@ -210,6 +221,31 @@ export function UIEditorShell({ registry, storage, auth, previewUrl }: ShellProp
     document.addEventListener("pointermove", onMove); document.addEventListener("pointerup", onUp);
   };
 
+  const startPanelSwipe = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    if (!panelOpen || !window.matchMedia("(max-width:900px)").matches) return;
+    event.preventDefault();
+    const startY = event.clientY;
+    const startedAt = performance.now();
+    draggedPanelHandle.current = false;
+    const onMove = (move: PointerEvent) => {
+      const distance = Math.max(0, move.clientY - startY);
+      if (distance > 6) draggedPanelHandle.current = true;
+      setPanelDragY(distance);
+    };
+    const finish = (end: PointerEvent) => {
+      const distance = Math.max(0, end.clientY - startY);
+      document.removeEventListener("pointermove", onMove);
+      document.removeEventListener("pointerup", finish);
+      document.removeEventListener("pointercancel", finish);
+      if (distance <= 6 || shouldCloseEditorSheet(distance, performance.now() - startedAt)) setPanelOpen(false);
+      setPanelDragY(0);
+      window.setTimeout(() => { draggedPanelHandle.current = false; }, 0);
+    };
+    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointerup", finish);
+    document.addEventListener("pointercancel", finish);
+  };
+
   if (access === "loading") return <main className="uie-access-page"><div className="uie-loader" /><h1>UI編集モードを確認しています</h1></main>;
   if (access === "signin") return <main className="uie-access-page"><div className="uie-access-card"><span className="uie-lock">🔐</span><h1>管理者用 UI編集モード</h1><p>通常利用者には表示されない管理画面です。登録済みのGoogleアカウントで確認します。</p><button type="button" onClick={() => { window.sessionStorage.setItem(EDITOR_RETURN_KEY, "1"); void auth.signIn(); }}>Googleで管理者ログイン</button><a href={new URL(previewUrl, window.location.href).pathname} onClick={() => window.sessionStorage.removeItem(EDITOR_RETURN_KEY)}>通常画面へ戻る</a></div></main>;
   if (access === "forbidden") return <main className="uie-access-page"><div className="uie-access-card"><strong className="uie-error-code">403</strong><h1>この画面を開く権限がありません</h1><p>管理者として登録されたアカウントだけが利用できます。</p><button type="button" onClick={() => { void auth.signOut().then(initialize); }}>別のGoogleアカウントで確認</button><a href={new URL(previewUrl, window.location.href).pathname} onClick={() => window.sessionStorage.removeItem(EDITOR_RETURN_KEY)}>通常画面へ戻る</a></div></main>;
@@ -218,14 +254,18 @@ export function UIEditorShell({ registry, storage, auth, previewUrl }: ShellProp
   const previewWidth = PREVIEW_WIDTHS[previewBreakpoint];
   const previewHeight = PREVIEW_HEIGHTS[previewBreakpoint];
   const overlayStyle = selection ? { left: selection.rect.x, top: selection.rect.y, width: selection.rect.width, height: selection.rect.height } : undefined;
-  return <div className={`uie-shell ${panelOpen ? "is-panel-open" : ""}`}>
-    <header className="uie-header"><div><strong>{registry.appName}</strong><span>UI編集モード</span></div><div className="uie-history"><button type="button" disabled={history.index === 0} onClick={undo}>↶ <span>戻す</span></button><button type="button" disabled={history.index >= history.items.length - 1} onClick={redo}>↷ <span>やり直す</span></button></div><div className="uie-save-actions"><span className={isDirty ? "is-dirty" : ""}>{isDirty ? "未保存" : draftDiffersFromPublished ? `公開待ち v${stored.revision}` : `公開済み v${stored.publishedRevision}`}</span><button type="button" disabled={busy || !isDirty} onClick={() => void saveDraft()}>下書き保存</button><button className="is-publish" type="button" disabled={busy || isDirty || !draftDiffersFromPublished} onClick={() => void publish()}>本番へ反映</button><button type="button" disabled={busy || !stored.previous} onClick={() => void rollback()}>前のUIへ戻す</button></div></header>
+  const normalUrl = new URL(previewUrl, window.location.href);
+  normalUrl.search = "";
+  normalUrl.hash = "";
+  const panelStyle = panelDragY > 0 ? ({ "--uie-sheet-drag": `${panelDragY}px` } as CSSProperties) : undefined;
+  return <div className={`uie-shell ${panelOpen ? "is-panel-open" : ""} ${panelDragY > 0 ? "is-sheet-dragging" : ""}`}>
+    <header className="uie-header"><div><strong>{registry.appName}</strong><span>UI編集モード</span></div><a className="uie-exit-button" href={normalUrl.toString()} aria-label="編集を終了して通常画面へ戻る" onClick={(event) => { if (isDirty && !window.confirm("未保存の調整があります。保存せず通常画面へ戻りますか？")) { event.preventDefault(); return; } window.sessionStorage.removeItem(EDITOR_RETURN_KEY); }}>← <span className="uie-exit-wide">通常画面</span><span className="uie-exit-short">終了</span></a><div className="uie-history"><button type="button" disabled={history.index === 0} onClick={undo}>↶ <span>戻す</span></button><button type="button" disabled={history.index >= history.items.length - 1} onClick={redo}>↷ <span>やり直す</span></button></div><div className="uie-save-actions"><span className={isDirty ? "is-dirty" : ""}>{isDirty ? "未保存" : draftDiffersFromPublished ? `公開待ち v${stored.revision}` : `公開済み v${stored.publishedRevision}`}</span><button type="button" disabled={busy || !isDirty} onClick={() => void saveDraft()}>下書き保存</button><button className="is-publish" type="button" disabled={busy || isDirty || !draftDiffersFromPublished} onClick={() => void publish()}>本番へ反映</button><button type="button" disabled={busy || !stored.previous} onClick={() => void rollback()}>前のUIへ戻す</button></div></header>
     {(error || message) && <div className={`uie-message ${error ? "is-error" : ""}`} role="status">{error || message}<button type="button" onClick={() => { setError(""); setMessage(""); }}>×</button></div>}
     <main className="uie-workspace">
       <section className="uie-preview-area"><div className="uie-preview-toolbar"><div className="uie-segment">{(["mobile", "tablet", "desktop"] as const).map((item) => <button key={item} type="button" className={previewBreakpoint === item ? "is-active" : ""} onClick={() => { setPreviewBreakpoint(item); setBreakpoint(item); setSelection(null); }}>{item === "mobile" ? "スマホ 390" : item === "tablet" ? "iPad 768" : "PC 1440"}</button>)}</div><div className="uie-segment"><button type="button" className={selectionMode ? "is-active" : ""} onClick={() => setSelectionMode(true)}>パーツを選ぶ</button><button type="button" className={!selectionMode ? "is-active" : ""} onClick={() => setSelectionMode(false)}>アプリを操作</button></div><button type="button" className="uie-panel-toggle" onClick={() => setPanelOpen((open) => !open)}>{panelOpen ? "編集欄を閉じる" : "編集欄を開く"}</button></div>
         <div className="uie-preview-scroll"><div className="uie-preview-frame" style={{ width: previewWidth, height: previewHeight }}><iframe ref={iframeRef} title={`${previewBreakpoint}プレビュー`} src={previewUrl} width={previewWidth} height={previewHeight} />{selection && selectionMode && <div className="uie-selection-overlay" style={overlayStyle}><span>{registry.targets.find((target) => target.id === selection.id)?.label}</span>{registry.targets.find((target) => target.id === selection.id)?.capabilities.size && <button type="button" aria-label="ドラッグして幅と高さを変更" onPointerDown={startResize} />}</div>}</div></div>
       </section>
-      <aside className="uie-panel"><div className="uie-panel-handle"><button type="button" aria-label="編集欄を折りたたむ" onClick={() => setPanelOpen(false)} /></div><div className="uie-panel-tabs"><button type="button" className={panelMode === "part" ? "is-active" : ""} onClick={() => setPanelMode("part")}>選択パーツ</button><button type="button" className={panelMode === "tokens" ? "is-active" : ""} onClick={() => setPanelMode("tokens")}>アプリ全体</button></div><div className="uie-breakpoints"><span>調整先</span>{(["common", "mobile", "tablet", "desktop"] as const).map((item) => <button key={item} type="button" className={breakpoint === item ? "is-active" : ""} onClick={() => setBreakpoint(item)}>{item === "common" ? "共通" : item === "mobile" ? "スマホ" : item === "tablet" ? "iPad" : "PC"}</button>)}</div><div className="uie-panel-scroll">{panelMode === "tokens" ? <TokenInspector config={config} breakpoint={breakpoint} onChange={changeConfig} /> : <ComponentInspector registry={registry} config={config} selection={selection} breakpoint={breakpoint} onChange={changeConfig} onReset={() => selection && changeConfig(withoutComponentPatch(config, selection.id, breakpoint))} onResetScreen={() => selection && window.confirm("この画面の現在の調整先をすべて標準へ戻しますか？") && changeConfig(withoutScreenPatches(config, registry, selection.screen, breakpoint))} />}</div></aside>
+      <aside className="uie-panel" style={panelStyle}><div className="uie-panel-handle"><button type="button" aria-label="下へスワイプして編集欄を閉じる" onPointerDown={startPanelSwipe} onClick={() => { if (!draggedPanelHandle.current) setPanelOpen(false); }} /></div><div className="uie-panel-tabs"><button type="button" className={panelMode === "part" ? "is-active" : ""} onClick={() => setPanelMode("part")}>選択パーツ</button><button type="button" className={panelMode === "tokens" ? "is-active" : ""} onClick={() => setPanelMode("tokens")}>アプリ全体</button></div><div className="uie-breakpoints"><span>調整先</span>{(["common", "mobile", "tablet", "desktop"] as const).map((item) => <button key={item} type="button" className={breakpoint === item ? "is-active" : ""} onClick={() => setBreakpoint(item)}>{item === "common" ? "共通" : item === "mobile" ? "スマホ" : item === "tablet" ? "iPad" : "PC"}</button>)}</div><div className="uie-panel-scroll">{panelMode === "tokens" ? <TokenInspector config={config} breakpoint={breakpoint} onChange={changeConfig} /> : <ComponentInspector registry={registry} config={config} selection={selection} breakpoint={breakpoint} onChange={changeConfig} onReset={() => selection && changeConfig(withoutComponentPatch(config, selection.id, breakpoint))} onResetScreen={() => selection && window.confirm("この画面の現在の調整先をすべて標準へ戻しますか？") && changeConfig(withoutScreenPatches(config, registry, selection.screen, breakpoint))} />}</div></aside>
     </main>
   </div>;
 }
