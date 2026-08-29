@@ -6,11 +6,13 @@ interface Props {
   onLogout: () => void;
   onDeleteAccount: () => void;
   onOpenPwaGuide: () => void;
+  canEditUi?: boolean;
+  onOpenUiEditor?: () => void;
   isStandalone?: boolean;
   onClose: () => void;
 }
 
-export function SettingsSheetModal({ user, onLogin, onLogout, onDeleteAccount, onOpenPwaGuide, isStandalone = false, onClose }: Props) {
+export function SettingsSheetModal({ user, onLogin, onLogout, onDeleteAccount, onOpenPwaGuide, canEditUi = false, onOpenUiEditor, isStandalone = false, onClose }: Props) {
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <section className="app-modal bottom-sheet-modal settings-sheet-modal" data-ui-id="global.settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-sheet-title">
@@ -25,6 +27,22 @@ export function SettingsSheetModal({ user, onLogin, onLogout, onDeleteAccount, o
           </div>
           <button type="button" onClick={onClose} aria-label="閉じる">×</button>
         </div>
+
+        {canEditUi && onOpenUiEditor && (
+          <div className="settings-section">
+            <p className="settings-section-title">管理者用</p>
+            <div className="settings-option-list">
+              <button type="button" className="settings-option-item" onClick={onOpenUiEditor}>
+                <span className="option-icon">✏️</span>
+                <div>
+                  <strong>UI編集モードを開く</strong>
+                  <small>画面の見た目を調整し、下書き保存・本番反映できます</small>
+                </div>
+                <span>→</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="settings-section">
           <p className="settings-section-title">アプリ化（PWA）</p>

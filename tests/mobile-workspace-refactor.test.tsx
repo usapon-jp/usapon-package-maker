@@ -50,6 +50,7 @@ describe("Mobile Workspace Refactorings & Components", () => {
     expect(loggedOutMarkup).toContain("Googleでログイン");
     expect(loggedOutMarkup).toContain("プライバシーポリシー・利用規約");
     expect(loggedOutMarkup).toContain('data-ui-id="global.settings-sheet"');
+    expect(loggedOutMarkup).not.toContain("UI編集モードを開く");
 
     const loggedInMarkup = renderToStaticMarkup(
       <SettingsSheetModal
@@ -58,6 +59,8 @@ describe("Mobile Workspace Refactorings & Components", () => {
         onLogout={() => undefined}
         onDeleteAccount={() => undefined}
         onOpenPwaGuide={() => undefined}
+        canEditUi
+        onOpenUiEditor={() => undefined}
         onClose={() => undefined}
       />
     );
@@ -65,6 +68,7 @@ describe("Mobile Workspace Refactorings & Components", () => {
     expect(loggedInMarkup).toContain("test@example.com");
     expect(loggedInMarkup).toContain("この端末からログアウト");
     expect(loggedInMarkup).toContain("クラウドデータを削除");
+    expect(loggedInMarkup).toContain("UI編集モードを開く");
 
     const standaloneMarkup = renderToStaticMarkup(
       <SettingsSheetModal

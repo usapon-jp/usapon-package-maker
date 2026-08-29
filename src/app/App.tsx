@@ -77,6 +77,7 @@ import { SettingsSheetModal } from "../components/modals/SettingsSheetModal";
 import { AssembledEnvelopePreview } from "../components/common/AssembledEnvelopePreview";
 import { FinishedStationeryPreview } from "../components/common/FinishedStationeryPreview";
 import { EyeIcon, SaveIcon } from "../components/common/UiIcons";
+import { isPackageUIEditorAdmin } from "../ui-editor/repository";
 
 // 既存のクラウド保存利用者がいるため、端末内下書き保存と併用して提供する。
 const CLOUD_SYNC_UI_ENABLED = true;
@@ -1676,6 +1677,7 @@ function cloudErrorMessage(error: unknown) {
 export function App() {
   const [state, dispatch] = useReducer(appReducer, initialState);
   const [user, setUser] = useState<User | null>(null);
+  const [canEditUi, setCanEditUi] = useState(false);
   const [unlockedThemePackIds, setUnlockedThemePackIds] = useState<string[]>([]);
   const [unlockPackId, setUnlockPackId] = useState<string | null>(null);
   const [pendingTemplate, setPendingTemplate] = useState<PackageTemplate | null>(null);
@@ -1724,6 +1726,18 @@ export function App() {
       setInstallGuideOpen(true);
     }
   }, [installContext.isStandalone]);
+
+  useEffect(() => {
+    let mounted = true;
+    if (!user || !isCloudConfigured) {
+      setCanEditUi(false);
+      return () => { mounted = false; };
+    }
+    void isPackageUIEditorAdmin()
+      .then((allowed) => { if (mounted) setCanEditUi(allowed); })
+      .catch(() => { if (mounted) setCanEditUi(false); });
+    return () => { mounted = false; };
+  }, [user]);
 
   useEffect(() => {
     let mounted = true;
@@ -2115,6 +2129,13 @@ export function App() {
           onLogout={() => { void logout(); }}
           onDeleteAccount={() => { void deleteAccount(); }}
           onOpenPwaGuide={() => setInstallGuideOpen(true)}
+          canEditUi={canEditUi}
+          onOpenUiEditor={() => {
+            const url = new URL(window.location.href);
+            url.search = "?ui-edit=true";
+            url.hash = "";
+            window.location.assign(url.toString());
+          }}
           isStandalone={installContext.isStandalone}
           onClose={() => setSettingsSheetOpen(false)}
         />
