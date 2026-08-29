@@ -812,7 +812,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const [applyingThemePack, setApplyingThemePack] = useState(false);
   const [autoLayoutSettings, setAutoLayoutSettings] = useState<AutoLayoutSettings>(DEFAULT_AUTO_LAYOUT_SETTINGS);
   const [autoLayoutResult, setAutoLayoutResult] = useState<AutoLayoutResult | null>(null);
-  const [backgroundScope, setBackgroundScope] = useState<"all" | "face" | "part">("face");
+  const [backgroundScope, setBackgroundScope] = useState<"all" | "face">("face");
   const [sampleGuideOpen, setSampleGuideOpen] = useState(false);
   const autoLayoutRun = useRef(0);
   const [favoriteColors, setFavoriteColors] = useState<string[]>(() => {
@@ -1148,8 +1148,8 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
         <aside className="editor-controls panel-card">
           {state.openEditorSection === "artwork" && (
             <div className="drawer-section">
-              {faceEditing && <div className="background-scope-picker" role="group" aria-label="背景を変える範囲">{([['all','全体'],['face','この面'],['part','部分']] as const).map(([scope,label]) => <button key={scope} type="button" className={backgroundScope === scope ? "is-selected" : ""} onClick={() => setBackgroundScope(scope)}>{label}</button>)}</div>}
-              {backgroundScope !== "part" || !faceEditing ? <DesignColorControl className="background-color-control" label={faceEditing ? backgroundScope === "all" ? "セット全体の背景色" : `${state.activeEnvelopeFace === "envelope-front" ? "A 表" : state.activeEnvelopeFace === "envelope-flap" ? "B フタ" : "C 裏"}の背景色` : "基本背景色"} value={faceEditing ? state.surfaceBackgroundColors[state.activeEnvelopeFace] ?? design.backgroundColor : design.backgroundColor} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={setScopedBackgroundColor} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} /> : <p className="background-part-help">部分へ柄や画像を追加し、中央の展開図で位置と大きさを調整します。</p>}
+              {faceEditing && <div className="background-scope-picker" role="group" aria-label="背景を変える範囲">{([['all','全体'],['face','この面']] as const).map(([scope,label]) => <button key={scope} type="button" className={backgroundScope === scope ? "is-selected" : ""} onClick={() => setBackgroundScope(scope)}>{label}</button>)}</div>}
+              <DesignColorControl className="background-color-control" label={faceEditing ? backgroundScope === "all" ? "セット全体の背景色" : `${state.activeEnvelopeFace === "envelope-front" ? "A 表" : state.activeEnvelopeFace === "envelope-flap" ? "B フタ" : "C 裏"}の背景色` : "基本背景色"} value={faceEditing ? state.surfaceBackgroundColors[state.activeEnvelopeFace] ?? design.backgroundColor : design.backgroundColor} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={setScopedBackgroundColor} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
               {state.box.type === "two-piece-gift-box-v1" && activePage.id === "lid" && (
                 <div className="background-copy-control">
                   <button className="outline-button full-button" type="button" onClick={copyLidBackgroundToBase}>背景を本体にもコピー</button>

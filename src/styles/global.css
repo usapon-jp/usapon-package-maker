@@ -59,10 +59,9 @@
 .letter-set-advanced-settings { margin-bottom: 12px; border: 1px solid var(--line); border-radius: 13px; background: #fffaf8; }
 .letter-set-advanced-settings > summary { padding: 11px 13px; cursor: pointer; color: var(--pink-dark); font-size: 12px; font-weight: 900; }
 .letter-set-advanced-settings .letter-set-panel { border: 0; border-top: 1px solid var(--line); border-radius: 0; }
-.background-scope-picker { display: grid; grid-template-columns: repeat(3,1fr); gap: 5px; margin-bottom: 14px; padding: 4px; border-radius: 13px; background: #f5ebe7; }
+.background-scope-picker { display: grid; grid-template-columns: repeat(2,1fr); gap: 5px; margin-bottom: 14px; padding: 4px; border-radius: 13px; background: #f5ebe7; }
 .background-scope-picker button { padding: 9px 5px; border: 0; border-radius: 10px; color: #796762; background: transparent; font-size: 12px; font-weight: 800; }
 .background-scope-picker button.is-selected { color: var(--pink-dark); background: white; box-shadow: 0 3px 10px rgba(80,54,46,.08); }
-.background-part-help { padding: 11px; border-radius: 11px; color: #765f59; background: #fff3ef; font-size: 12px; line-height: 1.6; }
 .envelope-face-hit-areas polygon { pointer-events: none; }
 .sample-guide-modal { width: min(920px,calc(100% - 28px)); max-height: 90vh; overflow: auto; }
 .sample-guide-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
