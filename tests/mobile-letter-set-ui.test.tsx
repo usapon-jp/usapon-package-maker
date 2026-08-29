@@ -20,12 +20,15 @@ describe("モバイル中心のレターセットUI", () => {
     expect(markup).toContain("封筒のみ");
     expect(markup).toContain("洋形2号カマス貼り");
     expect(markup).not.toContain("ふりこみました");
+    expect(markup).toContain('data-ui-id="letter.screen"');
+    expect(markup).toContain('data-ui-id="letter.choice-grid"');
   });
 
   it("主要5項目の下部ナビを表示する", () => {
     const markup = renderToStaticMarkup(<BottomNavBar activeTab="letter-set" onChange={() => undefined} />);
     for (const label of ["BOX", "レターセット", "新規", "マイデザイン", "設定"]) expect(markup).toContain(label);
     expect(markup).not.toContain("購入");
+    expect(markup).toContain('data-ui-id="global.bottom-nav"');
   });
 
   it("モバイル用詳細設定シートを表示する", () => {
@@ -39,6 +42,7 @@ describe("モバイル中心のレターセットUI", () => {
     expect(markup).toContain('role="dialog"');
     expect(markup).toContain('aria-modal="true"');
     expect(markup).toContain('tabindex="-1"');
+    expect(markup).toContain('data-ui-id="design.settings-sheet"');
   });
 
   it("下部ナビの各種アクティブ状態とクラス指定を検証する", () => {

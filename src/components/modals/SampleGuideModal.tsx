@@ -14,7 +14,7 @@ export function SampleGuideModal({ geometry, state, onClose }: { geometry: Dieli
 
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section className="app-modal sample-guide-modal compact-sample-modal" role="dialog" aria-modal="true" aria-labelledby="sample-guide-title">
+      <section className="app-modal sample-guide-modal compact-sample-modal" data-ui-id="design.sample-guide" role="dialog" aria-modal="true" aria-labelledby="sample-guide-title">
         <div className="sample-guide-header">
           <div>
             <p className="eyebrow">SAMPLE</p>

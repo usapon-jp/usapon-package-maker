@@ -10,5 +10,5 @@ export function BottomNavBar({ activeTab, onChange }: { activeTab: BottomNavTab;
     { id: "my-designs" as const, label: "マイデザイン", icon: <FolderIcon /> },
     { id: "settings" as const, label: "設定", icon: <SettingsIcon /> },
   ];
-  return <nav className="mobile-bottom-nav" aria-label="メインメニュー">{items.map((item) => <button key={item.id} type="button" className={`${activeTab === item.id ? "is-active" : ""} ${item.id === "new" ? "is-new" : ""}`} onClick={() => onChange(item.id)}>{item.icon}<span>{item.label}</span></button>)}</nav>;
+  return <nav className="mobile-bottom-nav" data-ui-id="global.bottom-nav" aria-label="メインメニュー">{items.map((item) => <button key={item.id} type="button" className={`${activeTab === item.id ? "is-active" : ""} ${item.id === "new" ? "is-new" : ""}`} onClick={() => onChange(item.id)}>{item.icon}<span>{item.label}</span></button>)}</nav>;
 }

@@ -1,0 +1,50 @@
+import type { UIEditorCapabilities, UIEditorRegistry } from "@usapon/ui-editor/runtime";
+
+const all: UIEditorCapabilities = { size: true, spacing: true, typography: true, appearance: true, layout: true, visibility: true, reorder: true };
+const structural: UIEditorCapabilities = { size: true, spacing: true, appearance: true, layout: true };
+const protectedStructural: UIEditorCapabilities = { size: true, spacing: true, typography: true, appearance: true, layout: true };
+
+export const PACKAGE_UI_EDITOR_REGISTRY: UIEditorRegistry = {
+  appId: "package-maker",
+  appName: "うさぽん パッケージメーカー",
+  targets: [
+    { id: "global.app-shell", label: "アプリ全体", screen: "global", capabilities: structural },
+    { id: "global.header", label: "上部ヘッダー", screen: "global", capabilities: protectedStructural, protected: true },
+    { id: "global.step-nav", label: "作成ステップ", screen: "global", capabilities: all },
+    { id: "global.bottom-nav", label: "下部ナビ", screen: "global", capabilities: protectedStructural, protected: true },
+    { id: "global.new-creation-sheet", label: "新規作成シート", screen: "global", capabilities: structural },
+    { id: "global.settings-sheet", label: "設定・アカウントシート", screen: "global", capabilities: structural },
+    { id: "letter.screen", label: "レターセット選択画面", screen: "letter", capabilities: structural },
+    { id: "letter.heading", label: "レターセット見出し", screen: "letter", capabilities: all },
+    { id: "letter.choice-grid", label: "セット選択一覧", screen: "letter", capabilities: all },
+    { id: "templates.screen", label: "テンプレート画面", screen: "templates", capabilities: structural },
+    { id: "templates.grid.basic-letter-set", label: "基本テンプレート一覧", screen: "templates", capabilities: all },
+    { id: "templates.grid.autumn-letter-set", label: "秋テンプレート一覧", screen: "templates", capabilities: all },
+    { id: "size.screen", label: "BOXサイズ画面", screen: "size", capabilities: structural },
+    { id: "size.tabs", label: "サイズ設定タブ", screen: "size", capabilities: all },
+    { id: "size.layout", label: "サイズ画面の中央領域", screen: "size", capabilities: structural },
+    { id: "size.form", label: "寸法・設定カード", screen: "size", capabilities: all },
+    { id: "size.preview", label: "A4配置プレビュー", screen: "size", capabilities: all },
+    { id: "size.actions", label: "サイズ画面の操作ボタン", screen: "size", capabilities: protectedStructural, protected: true },
+    { id: "design.screen", label: "デザイン画面", screen: "design", capabilities: structural },
+    { id: "design.item-tabs", label: "封筒・便箋・カードタブ", screen: "design", capabilities: all },
+    { id: "design.face-tabs", label: "A表・Bフタ・C裏・見本", screen: "design", capabilities: all },
+    { id: "design.workspace", label: "デザイン中央領域", screen: "design", capabilities: structural },
+    { id: "design.canvas", label: "展開図カード", screen: "design", capabilities: all },
+    { id: "design.editor-tabs-top", label: "背景・スタンプ・文字・詳細（iPad・PC）", screen: "design", capabilities: all },
+    { id: "design.editor-tabs-mobile", label: "背景・スタンプ・文字・詳細（スマホ）", screen: "design", capabilities: all },
+    { id: "design.controls", label: "編集設定シート", screen: "design", capabilities: all },
+    { id: "design.settings-sheet", label: "詳細設定シート", screen: "design", capabilities: structural },
+    { id: "design.sample-guide", label: "組み立て見本", screen: "design", capabilities: structural },
+    { id: "design.actions", label: "デザイン画面の操作ボタン", screen: "design", capabilities: protectedStructural, protected: true },
+    { id: "print.screen", label: "印刷前確認画面", screen: "print", capabilities: structural },
+    { id: "print.item-tabs", label: "印刷する品目タブ", screen: "print", capabilities: all },
+    { id: "print.view-tabs", label: "展開図・完成見本タブ", screen: "print", capabilities: all },
+    { id: "print.layout", label: "印刷プレビュー領域", screen: "print", capabilities: structural },
+    { id: "print.preview", label: "印刷プレビュー", screen: "print", capabilities: all },
+    { id: "print.settings", label: "PDF設定", screen: "print", capabilities: all },
+    { id: "print.actions", label: "PDF操作ボタン", screen: "print", capabilities: protectedStructural, protected: true },
+    { id: "my-designs.screen", label: "マイデザイン画面", screen: "my-designs", capabilities: structural },
+    { id: "my-designs.grid", label: "保存作品一覧", screen: "my-designs", capabilities: all },
+  ],
+};

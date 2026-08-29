@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "vite",
     "typecheck": "tsc -b",
@@ -14,6 +17,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@usapon/ui-editor": "file:packages/ui-editor",
     "@supabase/supabase-js": "^2.112.3",
     "dompurify": "^3.2.6",
     "idb": "^8.0.3",

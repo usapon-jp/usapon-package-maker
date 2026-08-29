@@ -12,7 +12,7 @@ interface Props {
 export function SettingsSheetModal({ user, onLogin, onLogout, onDeleteAccount, onOpenPwaGuide, onClose }: Props) {
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <section className="app-modal bottom-sheet-modal settings-sheet-modal" role="dialog" aria-modal="true" aria-labelledby="settings-sheet-title">
+      <section className="app-modal bottom-sheet-modal settings-sheet-modal" data-ui-id="global.settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-sheet-title">
         <div className="sheet-handle" />
         <div className="sheet-header">
           <div className="sheet-title-group">

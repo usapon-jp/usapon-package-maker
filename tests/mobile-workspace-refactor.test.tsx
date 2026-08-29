@@ -32,6 +32,7 @@ describe("Mobile Workspace Refactorings & Components", () => {
     expect(markup).toContain("新しく作品を作る");
     expect(markup).toContain("BOXを作る");
     expect(markup).toContain("レターセットを作る");
+    expect(markup).toContain('data-ui-id="global.new-creation-sheet"');
   });
 
   it("SettingsSheetModal renders logged out and logged in account states", () => {
@@ -48,6 +49,7 @@ describe("Mobile Workspace Refactorings & Components", () => {
     expect(loggedOutMarkup).toContain("設定・アカウント");
     expect(loggedOutMarkup).toContain("Googleでログイン");
     expect(loggedOutMarkup).toContain("プライバシーポリシー・利用規約");
+    expect(loggedOutMarkup).toContain('data-ui-id="global.settings-sheet"');
 
     const loggedInMarkup = renderToStaticMarkup(
       <SettingsSheetModal

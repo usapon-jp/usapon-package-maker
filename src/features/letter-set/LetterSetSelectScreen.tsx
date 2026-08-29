@@ -9,15 +9,15 @@ const OPTIONS: Array<{ value: StationerySetSelection; title: string; content: st
 
 export function LetterSetSelectScreen({ onSelect }: { onSelect: (selection: StationerySetSelection) => void }) {
   return (
-    <main className="letter-set-start-screen">
-      <div className="letter-set-start-heading">
+    <main className="letter-set-start-screen" data-ui-id="letter.screen">
+      <div className="letter-set-start-heading" data-ui-id="letter.heading">
         <div>
           <p className="eyebrow">LETTER SET</p>
           <h1>レターセットを選ぶ</h1>
           <span>完成162 × 114mm 封筒と便箋・カードの組み合わせを選択</span>
         </div>
       </div>
-      <div className="letter-set-choice-grid">
+      <div className="letter-set-choice-grid" data-ui-id="letter.choice-grid">
         {OPTIONS.map((option) => (
           <button key={option.value} type="button" className="letter-set-choice-card" onClick={() => onSelect(option.value)}>
             <div className="choice-thumbnail-box" aria-hidden="true">

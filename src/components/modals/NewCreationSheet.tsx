@@ -9,7 +9,7 @@ interface Props {
 export function NewCreationSheet({ onSelectBox, onSelectLetterSet, onClose }: Props) {
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <section className="app-modal bottom-sheet-modal new-creation-sheet" role="dialog" aria-modal="true" aria-labelledby="new-creation-title">
+      <section className="app-modal bottom-sheet-modal new-creation-sheet" data-ui-id="global.new-creation-sheet" role="dialog" aria-modal="true" aria-labelledby="new-creation-title">
         <div className="sheet-handle" />
         <div className="sheet-header">
           <h2 id="new-creation-title">新しく作品を作る</h2>

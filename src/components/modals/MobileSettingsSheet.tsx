@@ -47,6 +47,7 @@ export function MobileSettingsSheet({
       <section
         ref={dialogRef}
         className="app-modal mobile-settings-sheet"
+        data-ui-id="design.settings-sheet"
         role="dialog"
         aria-modal="true"
         aria-label={title}

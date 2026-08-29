@@ -108,7 +108,7 @@ export function MyBoxesScreen({ user, onLogin, onBack, onNew, onOpen, onWorkspac
   };
 
   return (
-    <main className="tool-page my-boxes-page">
+    <main className="tool-page my-boxes-page" data-ui-id="my-designs.screen">
       <div className="page-heading horizontal-heading my-boxes-heading">
         <div>
           <button className="back-button" type="button" onClick={onBack}>← 戻る</button>
@@ -139,7 +139,7 @@ export function MyBoxesScreen({ user, onLogin, onBack, onNew, onOpen, onWorkspac
               <button className="primary-button" type="button" onClick={onNew}>新しい作品を作る</button>
             </section>
           ) : (
-            <section className="my-boxes-grid" aria-label="保存した作品">
+            <section className="my-boxes-grid" data-ui-id="my-designs.grid" aria-label="保存した作品">
               {projects.map((project) => (
                 <article className="panel-card my-box-card" key={project.id}>
                   <button className="my-box-open" type="button" disabled={busyId === project.id} onClick={() => onOpen(project)}>

@@ -159,10 +159,10 @@ function clampToEnvelopeFace(geometry: DielineGeometry, faceId: EnvelopeFaceId |
   };
 }
 
-function PageTabs({ pages, activePageId, dispatch }: { pages: DielinePageView[]; activePageId: DielinePageId; dispatch: React.Dispatch<AppAction> }) {
+function PageTabs({ pages, activePageId, dispatch, uiId }: { pages: DielinePageView[]; activePageId: DielinePageId; dispatch: React.Dispatch<AppAction>; uiId?: string }) {
   if (pages.length < 2) return null;
   return (
-    <div className="page-part-tabs" role="tablist" aria-label="編集する箱パーツ">
+    <div className="page-part-tabs" data-ui-id={uiId} role="tablist" aria-label="編集する箱パーツ">
       {pages.map((page) => (
         <button
           key={page.id}
@@ -226,7 +226,7 @@ function AppHeader({
     "セット選択";
 
   return (
-    <header className={`app-header ${screen === "design" || screen === "print" || screen === "size" ? "is-editor-header" : ""}`}>
+    <header className={`app-header ${screen === "design" || screen === "print" || screen === "size" ? "is-editor-header" : ""}`} data-ui-id="global.header">
       <div className="brand-button-group">
         {backTarget && (
           <button className="mobile-header-back-button" type="button" onClick={() => onGo(backTarget)} aria-label="戻る">
@@ -247,7 +247,7 @@ function AppHeader({
       </div>
 
       {screen !== "home" && screen !== "my-boxes" && screen !== "templates" && screen !== "letter-set" && (
-        <nav className="step-nav" aria-label="作成ステップ">
+        <nav className="step-nav" data-ui-id="global.step-nav" aria-label="作成ステップ">
           {([templateId === "y2-kamasu-envelope" ? "letter-set" : templateId ? "templates" : "size", "design", "print"] as const).map((step, index) => (
             <button
               key={step}
@@ -587,7 +587,7 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   };
 
   return (
-    <main className="tool-page size-page">
+    <main className="tool-page size-page" data-ui-id="size.screen">
       <div className="page-heading">
         <button className="back-button" type="button" onClick={() => dispatch({ type: "go", screen: "home" })}>← トップ</button>
         <p className="eyebrow">STEP 1</p>
@@ -595,15 +595,15 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
         <p>入力値は完成箱の罫線間寸法です。商品が入る余裕を含めて入力してください。</p>
       </div>
 
-      <div className="size-mobile-tabs" role="tablist" aria-label="サイズ設定項目">
+      <div className="size-mobile-tabs" data-ui-id="size.tabs" role="tablist" aria-label="サイズ設定項目">
         <button type="button" role="tab" aria-selected={sizeMobileTab === "dimensions"} className={sizeMobileTab === "dimensions" ? "is-selected" : ""} onClick={() => setSizeMobileTab("dimensions")}>寸法</button>
         <button type="button" role="tab" aria-selected={sizeMobileTab === "box-type"} className={sizeMobileTab === "box-type" ? "is-selected" : ""} onClick={() => setSizeMobileTab("box-type")}>箱形式</button>
         <button type="button" role="tab" aria-selected={sizeMobileTab === "paper-structure"} className={sizeMobileTab === "paper-structure" ? "is-selected" : ""} onClick={() => setSizeMobileTab("paper-structure")}>用紙・構造</button>
         <button type="button" role="tab" aria-selected={sizeMobileTab === "favorites"} className={sizeMobileTab === "favorites" ? "is-selected" : ""} onClick={() => setSizeMobileTab("favorites")}>お気に入り</button>
       </div>
 
-      <div className={`size-layout is-${sizeMobileTab}`}>
-        <section className="panel-card form-card">
+      <div className={`size-layout is-${sizeMobileTab}`} data-ui-id="size.layout">
+        <section className="panel-card form-card" data-ui-id="size.form">
           <div className={`size-section size-section-dimensions ${sizeMobileTab === "dimensions" ? "is-mobile-active" : ""}`}>
             <div className="form-section-heading"><h3>仕上がり寸法</h3><p>{twoPiece ? "幅 W／奥行 D／高さ H を指定" : shallowBox ? "表面を W × H、箱の深さを D で指定" : "幅 W／奥行 D／高さ H を指定"}</p></div>
             <div className="dimension-grid">
@@ -705,7 +705,7 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
           </div>
         </section>
 
-        <section className="panel-card size-preview-card">
+        <section className="panel-card size-preview-card" data-ui-id="size.preview">
           <div className="preview-card-head"><div><p className="eyebrow">LIVE PREVIEW</p><h2>A4配置プレビュー</h2></div><span>A4 {pages.length}枚</span></div>
           <div className={`size-page-preview-grid ${pages.length > 1 ? "is-multiple" : ""}`}>
             {pages.map((page) => {
@@ -736,7 +736,7 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
         </section>
       </div>
 
-      <div className="sticky-actions">
+      <div className="sticky-actions" data-ui-id="size.actions">
         <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: "home" })}>戻る</button>
         <button className="primary-button" type="button" onClick={() => dispatch({ type: "go", screen: "design" })}>デザインに進む <span>→</span></button>
       </div>
@@ -1095,26 +1095,26 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
 
   const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
   const editorCategoryTabs = (placement: "top" | "below-canvas") => (
-    <div className={`editor-category-tabs is-${placement}`} role="tablist" aria-label="編集内容">
+    <div className={`editor-category-tabs is-${placement}`} data-ui-id={placement === "top" ? "design.editor-tabs-top" : "design.editor-tabs-mobile"} role="tablist" aria-label="編集内容">
       {([['artwork','背景'],['stamps','スタンプ'],['text','文字']] as Array<[EditorSection,string]>).map(([section,label]) => <button key={section} type="button" role="tab" aria-selected={state.openEditorSection === section} className={state.openEditorSection === section ? "is-selected" : ""} onClick={() => dispatch({ type: "set-open-editor-section", section })}>{label}</button>)}
       <button type="button" role="tab" aria-selected={mobileSettingsOpen} className={mobileSettingsOpen ? "is-selected" : ""} onClick={() => setMobileSettingsOpen(true)}>⚙ 詳細</button>
     </div>
   );
 
   return (
-    <main className="tool-page design-page antigravity-design-page">
+    <main className="tool-page design-page antigravity-design-page" data-ui-id="design.screen">
       <div className="page-heading horizontal-heading">
         <div><p className="eyebrow">DESIGN</p><h1>{state.box.type === "envelope-v1" ? "レターセットをデザイン" : template ? `${template.categoryLabel}をデザイン` : "デザイン編集"}</h1></div>
         <FitNotice geometry={geometry} fit={fit} compact />
       </div>
-      <PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} />
+      <PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} uiId="design.item-tabs" />
 
-      {faceEditing && <div className="mobile-face-toolbar"><div className="envelope-face-picker compact-face-picker" role="tablist" aria-label="編集する封筒の面">{([['envelope-front','A 表'],['envelope-flap','B フタ'],['envelope-back','C 裏']] as Array<[EnvelopeFaceId,string]>).map(([faceId,label]) => <button key={faceId} type="button" role="tab" aria-selected={state.activeEnvelopeFace === faceId} className={state.activeEnvelopeFace === faceId ? "is-selected" : ""} onClick={() => dispatch({ type: "set-envelope-face", faceId })}>{label}</button>)}</div><button className="sample-guide-button" type="button" onClick={() => setSampleGuideOpen(true)}><EyeIcon />見本</button></div>}
+      {faceEditing && <div className="mobile-face-toolbar" data-ui-id="design.face-tabs"><div className="envelope-face-picker compact-face-picker" role="tablist" aria-label="編集する封筒の面">{([['envelope-front','A 表'],['envelope-flap','B フタ'],['envelope-back','C 裏']] as Array<[EnvelopeFaceId,string]>).map(([faceId,label]) => <button key={faceId} type="button" role="tab" aria-selected={state.activeEnvelopeFace === faceId} className={state.activeEnvelopeFace === faceId ? "is-selected" : ""} onClick={() => dispatch({ type: "set-envelope-face", faceId })}>{label}</button>)}</div><button className="sample-guide-button" type="button" onClick={() => setSampleGuideOpen(true)}><EyeIcon />見本</button></div>}
 
       {editorCategoryTabs("top")}
 
-      <div className={`editor-layout ${state.openEditorSection === "artwork" ? "is-background-editing" : ""}`}>
-        <section className="editor-canvas-panel panel-card">
+      <div className={`editor-layout ${state.openEditorSection === "artwork" ? "is-background-editing" : ""}`} data-ui-id="design.workspace">
+        <section className="editor-canvas-panel panel-card" data-ui-id="design.canvas">
           <div className="canvas-toolbar">
             <LineLegend geometry={geometry} lineColors={state.lineColors} />
             <span className="dimension-pill">{geometry.type === "envelope-v1" ? <><b>完成 {mm(geometry.input.widthMm)} × {mm(geometry.input.heightMm)}</b><i aria-hidden="true">／</i><b>展開 {mm(geometry.bounds.widthMm)} × {mm(geometry.bounds.heightMm)}</b></> : <b>{mm(geometry.bounds.widthMm)} × {mm(geometry.bounds.heightMm)}</b>}</span>
@@ -1150,7 +1150,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
 
         {editorCategoryTabs("below-canvas")}
 
-        <aside className="editor-controls panel-card">
+        <aside className="editor-controls panel-card" data-ui-id="design.controls">
           {state.openEditorSection === "artwork" && (
             <div className="drawer-section">
               {faceEditing && <div className="background-scope-picker" role="group" aria-label="背景を変える範囲">{([['all','全体'],['face','この面']] as const).map(([scope,label]) => <button key={scope} type="button" className={backgroundScope === scope ? "is-selected" : ""} onClick={() => setBackgroundScope(scope)}>{label}</button>)}</div>}
@@ -1363,7 +1363,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
 
       {sampleGuideOpen && <SampleGuideModal geometry={geometry} state={state} onClose={() => setSampleGuideOpen(false)} />}
 
-      <div className="sticky-actions">
+      <div className="sticky-actions" data-ui-id="design.actions">
         <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: state.box.type === "envelope-v1" ? "letter-set" : template ? "templates" : "size" })}>{state.box.type === "envelope-v1" ? "セットを選び直す" : template ? "型を選び直す" : "サイズに戻る"}</button>
         <button className="primary-button" type="button" onClick={() => dispatch({ type: "go", screen: "print" })}>PDFを確認 <span>▣</span></button>
       </div>
@@ -1450,13 +1450,13 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
   };
 
   return (
-    <main className="tool-page print-page antigravity-print-page">
+    <main className="tool-page print-page antigravity-print-page" data-ui-id="print.screen">
       <div className="page-heading horizontal-heading">
         <div><button className="back-button" type="button" onClick={() => dispatch({ type: "go", screen: "design" })}>← 編集に戻る</button><p className="eyebrow">PRINT</p><h1>印刷前の確認</h1><p>保存される実寸データを確認します。</p></div>
         <FitNotice geometry={activePage.geometry} fit={activePage.fit} compact />
       </div>
-      <PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} />
-      <div className="print-view-tabs" role="tablist" aria-label="確認表示"><button type="button" role="tab" aria-selected={viewMode === "dieline"} className={viewMode === "dieline" ? "is-selected" : ""} onClick={() => setViewMode("dieline")}>展開図</button><button type="button" role="tab" aria-selected={viewMode === "finished"} className={viewMode === "finished" ? "is-selected" : ""} onClick={() => setViewMode("finished")}>完成イメージ</button></div>
+      <PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} uiId="print.item-tabs" />
+      <div className="print-view-tabs" data-ui-id="print.view-tabs" role="tablist" aria-label="確認表示"><button type="button" role="tab" aria-selected={viewMode === "dieline"} className={viewMode === "dieline" ? "is-selected" : ""} onClick={() => setViewMode("dieline")}>展開図</button><button type="button" role="tab" aria-selected={viewMode === "finished"} className={viewMode === "finished" ? "is-selected" : ""} onClick={() => setViewMode("finished")}>完成イメージ</button></div>
       <div className="print-summary-pills"><span><b>A4</b>A4実寸</span><span><b>200</b>200dpi</span><span><b>{activePage.geometry.input.widthMm}×{activePage.geometry.input.heightMm}</b>完成サイズ mm</span></div>
 
       <div style={{ display: "none" }} aria-hidden="true">
@@ -1483,9 +1483,9 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
         ))}
       </div>
 
-      <div className="print-layout">
+      <div className="print-layout" data-ui-id="print.layout">
         {viewMode === "dieline" ? (
-          <div className="print-page-grid">
+          <div className="print-page-grid" data-ui-id="print.preview">
             <section className={`paper-preview-wrap ${activePage.fit.orientation}`} key={activePage.id}>
               <div className="paper-label">{activePage.label}／A4 {activePage.fit.orientation === "portrait" ? "縦 210 × 297mm" : "横 297 × 210mm"}</div>
               <div className="paper-preview">
@@ -1504,7 +1504,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
             </section>
           </div>
         ) : (
-          <div className="finished-preview-stage">
+          <div className="finished-preview-stage" data-ui-id="print.preview">
             {activePage.id === "main" ? (
               envelopePage ? (
                 <AssembledEnvelopePreview state={state} />
@@ -1529,7 +1529,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
           </div>
         )}
 
-        <aside className="print-settings panel-card">
+        <aside className="print-settings panel-card" data-ui-id="print.settings">
           <p className="eyebrow">PRINT SETTINGS</p>
           <h2>PDFを保存</h2>
           <details className="print-advanced-settings">
@@ -1596,7 +1596,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
       </div>
 
       <div className="hidden-export-svg" aria-hidden="true"><CalibrationSvg ref={calibrationSvg} /></div>
-      <div className="sticky-actions">
+      <div className="sticky-actions" data-ui-id="print.actions">
         <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: "design" })}>編集に戻る</button>
         <button className="primary-button" type="button" onClick={handleExport} disabled={hasOverflow || exporting}>{exporting ? "PDF作成中…" : "PDFを保存"}</button>
       </div>
@@ -2058,7 +2058,7 @@ export function App() {
   };
 
   return (
-    <div className={`app-shell ${state.screen === "size" || state.screen === "design" || state.screen === "print" ? "is-fixed-workspace" : ""}`}>
+    <div className={`app-shell ${state.screen === "size" || state.screen === "design" || state.screen === "print" ? "is-fixed-workspace" : ""}`} data-ui-id="global.app-shell">
       <AppHeader
         screen={state.screen}
         templateId={state.templateId}

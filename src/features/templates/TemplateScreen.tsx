@@ -59,7 +59,7 @@ export function TemplateScreen({ onBack, onSelect, unlockedThemePackIds }: { onB
   const series = [...new Map(PACKAGE_TEMPLATES.map((template) => [template.seriesId, { id: template.seriesId, name: template.seriesName }])).values()];
 
   return (
-    <main className="tool-page template-page">
+    <main className="tool-page template-page" data-ui-id="templates.screen">
       <div className="page-heading">
         <button className="back-button" type="button" onClick={onBack}>← トップ</button>
         <p className="eyebrow">CHOOSE A TEMPLATE</p>
@@ -70,7 +70,7 @@ export function TemplateScreen({ onBack, onSelect, unlockedThemePackIds }: { onB
       {series.map((group) => (
         <section className="template-series" key={group.id} aria-labelledby={`template-series-${group.id}`}>
           <div className="template-series-heading"><div><p className="eyebrow">{group.id === "autumn-letter-set" ? "AUTUMN LETTER COLLECTION" : "LETTER SET BASICS"}</p><h2 id={`template-series-${group.id}`}>{group.name}</h2></div><span>{PACKAGE_TEMPLATES.filter((template) => template.seriesId === group.id).length}アイテム</span></div>
-          <div className="template-card-grid">
+          <div className="template-card-grid" data-ui-id={`templates.grid.${group.id}`}>
             {PACKAGE_TEMPLATES.filter((template) => template.seriesId === group.id).map((template) => {
               const favorite = favorites.includes(template.id);
               const locked = Boolean(template.themePackId && !unlockedThemePackIds.includes(template.themePackId));
