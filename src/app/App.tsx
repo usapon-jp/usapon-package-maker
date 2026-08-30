@@ -79,7 +79,7 @@ import { FinishedStationeryPreview } from "../components/common/FinishedStatione
 import { SaveIcon } from "../components/common/UiIcons";
 import { isPackageUIEditorAdmin } from "../ui-editor/repository";
 
-const STAMP_SHOP_URL = "https://usapon-shop.stores.jp/";
+const STAMP_SHOP_URL = "https://usapon-digital-shop.vercel.app/";
 
 // 既存のクラウド保存利用者がいるため、端末内下書き保存と併用して提供する。
 const CLOUD_SYNC_UI_ENABLED = true;
@@ -1278,8 +1278,8 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   return (
     <main className="tool-page design-page antigravity-design-page" data-ui-id="design.screen">
       <div className="page-heading horizontal-heading">
-        <div>{!isLetterSetDesign && <p className="eyebrow">DESIGN</p>}<h1>{isLetterSetDesign ? "レターセットデザイン" : template ? `${template.categoryLabel}をデザイン` : "デザイン編集"}</h1>{isLetterSetDesign && <div className="heading-controls-row"><PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} uiId="design.item-tabs" />{designActionButtons("heading-inline-actions")}</div>}</div>
-        <FitNotice geometry={geometry} fit={fit} compact />
+        <div>{!isLetterSetDesign && <p className="eyebrow">DESIGN</p>}<h1>{isLetterSetDesign ? "レターセットデザイン" : template ? `${template.categoryLabel}をデザイン` : "デザイン編集"}</h1>{isLetterSetDesign && <div className="heading-controls-row"><PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} uiId="design.item-tabs" />{designActionButtons("heading-inline-actions")}<FitNotice geometry={geometry} fit={fit} compact /></div>}</div>
+        {!isLetterSetDesign && <FitNotice geometry={geometry} fit={fit} compact />}
       </div>
       {!isLetterSetDesign && <PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} uiId="design.item-tabs" />}
 
