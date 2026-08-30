@@ -76,8 +76,10 @@ import { NewCreationSheet } from "../components/modals/NewCreationSheet";
 import { SettingsSheetModal } from "../components/modals/SettingsSheetModal";
 import { AssembledEnvelopePreview } from "../components/common/AssembledEnvelopePreview";
 import { FinishedStationeryPreview } from "../components/common/FinishedStationeryPreview";
-import { EyeIcon, SaveIcon } from "../components/common/UiIcons";
+import { SaveIcon } from "../components/common/UiIcons";
 import { isPackageUIEditorAdmin } from "../ui-editor/repository";
+
+const STAMP_SHOP_URL = "https://usapon-shop.stores.jp/";
 
 // 既存のクラウド保存利用者がいるため、端末内下書き保存と併用して提供する。
 const CLOUD_SYNC_UI_ENABLED = true;
@@ -149,6 +151,12 @@ function envelopeFacePanel(geometry: DielineGeometry, faceId: EnvelopeFaceId): P
 
 function envelopeFaceRotation(faceId: EnvelopeFaceId) {
   return faceId === "envelope-front" ? 0 : 180;
+}
+
+function envelopeFaceLetter(faceId: EnvelopeFaceId) {
+  if (faceId === "envelope-flap") return "A";
+  if (faceId === "envelope-front") return "B";
+  return "C";
 }
 
 function clampToEnvelopeFace(geometry: DielineGeometry, faceId: EnvelopeFaceId | undefined, xMm: number, yMm: number) {
@@ -231,7 +239,7 @@ function AppHeader({
       <div className="brand-button-group">
         {backTarget && (
           <button className="mobile-header-back-button" type="button" onClick={() => onGo(backTarget)} aria-label="戻る">
-            ← 戻る
+            ←
           </button>
         )}
         <button className="brand-button" type="button" onClick={() => onGo("home")} aria-label="トップへ戻る">
@@ -939,8 +947,14 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     : templateStampSets;
   const recommendedKeys = new Set(recommendedStampSets.flatMap((set) => set.stampKeys));
   const otherStamps = BUILT_IN_STAMPS.filter((preset) => !recommendedKeys.has(preset.key) && (!preset.themePackId || unlockedThemePackIds.includes(preset.themePackId)));
+  const stampPresets = [...new Map([
+    ...recommendedStampSets.flatMap((set) => set.stampKeys.flatMap((key) => BUILT_IN_STAMPS.filter((preset) => preset.key === key))),
+    ...otherStamps,
+  ].map((preset) => [preset.key, preset])).values()];
   const faceEditing = geometry.type === "envelope-v1" && geometry.envelope?.construction === "kamasu" && activePage.id === "main";
-  const onActiveFace = <T extends { surfaceId?: EnvelopeFaceId }>(item: T) => !faceEditing || !item.surfaceId || item.surfaceId === state.activeEnvelopeFace;
+  const [backgroundScope, setBackgroundScope] = useState<"all" | "face">("face");
+  const faceScopedEditing = faceEditing && backgroundScope === "face";
+  const onActiveFace = <T extends { surfaceId?: EnvelopeFaceId }>(item: T) => !faceScopedEditing || !item.surfaceId || item.surfaceId === state.activeEnvelopeFace;
   const pageArtworkLayers = design.artworkLayers.filter(onActiveFace);
   const pageStamps = design.stamps.filter(onActiveFace);
   const pageTexts = design.texts.filter(onActiveFace);
@@ -950,12 +964,12 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const [stampUploadError, setStampUploadError] = useState("");
   const [uploadingArtwork, setUploadingArtwork] = useState(false);
   const [uploadingStamp, setUploadingStamp] = useState(false);
+  const [stampAddMenuOpen, setStampAddMenuOpen] = useState(false);
   const [backgroundCopyMessage, setBackgroundCopyMessage] = useState("");
   const [letterSetShareMessage, setLetterSetShareMessage] = useState("");
   const [applyingThemePack, setApplyingThemePack] = useState(false);
   const [autoLayoutSettings, setAutoLayoutSettings] = useState<AutoLayoutSettings>(DEFAULT_AUTO_LAYOUT_SETTINGS);
   const [autoLayoutResult, setAutoLayoutResult] = useState<AutoLayoutResult | null>(null);
-  const [backgroundScope, setBackgroundScope] = useState<"all" | "face">("face");
   const [sampleGuideOpen, setSampleGuideOpen] = useState(false);
   const autoLayoutRun = useRef(0);
   const [favoriteColors, setFavoriteColors] = useState<string[]>(() => {
@@ -1005,7 +1019,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     for (const file of files) {
       try {
         const item = createUploadedArtwork(await readPatternFile(file), geometry, activePage.id);
-        if (faceEditing) {
+        if (faceScopedEditing) {
           const panel = envelopeFacePanel(geometry, state.activeEnvelopeFace);
           item.surfaceId = state.activeEnvelopeFace;
           item.offsetXmm = panel.x + panel.width / 2;
@@ -1031,7 +1045,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     for (const file of files) {
       try {
         const item = createStamp(await readPatternFile(file), geometry, file.name, activePage.id);
-        if (faceEditing) {
+        if (faceScopedEditing) {
           const panel = envelopeFacePanel(geometry, state.activeEnvelopeFace);
           item.surfaceId = state.activeEnvelopeFace;
           item.xMm = panel.x + panel.width / 2;
@@ -1056,7 +1070,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
         : await (async () => { const response = await fetch(`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`); if (!response.ok) throw new Error("プリセット画像を読み込めませんでした。"); return response.blob(); })();
       const file = new File([blob], preset.fileName, { type: "image/png" });
       const item = createStamp(markAsBuiltInStamp(await readPatternFile(file), preset.key), geometry, preset.name, activePage.id);
-      if (faceEditing) {
+      if (faceScopedEditing) {
         const panel = envelopeFacePanel(geometry, state.activeEnvelopeFace);
         item.surfaceId = state.activeEnvelopeFace;
         item.xMm = panel.x + panel.width / 2;
@@ -1127,10 +1141,10 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     : `${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`;
 
   const addText = () => {
-    const front = faceEditing ? envelopeFacePanel(geometry, state.activeEnvelopeFace) : geometry.panels[0];
+    const front = faceScopedEditing ? envelopeFacePanel(geometry, state.activeEnvelopeFace) : geometry.panels[0];
     const item: TextItem = createTextItem(crypto.randomUUID(), activePage.id, "ありがとう", front.x + front.width / 2, front.y + front.height / 2);
     if (activeThemePack && unlockedThemePackIds.includes(activeThemePack.id)) item.color = activeThemePack.preset.textColor;
-    if (faceEditing) {
+    if (faceScopedEditing) {
       item.surfaceId = state.activeEnvelopeFace;
       item.rotationDeg = envelopeFaceRotation(state.activeEnvelopeFace);
     }
@@ -1145,9 +1159,13 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     if (backgroundScope === "all") {
       dispatch({ type: "set-background-color", pageId: activePage.id, color });
       (["envelope-front", "envelope-flap", "envelope-back"] as EnvelopeFaceId[]).forEach((faceId) => dispatch({ type: "set-surface-background-color", faceId, color }));
+      dispatch({ type: "update-envelope-design", patch: { flapColor: color } });
       return;
     }
-    if (backgroundScope === "face") dispatch({ type: "set-surface-background-color", faceId: state.activeEnvelopeFace, color });
+    if (backgroundScope === "face") {
+      dispatch({ type: "set-surface-background-color", faceId: state.activeEnvelopeFace, color });
+      if (state.activeEnvelopeFace === "envelope-flap") dispatch({ type: "update-envelope-design", patch: { flapColor: color } });
+    }
   };
 
   const runAutoLayout = (again: boolean) => {
@@ -1168,9 +1186,9 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     const includesBackground = targetIncludesRole(autoLayoutSettings.target, "background");
     const includesStamps = targetIncludesRole(autoLayoutSettings.target, "stamp");
     const includesTexts = targetIncludesRole(autoLayoutSettings.target, "text") || targetIncludesRole(autoLayoutSettings.target, "logoText");
-    const inactiveArtwork = faceEditing ? design.artworkLayers.filter((item) => item.surfaceId && item.surfaceId !== state.activeEnvelopeFace) : [];
-    const inactiveStamps = faceEditing ? design.stamps.filter((item) => item.surfaceId && item.surfaceId !== state.activeEnvelopeFace) : [];
-    const inactiveTexts = faceEditing ? design.texts.filter((item) => item.surfaceId && item.surfaceId !== state.activeEnvelopeFace) : [];
+    const inactiveArtwork = faceScopedEditing ? design.artworkLayers.filter((item) => item.surfaceId && item.surfaceId !== state.activeEnvelopeFace) : [];
+    const inactiveStamps = faceScopedEditing ? design.stamps.filter((item) => item.surfaceId && item.surfaceId !== state.activeEnvelopeFace) : [];
+    const inactiveTexts = faceScopedEditing ? design.texts.filter((item) => item.surfaceId && item.surfaceId !== state.activeEnvelopeFace) : [];
     dispatch({
       type: "apply-auto-layout",
       pageId: activePage.id,
@@ -1243,25 +1261,37 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
       <button type="button" role="tab" aria-selected={mobileSettingsOpen} className={mobileSettingsOpen ? "is-selected" : ""} onClick={() => setMobileSettingsOpen(true)}>⚙ 詳細</button>
     </div>
   );
+  const canvasToolbar = (className: string, showDimensions = true) => (
+    <div className={`canvas-toolbar ${className}`}>
+      <LineLegend geometry={geometry} lineColors={state.lineColors} />
+      {showDimensions && <span className="dimension-pill">{geometry.type === "envelope-v1" ? <><b>完成 {mm(geometry.input.widthMm)} × {mm(geometry.input.heightMm)}</b><i aria-hidden="true">／</i><b>展開 {mm(geometry.bounds.widthMm)} × {mm(geometry.bounds.heightMm)}</b></> : <b>{mm(geometry.bounds.widthMm)} × {mm(geometry.bounds.heightMm)}</b>}</span>}
+    </div>
+  );
+  const isLetterSetDesign = state.box.type === "envelope-v1";
+  const designActionButtons = (className: string) => (
+    <div className={className}>
+      <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: isLetterSetDesign ? "letter-set" : template ? "templates" : "size" })}>{isLetterSetDesign ? "セットを選び直す" : template ? "型を選び直す" : "サイズに戻る"}</button>
+      <button className="primary-button" type="button" onClick={() => dispatch({ type: "go", screen: "print" })}>PDFを確認 <span>▣</span></button>
+    </div>
+  );
 
   return (
     <main className="tool-page design-page antigravity-design-page" data-ui-id="design.screen">
       <div className="page-heading horizontal-heading">
-        <div><p className="eyebrow">DESIGN</p><h1>{state.box.type === "envelope-v1" ? "レターセットをデザイン" : template ? `${template.categoryLabel}をデザイン` : "デザイン編集"}</h1></div>
+        <div>{!isLetterSetDesign && <p className="eyebrow">DESIGN</p>}<h1>{isLetterSetDesign ? "レターセットデザイン" : template ? `${template.categoryLabel}をデザイン` : "デザイン編集"}</h1>{isLetterSetDesign && <div className="heading-controls-row"><PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} uiId="design.item-tabs" />{designActionButtons("heading-inline-actions")}</div>}</div>
         <FitNotice geometry={geometry} fit={fit} compact />
       </div>
-      <PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} uiId="design.item-tabs" />
+      {!isLetterSetDesign && <PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} uiId="design.item-tabs" />}
 
-      {faceEditing && <div className="mobile-face-toolbar" data-ui-id="design.face-tabs"><div className="envelope-face-picker compact-face-picker" role="tablist" aria-label="編集する封筒の面">{([['envelope-front','A 表'],['envelope-flap','B フタ'],['envelope-back','C 裏']] as Array<[EnvelopeFaceId,string]>).map(([faceId,label]) => <button key={faceId} type="button" role="tab" aria-selected={state.activeEnvelopeFace === faceId} className={state.activeEnvelopeFace === faceId ? "is-selected" : ""} onClick={() => dispatch({ type: "set-envelope-face", faceId })}>{label}</button>)}</div><button className="sample-guide-button" type="button" onClick={() => setSampleGuideOpen(true)}><EyeIcon />見本</button></div>}
-
-      {editorCategoryTabs("top")}
+      <div className="workspace-tab-row without-face-tabs">
+        <div className="workspace-tab-spacer" aria-hidden="true" />
+        {editorCategoryTabs("top")}
+      </div>
 
       <div className={`editor-layout ${state.openEditorSection === "artwork" ? "is-background-editing" : ""}`} data-ui-id="design.workspace">
         <section className="editor-canvas-panel panel-card" data-ui-id="design.canvas">
-          <div className="canvas-toolbar">
-            <LineLegend geometry={geometry} lineColors={state.lineColors} />
-            <span className="dimension-pill">{geometry.type === "envelope-v1" ? <><b>完成 {mm(geometry.input.widthMm)} × {mm(geometry.input.heightMm)}</b><i aria-hidden="true">／</i><b>展開 {mm(geometry.bounds.widthMm)} × {mm(geometry.bounds.heightMm)}</b></> : <b>{mm(geometry.bounds.widthMm)} × {mm(geometry.bounds.heightMm)}</b>}</span>
-          </div>
+          {canvasToolbar("mobile-canvas-toolbar")}
+          {canvasToolbar("desktop-canvas-toolbar", false)}
           <div className="dieline-stage editor-stage">
             <DielineSvg
               geometry={geometry}
@@ -1274,7 +1304,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
               exportMode={false}
               showWritingLines={state.showWritingLines}
               envelopeDesign={state.envelopeDesign}
-              activeEnvelopeFace={faceEditing ? state.activeEnvelopeFace : undefined}
+              activeEnvelopeFace={faceScopedEditing ? state.activeEnvelopeFace : undefined}
               onSelectArtwork={(id) => { const item = design.artworkLayers.find((candidate) => candidate.id === id); if (faceEditing && item?.surfaceId) dispatch({ type: "set-envelope-face", faceId: item.surfaceId }); dispatch({ type: "select-artwork", id }); if (id) dispatch({ type: "set-open-editor-section", section: "artwork" }); }}
               onMoveArtwork={(id, xMm, yMm) => { const item = design.artworkLayers.find((candidate) => candidate.id === id); const point = clampToEnvelopeFace(geometry, faceEditing ? item?.surfaceId : undefined, xMm, yMm); dispatch({ type: "update-artwork", id, patch: { offsetXmm: point.xMm, offsetYmm: point.yMm } }); }}
               onSelectStamp={(id) => { const item = design.stamps.find((candidate) => candidate.id === id); if (faceEditing && item?.surfaceId) dispatch({ type: "set-envelope-face", faceId: item.surfaceId }); dispatch({ type: "select-stamp", id }); if (id) dispatch({ type: "set-open-editor-section", section: "stamps" }); }}
@@ -1285,19 +1315,19 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
               }}
               onSelectText={(id) => { const item = design.texts.find((candidate) => candidate.id === id); if (faceEditing && item?.surfaceId) dispatch({ type: "set-envelope-face", faceId: item.surfaceId }); dispatch({ type: "select-text", id }); if (id) dispatch({ type: "set-open-editor-section", section: "text" }); }}
               onMoveText={(id, xMm, yMm) => { const item = design.texts.find((candidate) => candidate.id === id); const point = clampToEnvelopeFace(geometry, faceEditing ? item?.surfaceId : undefined, xMm, yMm); dispatch({ type: "update-text", id, patch: point }); }}
-              onSelectEnvelopeFace={faceEditing ? (faceId) => dispatch({ type: "set-envelope-face", faceId }) : undefined}
+              onSelectEnvelopeFace={faceScopedEditing ? (faceId) => dispatch({ type: "set-envelope-face", faceId }) : undefined}
             />
           </div>
-          {geometry.type === "envelope-v1" ? <p className="canvas-caption envelope-canvas-caption"><strong>完成品：横 {mm(geometry.input.widthMm)} × 縦 {mm(geometry.input.heightMm)}{geometry.input.widthMm === 162 && geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong>{geometry.envelope?.construction === "kamasu" ? <><span>カマス貼り ／ B フタ {mm(geometry.envelope.topFlapMm)} ／ 左右のりしろ 各{mm(geometry.envelope.glueWidthMm)}</span><span>C 裏の左右を内側へ折り、A 表を重ねて貼ります。B フタとC 裏は完成時の向きで配置されます。</span></> : <><span>上 {mm(geometry.envelope?.topFlapMm ?? 0)} ／ 下 {mm(geometry.envelope?.bottomFlapMm ?? 0)} ／ 左右 各{mm(geometry.envelope?.sideFlapMm ?? 0)}</span><span>左右 → 下の順に折り、貼って袋状にします。</span></>}</p> : <p className="canvas-caption">画面では見やすい大きさに拡大表示しています。印刷寸法は下のmm値とPDFの実寸座標が基準です。</p>}
+          {geometry.type === "envelope-v1" ? <p className="canvas-caption envelope-canvas-caption"><strong>完成品：横 {mm(geometry.input.widthMm)} × 縦 {mm(geometry.input.heightMm)}{geometry.input.widthMm === 162 && geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong>{geometry.envelope?.construction === "kamasu" ? <><span>カマス貼り ／ A フタ {mm(geometry.envelope.topFlapMm)} ／ 左右のりしろ 各{mm(geometry.envelope.glueWidthMm)}</span><span>Cの左右を内側へ折り、Bを重ねて貼ります。AとCは完成時の向きで配置されます。</span></> : <><span>上 {mm(geometry.envelope?.topFlapMm ?? 0)} ／ 下 {mm(geometry.envelope?.bottomFlapMm ?? 0)} ／ 左右 各{mm(geometry.envelope?.sideFlapMm ?? 0)}</span><span>左右 → 下の順に折り、貼って袋状にします。</span></>}</p> : <p className="canvas-caption">画面では見やすい大きさに拡大表示しています。印刷寸法は下のmm値とPDFの実寸座標が基準です。</p>}
         </section>
 
         {editorCategoryTabs("below-canvas")}
 
         <aside className="editor-controls panel-card" data-ui-id="design.controls">
+          {faceEditing && <div className="edit-scope-bar"><div className="background-scope-picker" role="group" aria-label="編集する範囲"><button type="button" className={backgroundScope === "all" ? "is-selected" : ""} onClick={() => setBackgroundScope("all")}>全体</button><button type="button" className={backgroundScope === "face" ? "is-selected" : ""} onClick={() => setBackgroundScope("face")}>{envelopeFaceLetter(state.activeEnvelopeFace)}</button></div>{backgroundScope === "face" && <small>展開図をクリック・タップして面を選択</small>}<button className="scope-guide-button" type="button" aria-label="組み立て見本" onClick={() => setSampleGuideOpen(true)}>?</button></div>}
           {state.openEditorSection === "artwork" && (
             <div className="drawer-section">
-              {faceEditing && <div className="background-scope-picker" role="group" aria-label="背景を変える範囲">{([['all','全体'],['face','この面']] as const).map(([scope,label]) => <button key={scope} type="button" className={backgroundScope === scope ? "is-selected" : ""} onClick={() => setBackgroundScope(scope)}>{label}</button>)}</div>}
-              <DesignColorControl className="background-color-control" label={faceEditing ? backgroundScope === "all" ? "セット全体の背景色" : `${state.activeEnvelopeFace === "envelope-front" ? "A 表" : state.activeEnvelopeFace === "envelope-flap" ? "B フタ" : "C 裏"}の背景色` : "基本背景色"} value={faceEditing ? state.surfaceBackgroundColors[state.activeEnvelopeFace] ?? design.backgroundColor : design.backgroundColor} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={setScopedBackgroundColor} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
+              <DesignColorControl className="background-color-control" label={faceEditing ? backgroundScope === "all" ? "セット全体の背景色" : `${envelopeFaceLetter(state.activeEnvelopeFace)}の背景色` : "基本背景色"} value={faceEditing && backgroundScope === "face" ? state.activeEnvelopeFace === "envelope-flap" && state.envelopeDesign.flapAccentEnabled ? state.envelopeDesign.flapColor : state.surfaceBackgroundColors[state.activeEnvelopeFace] ?? design.backgroundColor : design.backgroundColor} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={setScopedBackgroundColor} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
               {state.box.type === "two-piece-gift-box-v1" && activePage.id === "lid" && (
                 <div className="background-copy-control">
                   <button className="outline-button full-button" type="button" onClick={copyLidBackgroundToBase}>背景を本体にもコピー</button>
@@ -1306,8 +1336,8 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                 </div>
               )}
               <div className="preset-grid" aria-label="基本柄プリセット">
-                <button type="button" onClick={() => { const item = createStripePattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "stripe-pattern").length + 1, activePage.id); if (faceEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="stripe-preview" /><strong>ストライプ</strong><small>幅・間隔・向きを調整</small></button>
-                <button type="button" onClick={() => { const item = createDotPattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "dot-pattern").length + 1, activePage.id); if (faceEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="dot-preview" /><strong>水玉</strong><small>色・大きさ・間隔を調整</small></button>
+                <button type="button" onClick={() => { const item = createStripePattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "stripe-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="stripe-preview" /><strong>ストライプ</strong><small>幅・間隔・向きを調整</small></button>
+                <button type="button" onClick={() => { const item = createDotPattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "dot-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="dot-preview" /><strong>水玉</strong><small>色・大きさ・間隔を調整</small></button>
               </div>
               <input ref={artworkFileInput} type="file" accept="image/png,image/svg+xml,.png,.svg" multiple hidden onChange={handleArtworkFiles} />
               <button className="upload-button compact-upload" type="button" disabled={uploadingArtwork} onClick={() => artworkFileInput.current?.click()}><span>↑</span>{uploadingArtwork ? "読み込み中…" : "自分の画像を追加"}</button>
@@ -1361,29 +1391,21 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
 
           {state.openEditorSection === "stamps" && (
             <div className="drawer-section">
-              {recommendedStampSets.map((set) => (
-                <div className="recommended-stamp-set" key={set.id}>
-                  <div className="recommended-stamp-heading"><span>おすすめ素材</span><strong>{set.name}</strong><small>{set.description}</small></div>
-                  <div className="stamp-preset-grid">
-                    {set.stampKeys.map((key) => {
-                      const preset = BUILT_IN_STAMPS.find((item) => item.key === key);
-                      if (!preset) return null;
-                      return <button key={preset.key} className="stamp-preset-card is-recommended" type="button" disabled={uploadingStamp} onClick={() => { void addPresetStamp(preset); }}><img src={stampPreviewUrl(preset)} alt={preset.name} /><span><strong>{preset.name}</strong><small>自由に動かして使えます</small></span><b>＋</b></button>;
-                    })}
-                  </div>
-                </div>
-              ))}
-              {recommendedStampSets.length > 0 && <p className="other-stamps-heading">ほかのスタンプ</p>}
               <div className="stamp-preset-grid">
-                {otherStamps.map((preset) => (
-                  <button key={preset.key} className="stamp-preset-card" type="button" disabled={uploadingStamp} onClick={() => { void addPresetStamp(preset); }}>
-                    <img src={stampPreviewUrl(preset)} alt={preset.name} />
-                    <span><strong>{preset.name}</strong><small>プリセットを追加</small></span><b>＋</b>
+                {stampPresets.map((preset) => (
+                  <button key={preset.key} className="stamp-preset-card" type="button" aria-label={`${preset.name}を追加`} disabled={uploadingStamp} onClick={() => { void addPresetStamp(preset); }}>
+                    <img src={stampPreviewUrl(preset)} alt="" aria-hidden="true" />
                   </button>
                 ))}
+                <div className={`stamp-add-menu ${stampAddMenuOpen ? "is-open" : ""}`}>
+                  <button className="stamp-add-menu-trigger" type="button" aria-label="スタンプを追加" aria-expanded={stampAddMenuOpen} onClick={() => setStampAddMenuOpen((open) => !open)}>＋</button>
+                  {stampAddMenuOpen && <div className="stamp-add-menu-popover">
+                    <a href={STAMP_SHOP_URL} target="_blank" rel="noreferrer" onClick={() => setStampAddMenuOpen(false)}><span aria-hidden="true">▣</span>ショップから購入する</a>
+                    <button type="button" disabled={uploadingStamp} onClick={() => { setStampAddMenuOpen(false); stampFileInput.current?.click(); }}><span aria-hidden="true">↑</span>{uploadingStamp ? "読み込み中…" : "画像をアップロード"}</button>
+                  </div>}
+                </div>
               </div>
               <input ref={stampFileInput} type="file" accept="image/png,image/svg+xml,.png,.svg" multiple hidden onChange={handleStampFiles} />
-              <button className="upload-button compact-upload" type="button" disabled={uploadingStamp} onClick={() => stampFileInput.current?.click()}><span>↑</span>{uploadingStamp ? "読み込み中…" : "自分のスタンプを追加"}</button>
               {stampUploadError && <p className="field-error preserve-lines">{stampUploadError}</p>}
               {pageStamps.length > 0 && <div className="layer-list" aria-label="スタンプレイヤー">{pageStamps.map((item) => <div key={item.id} className={`layer-row ${state.selectedStampId === item.id ? "is-selected" : ""}`}><button className="layer-select" type="button" onClick={() => dispatch({ type: "select-stamp", id: item.id })}><span>STAMP</span><b>{item.name}</b></button><button className="visibility-button" type="button" aria-label={`${item.name}を${item.visible ? "非表示" : "表示"}`} onClick={() => dispatch({ type: "update-stamp", id: item.id, patch: { visible: !item.visible } })}>{item.visible ? "●" : "○"}</button></div>)}</div>}
               {selectedStamp && (
@@ -1506,10 +1528,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
 
       {sampleGuideOpen && <SampleGuideModal geometry={geometry} state={state} onClose={() => setSampleGuideOpen(false)} />}
 
-      <div className="sticky-actions" data-ui-id="design.actions">
-        <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: state.box.type === "envelope-v1" ? "letter-set" : template ? "templates" : "size" })}>{state.box.type === "envelope-v1" ? "セットを選び直す" : template ? "型を選び直す" : "サイズに戻る"}</button>
-        <button className="primary-button" type="button" onClick={() => dispatch({ type: "go", screen: "print" })}>PDFを確認 <span>▣</span></button>
-      </div>
+      <div data-ui-id="design.actions">{designActionButtons(`sticky-actions design-bottom-actions${isLetterSetDesign ? " is-letter-set" : ""}`)}</div>
     </main>
   );
 }
@@ -1683,7 +1702,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
             <button type="button" className={state.printGuideMode === "design" ? "is-selected" : ""} onClick={() => dispatch({ type: "set-print-guide-mode", mode: "design" })}><strong>デザイン優先</strong><small>必要なカット・折り線だけ</small></button>
           </div>}
           <div className="fit-notice-stack">{pages.map((page) => <FitNotice key={page.id} geometry={page.geometry} fit={page.fit} label={page.label} />)}</div>
-          {envelopePage && <div className="envelope-finished-note"><strong>完成：横 {mm(envelopePage.geometry.input.widthMm)} × 縦 {mm(envelopePage.geometry.input.heightMm)}{envelopePage.geometry.input.widthMm === 162 && envelopePage.geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong>{envelopePage.geometry.envelope?.construction === "kamasu" ? <><span>展開：{mm(envelopePage.geometry.bounds.widthMm)} × {mm(envelopePage.geometry.bounds.heightMm)} ／ B フタ {mm(envelopePage.geometry.envelope.topFlapMm)} ／ 左右のりしろ 各{mm(envelopePage.geometry.envelope.glueWidthMm)}</span><span>Cの左右のりしろを内側へ折り、Aを重ねて接着します。最後にBで封をします。</span></> : <><span>展開：{mm(envelopePage.geometry.bounds.widthMm)} × {mm(envelopePage.geometry.bounds.heightMm)}</span><span>左右 → 下の順に折り、貼って袋状にします。</span></>}</div>}
+          {envelopePage && <div className="envelope-finished-note"><strong>完成：横 {mm(envelopePage.geometry.input.widthMm)} × 縦 {mm(envelopePage.geometry.input.heightMm)}{envelopePage.geometry.input.widthMm === 162 && envelopePage.geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong>{envelopePage.geometry.envelope?.construction === "kamasu" ? <><span>展開：{mm(envelopePage.geometry.bounds.widthMm)} × {mm(envelopePage.geometry.bounds.heightMm)} ／ A フタ {mm(envelopePage.geometry.envelope.topFlapMm)} ／ 左右のりしろ 各{mm(envelopePage.geometry.envelope.glueWidthMm)}</span><span>Cの左右のりしろを内側へ折り、Bを重ねて接着します。最後にAで封をします。</span></> : <><span>展開：{mm(envelopePage.geometry.bounds.widthMm)} × {mm(envelopePage.geometry.bounds.heightMm)}</span><span>左右 → 下の順に折り、貼って袋状にします。</span></>}</div>}
           {imposedPages.map(({ label, imposition }) => <div className="template-imposition-note" key={label}><strong>{label}をA4に{imposition.count}枚自動配置</strong><span>{imposition.columns}列 × {imposition.rows}段。編集した同じカードを実寸でまとめて印刷します。</span></div>)}
           <div className="print-instruction">
             <span aria-hidden="true">!</span>
@@ -2080,7 +2099,7 @@ export function App() {
         : template.box.type === "envelope-v1"
         ? { ...initialState.backgroundColors, main: ENVELOPE_LAYOUT_TEMPLATES.cute.backgroundColor, letter: ENVELOPE_LAYOUT_TEMPLATES.cute.backgroundColor, card: ENVELOPE_LAYOUT_TEMPLATES.cute.backgroundColor }
         : { ...initialState.backgroundColors },
-      activeEnvelopeFace: "envelope-front",
+      activeEnvelopeFace: "envelope-flap",
       surfaceBackgroundColors: themePack ? { ...themePack.preset.surfaceBackgrounds } : template.box.type === "envelope-v1" ? {
         "envelope-front": ENVELOPE_LAYOUT_TEMPLATES.cute.backgroundColor,
         "envelope-flap": ENVELOPE_LAYOUT_TEMPLATES.cute.settings.flapColor,

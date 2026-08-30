@@ -43,7 +43,7 @@ describe("秋のレターセットテンプレート", () => {
 
     expect(fit).toMatchObject({ status: "safe", orientation: "portrait", offsetXmm: 12, offsetYmm: 19.5 });
     expect(template.description).toContain("洋形2号");
-    expect(geometry.panels.slice(0, 3).map((panel) => panel.label)).toEqual(["A 表", "B フタ（完成向き）", "C 裏（完成向き）"]);
+    expect(geometry.panels.slice(0, 3).map((panel) => panel.label)).toEqual(["B 中央", "A フタ（完成向き）", "C 裏（完成向き）"]);
     expect(geometry.bounds).toMatchObject({ widthMm: 186, heightMm: 258 });
     expect(geometry.envelope).toMatchObject({ construction: "kamasu", topFlapMm: 30, bottomFlapMm: 114, glueWidthMm: 12 });
     expect(geometry.layers.cut).toHaveLength(1);
@@ -57,12 +57,12 @@ describe("秋のレターセットテンプレート", () => {
     expect(printed.match(/fill="#f6e8e2"/g)).toHaveLength(2);
     expect(printed.match(/>のりしろ<\/text>/g)).toHaveLength(2);
     expect(printed).not.toContain("のりしろ（完成時に隠れます）");
-    expect(printed).toContain("A 表");
+    expect(printed).toContain("B 中央");
 
     const designOnly = renderToStaticMarkup(<A4ExportSvg geometry={geometry} fit={fit} backgroundColor="#ffffff" artworkLayers={[]} stamps={[]} texts={[]} lineColors={initialState.lineColors} printGuideMode="design" />);
     expect(designOnly).not.toContain('fill="#f6e8e2"');
     expect(designOnly).not.toContain(">のりしろ</text>");
-    expect(designOnly).not.toContain("A 表");
+    expect(designOnly).not.toContain("B 中央");
     expect(designOnly).toContain('data-layer="fold"');
     expect(designOnly).toContain('data-layer="cut"');
   });

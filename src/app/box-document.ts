@@ -243,7 +243,7 @@ export async function hydrateBoxDocument(value: unknown, resolveAsset: AssetReso
     showWritingLines: document.design.showWritingLines,
     stationerySetSelection: document.design.stationerySetSelection,
     envelopeDesign: { ...document.design.envelopeDesign },
-    activeEnvelopeFace: "envelope-front",
+    activeEnvelopeFace: "envelope-flap",
     surfaceBackgroundColors: { ...document.design.surfaceBackgroundColors },
     themePackId: document.design.themePackId,
     printGuideMode: document.design.printGuideMode,

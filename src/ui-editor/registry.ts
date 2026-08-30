@@ -28,7 +28,7 @@ export const PACKAGE_UI_EDITOR_REGISTRY: UIEditorRegistry = {
     { id: "size.actions", label: "サイズ画面の操作ボタン", screen: "size", capabilities: protectedStructural, protected: true },
     { id: "design.screen", label: "デザイン画面", screen: "design", capabilities: structural },
     { id: "design.item-tabs", label: "封筒・便箋・カードタブ", screen: "design", capabilities: all },
-    { id: "design.face-tabs", label: "A表・Bフタ・C裏・見本", screen: "design", capabilities: all },
+    { id: "design.face-tabs", label: "A・B・C・組み立て見本", screen: "design", capabilities: all },
     { id: "design.workspace", label: "デザイン中央領域", screen: "design", capabilities: structural },
     { id: "design.canvas", label: "展開図カード", screen: "design", capabilities: all, layoutParentId: "design.workspace" },
     { id: "design.editor-tabs-top", label: "背景・スタンプ・文字・詳細（iPad・PC）", screen: "design", capabilities: all },

@@ -16,6 +16,8 @@ type Props = {
   selectedArtworkId: string | null;
   selectedStampId: string | null;
   exportMode: boolean;
+  showBaseLayers?: boolean;
+  showStamps?: boolean;
   onArtworkPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
   onStampPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
   onStampRotate?: (id: string) => void;
@@ -108,13 +110,15 @@ export function ArtworkLayer({
   selectedArtworkId,
   selectedStampId,
   exportMode,
+  showBaseLayers = true,
+  showStamps = true,
   onArtworkPointerDown,
   onStampPointerDown,
   onStampRotate,
 }: Props) {
   return (
     <>
-      <g data-layer="artwork" clipPath={`url(#${clipId})`}>
+      {showBaseLayers && <g data-layer="artwork" clipPath={`url(#${clipId})`}>
         <rect width={geometry.bounds.widthMm} height={geometry.bounds.heightMm} fill={backgroundColor} />
         {Object.entries(surfaceBackgroundColors).map(([surfaceId, color]) => color ? (
           <rect key={surfaceId} width={geometry.bounds.widthMm} height={geometry.bounds.heightMm} fill={color} clipPath={surfaceClipIds[surfaceId as EnvelopeFaceId] ? `url(#${surfaceClipIds[surfaceId as EnvelopeFaceId]})` : undefined} />
@@ -160,9 +164,9 @@ export function ArtworkLayer({
             /></g>
           );
         })}
-      </g>
+      </g>}
 
-      <g data-layer="stamp" clipPath={`url(#${clipId})`}>
+      {showStamps && <g data-layer="stamp" clipPath={`url(#${clipId})`}>
         {stamps.map((item) => {
           if (!item.visible) return null;
           const width = Math.max(2, item.widthMm);
@@ -182,6 +186,8 @@ export function ArtworkLayer({
             <g
               key={item.id}
               clipPath={item.surfaceId && surfaceClipIds[item.surfaceId] ? `url(#${surfaceClipIds[item.surfaceId]})` : undefined}
+            >
+            <g
               data-stamp-id={item.id}
               opacity={item.opacity}
               transform={`translate(${item.xMm} ${item.yMm}) rotate(${item.rotationDeg})`}
@@ -216,9 +222,10 @@ export function ArtworkLayer({
                 </>
               )}
             </g>
+            </g>
           );
         })}
-      </g>
+      </g>}
     </>
   );
 }

@@ -113,8 +113,12 @@ describe("Mobile Workspace Refactorings & Components", () => {
     const markup = renderToStaticMarkup(<AssembledEnvelopePreview state={testState} />);
     expect(markup).toContain("single-assembled-envelope-card");
     expect(markup).toContain("assembled-single-svg");
-    expect(markup).toContain("A 表（表面）");
-    expect(markup).toContain("B/C フタ・裏面");
+    expect(markup).toContain(">B<");
+    expect(markup).toContain("A / C");
+
+    const guideMarkup = renderToStaticMarkup(<AssembledEnvelopePreview state={testState} activeFace="envelope-back" showFaceMarkers />);
+    expect(guideMarkup).toContain('data-face-marker="A"');
+    expect(guideMarkup).toContain('data-face-marker="C"');
   });
 
   it("FinishedStationeryPreview renders the same artwork/text layers without dieline guides", () => {

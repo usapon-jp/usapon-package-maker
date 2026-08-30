@@ -208,8 +208,8 @@ function generateKamasuEnvelope(input: BoxInput): DielineGeometry {
     bodyBottomMm: yC1,
     envelope,
     panels: [
-      { id: "panel-envelope-front", label: "A 表", x: x0, y: yA0, width, height },
-      { id: "panel-envelope-flap", label: "B フタ（完成向き）", x: x0, y: 0, width, height: flap },
+      { id: "panel-envelope-front", label: "B 中央", x: x0, y: yA0, width, height },
+      { id: "panel-envelope-flap", label: "A フタ（完成向き）", x: x0, y: 0, width, height: flap },
       { id: "panel-envelope-back", label: "C 裏（完成向き）", x: x0, y: yA1, width, height },
       { id: "panel-envelope-left-glue", label: "のりしろ（完成時に隠れます）", x: 0, y: yA1, width: glue, height },
       { id: "panel-envelope-right-glue", label: "のりしろ（完成時に隠れます）", x: x1, y: yA1, width: glue, height },
@@ -225,7 +225,7 @@ function generateKamasuEnvelope(input: BoxInput): DielineGeometry {
       ],
       foldover: [],
       glue: [leftGlue, rightGlue],
-      guide: centerGuides({ id: "panel-envelope-front", label: "A 表", x: x0, y: yA0, width, height }),
+      guide: centerGuides({ id: "panel-envelope-front", label: "B 中央", x: x0, y: yA0, width, height }),
     },
   };
 }

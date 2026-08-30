@@ -10,9 +10,10 @@ interface Props {
   activeFace?: EnvelopeFaceId;
   className?: string;
   showLabels?: boolean;
+  showFaceMarkers?: boolean;
 }
 
-export function AssembledEnvelopePreview({ state, activeFace = state.activeEnvelopeFace, className = "", showLabels = true }: Props) {
+export function AssembledEnvelopePreview({ state, activeFace = state.activeEnvelopeFace, className = "", showLabels = true, showFaceMarkers = false }: Props) {
   const [viewSide, setViewSide] = useState<"front" | "back">(activeFace === "envelope-front" ? "front" : "back");
   const envelopeBox = state.box.type === "envelope-v1" ? state.box : { type: "envelope-v1" as const, widthMm: 162, depthMm: 0, heightMm: 114, paperThicknessMm: 0.1, glueFlapMm: 12 };
   const geometry = generateDieline(envelopeBox);
@@ -56,14 +57,14 @@ export function AssembledEnvelopePreview({ state, activeFace = state.activeEnvel
             className={`toggle-tab ${viewSide === "front" ? "is-active" : ""}`}
             onClick={() => setViewSide("front")}
           >
-            A 表（表面）
+            B
           </button>
           <button
             type="button"
             className={`toggle-tab ${viewSide === "back" ? "is-active" : ""}`}
             onClick={() => setViewSide("back")}
           >
-            B/C フタ・裏面
+            A / C
           </button>
         </div>
       )}
@@ -101,6 +102,7 @@ export function AssembledEnvelopePreview({ state, activeFace = state.activeEnvel
                 exportMode={true}
               />
             </g>
+            {showFaceMarkers && <g className="assembled-face-marker" data-face-marker="B"><rect x={frontPanel.x + 5} y={frontPanel.y + 5} width="18" height="18" rx="9" /><text x={frontPanel.x + 14} y={frontPanel.y + 17}>B</text></g>}
           </svg>
         ) : (
           <svg
@@ -151,7 +153,7 @@ export function AssembledEnvelopePreview({ state, activeFace = state.activeEnvel
                 </g>
               </g>
 
-              {/* Folded Top Flap (Face B) Overlay */}
+              {/* Folded Top Flap (Face A) Overlay */}
               <g clipPath="url(#assembled-clip-flap-shape)">
                 <rect x="0" y="0" width={flapPanel.width} height={flapPanel.height} fill={flapBg} stroke="#c0b4a8" strokeWidth="0.4" />
                 <g transform={`translate(${-flapPanel.x} ${-flapPanel.y})`}>
@@ -176,6 +178,10 @@ export function AssembledEnvelopePreview({ state, activeFace = state.activeEnvel
                 </g>
               </g>
             </g>
+            {showFaceMarkers && <>
+              <g className="assembled-face-marker" data-face-marker="A"><rect x="5" y="5" width="18" height="18" rx="9" /><text x="14" y="17">A</text></g>
+              <g className="assembled-face-marker" data-face-marker="C"><rect x={backPanel.width - 23} y={backPanel.height - 23} width="18" height="18" rx="9" /><text x={backPanel.width - 14} y={backPanel.height - 11}>C</text></g>
+            </>}
           </svg>
         )}
       </div>

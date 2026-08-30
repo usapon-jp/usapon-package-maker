@@ -92,11 +92,29 @@ export function DielineLayers({
         selectedArtworkId={selectedArtworkId}
         selectedStampId={selectedStampId}
         exportMode={exportMode}
+        showStamps={false}
         onArtworkPointerDown={onArtworkPointerDown}
         onStampPointerDown={onStampPointerDown}
         onStampRotate={onStampRotate}
       />
       {envelopeDesign && <EnvelopeDesignLayer geometry={geometry} settings={envelopeDesign} idPrefix={idPrefix} />}
+      <ArtworkLayer
+        geometry={geometry}
+        backgroundColor={backgroundColor}
+        surfaceBackgroundColors={surfaceBackgroundColors}
+        surfaceClipIds={surfaceClipIds}
+        artworkLayers={artworkLayers}
+        stamps={stamps}
+        clipId={clipId}
+        idPrefix={`${idPrefix}-stamps`}
+        selectedArtworkId={selectedArtworkId}
+        selectedStampId={selectedStampId}
+        exportMode={exportMode}
+        showBaseLayers={false}
+        onArtworkPointerDown={onArtworkPointerDown}
+        onStampPointerDown={onStampPointerDown}
+        onStampRotate={onStampRotate}
+      />
       <g clipPath={`url(#${clipId})`}>
         {geometry.type === "letter-paper-v1" && showWritingLines && (
           <g data-layer="writing-lines" fill="none" stroke="#c9b4a7" strokeWidth="0.22" opacity="0.72" pointerEvents="none">

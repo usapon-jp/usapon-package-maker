@@ -69,11 +69,11 @@ export function LetterSetPanel({
       </div>
       {box.envelopeConstruction === "kamasu" && <div className="envelope-face-picker" role="tablist" aria-label="編集する封筒の面">
         {([
-          ["envelope-front", "A 表"],
-          ["envelope-flap", "B フタ"],
+          ["envelope-flap", "A フタ"],
+          ["envelope-front", "B 中央"],
           ["envelope-back", "C 裏"],
         ] as Array<[EnvelopeFaceId, string]>).map(([faceId, label]) => <button key={faceId} type="button" role="tab" aria-selected={activeFace === faceId} className={activeFace === faceId ? "is-selected" : ""} onClick={() => onFaceChange(faceId)}>{label}</button>)}
-        <small>BとCは、組み立て後に正しく見える向きで配置します。</small>
+        <small>AとCは、組み立て後に正しく見える向きで配置します。</small>
       </div>}
       <div className="envelope-template-picker" role="group" aria-label="封筒デザインテンプレート">
         {(Object.values(ENVELOPE_LAYOUT_TEMPLATES)).map((template) => (

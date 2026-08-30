@@ -51,12 +51,12 @@ export function SampleGuideModal({ geometry, state, onClose }: { geometry: Dieli
 
           <div className="sample-compare-col">
             <span className="compare-label">完成イメージ（立体）</span>
-            <AssembledEnvelopePreview state={state} activeFace={state.activeEnvelopeFace} showLabels={false} />
+            <AssembledEnvelopePreview state={state} activeFace={state.activeEnvelopeFace} showLabels showFaceMarkers />
           </div>
         </div>
 
         <p className="sample-orientation-note">
-          Bフタ・C裏の要素は展開図で180°補正され、組み立て後に正立します。
+          上からA＝フタ、B＝中央、C＝下です。AとCの要素は展開図で180°補正され、組み立て後に正立します。
         </p>
 
         <button className="primary-button full-button" type="button" onClick={onClose}>
