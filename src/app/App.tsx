@@ -488,6 +488,150 @@ function FineTuneControl({
   );
 }
 
+type HsvColor = { h: number; s: number; v: number };
+
+function hexToHsv(hex: string): HsvColor {
+  const normalized = /^#[0-9a-f]{6}$/i.test(hex) ? hex.slice(1) : "ffffff";
+  const red = Number.parseInt(normalized.slice(0, 2), 16) / 255;
+  const green = Number.parseInt(normalized.slice(2, 4), 16) / 255;
+  const blue = Number.parseInt(normalized.slice(4, 6), 16) / 255;
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const delta = max - min;
+  let hue = 0;
+  if (delta > 0) {
+    if (max === red) hue = 60 * (((green - blue) / delta) % 6);
+    else if (max === green) hue = 60 * ((blue - red) / delta + 2);
+    else hue = 60 * ((red - green) / delta + 4);
+  }
+  return { h: (hue + 360) % 360, s: max === 0 ? 0 : delta / max, v: max };
+}
+
+function hsvToHex({ h, s, v }: HsvColor) {
+  const chroma = v * s;
+  const section = ((h % 360) + 360) % 360 / 60;
+  const x = chroma * (1 - Math.abs(section % 2 - 1));
+  const [red, green, blue] = section < 1 ? [chroma, x, 0]
+    : section < 2 ? [x, chroma, 0]
+      : section < 3 ? [0, chroma, x]
+        : section < 4 ? [0, x, chroma]
+          : section < 5 ? [x, 0, chroma]
+            : [chroma, 0, x];
+  const match = v - chroma;
+  const byte = (channel: number) => Math.round((channel + match) * 255).toString(16).padStart(2, "0");
+  return `#${byte(red)}${byte(green)}${byte(blue)}`;
+}
+
+function CircularColorPicker({ label, value, onChange }: { label: string; value: string; onChange: (color: string) => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const pointerMode = useRef<"hue" | "saturation" | null>(null);
+  const [open, setOpen] = useState(false);
+  const [hsv, setHsv] = useState(() => hexToHsv(value));
+  const [hexDraft, setHexDraft] = useState(value.toUpperCase());
+
+  useEffect(() => {
+    const next = hexToHsv(value);
+    setHsv(next);
+    setHexDraft(value.toUpperCase());
+  }, [value]);
+
+  useEffect(() => {
+    if (!open) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    const size = 240;
+    const scale = window.devicePixelRatio || 1;
+    canvas.width = size * scale;
+    canvas.height = size * scale;
+    context.setTransform(scale, 0, 0, scale, 0, 0);
+    context.clearRect(0, 0, size, size);
+    const center = size / 2;
+    const outerRadius = 112;
+    const innerRadius = 78;
+    for (let degree = 0; degree < 360; degree += 2) {
+      const start = (degree - 92) * Math.PI / 180;
+      const end = (degree - 88) * Math.PI / 180;
+      context.beginPath();
+      context.arc(center, center, outerRadius, start, end);
+      context.arc(center, center, 88, end, start, true);
+      context.closePath();
+      context.fillStyle = `hsl(${degree} 100% 50%)`;
+      context.fill();
+    }
+    const hueColor = hsvToHex({ h: hsv.h, s: 1, v: hsv.v });
+    const saturationGradient = context.createRadialGradient(center, center, 0, center, center, innerRadius);
+    saturationGradient.addColorStop(0, hsvToHex({ h: hsv.h, s: 0, v: hsv.v }));
+    saturationGradient.addColorStop(1, hueColor);
+    context.beginPath();
+    context.arc(center, center, innerRadius, 0, Math.PI * 2);
+    context.fillStyle = saturationGradient;
+    context.fill();
+  }, [hsv.h, hsv.v, open]);
+
+  const applyHsv = (next: HsvColor) => {
+    const normalized = { h: (next.h + 360) % 360, s: clamp(next.s, 0, 1), v: clamp(next.v, 0, 1) };
+    setHsv(normalized);
+    onChange(hsvToHex(normalized));
+  };
+
+  const updateFromPointer = (event: React.PointerEvent<HTMLCanvasElement>, forceMode?: "hue" | "saturation") => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (event.clientX - rect.left) * 240 / rect.width - 120;
+    const y = (event.clientY - rect.top) * 240 / rect.height - 120;
+    const radius = Math.hypot(x, y);
+    const mode = forceMode ?? pointerMode.current ?? (radius >= 88 ? "hue" : "saturation");
+    pointerMode.current = mode;
+    if (mode === "hue") applyHsv({ ...hsv, h: (Math.atan2(y, x) * 180 / Math.PI + 90 + 360) % 360 });
+    else applyHsv({ ...hsv, s: clamp(radius / 78, 0, 1) });
+  };
+
+  const hueRadians = (hsv.h - 90) * Math.PI / 180;
+  const saturationRadians = hueRadians;
+  return (
+    <div className="circular-color-picker">
+      <button type="button" className="circular-color-toggle" aria-expanded={open} onClick={() => setOpen((current) => !current)}>
+        <span className="circular-color-swatch" style={{ backgroundColor: value }} />
+        <code>{value.toUpperCase()}</code>
+        <b>{open ? "閉じる" : "色を選ぶ"}</b>
+      </button>
+      {open && (
+        <div className="circular-color-panel">
+          <div className="circular-color-wheel-wrap">
+            <canvas
+              ref={canvasRef}
+              className="circular-color-wheel"
+              width="240"
+              height="240"
+              role="slider"
+              tabIndex={0}
+              aria-label={`${label}の色相と鮮やかさ`}
+              aria-valuetext={`${value.toUpperCase()}、色相${Math.round(hsv.h)}度、鮮やかさ${Math.round(hsv.s * 100)}%`}
+              onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); updateFromPointer(event); }}
+              onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) updateFromPointer(event); }}
+              onPointerUp={(event) => { pointerMode.current = null; event.currentTarget.releasePointerCapture(event.pointerId); }}
+              onPointerCancel={() => { pointerMode.current = null; }}
+              onKeyDown={(event) => {
+                if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) return;
+                event.preventDefault();
+                if (event.key === "ArrowLeft" || event.key === "ArrowRight") applyHsv({ ...hsv, h: hsv.h + (event.key === "ArrowRight" ? 2 : -2) });
+                else applyHsv({ ...hsv, s: hsv.s + (event.key === "ArrowUp" ? 0.02 : -0.02) });
+              }}
+            />
+            <span className="circular-hue-marker" style={{ transform: `translate(${Math.cos(hueRadians) * 100}px, ${Math.sin(hueRadians) * 100}px)` }} />
+            <span className="circular-saturation-marker" style={{ backgroundColor: value, transform: `translate(${Math.cos(saturationRadians) * hsv.s * 78}px, ${Math.sin(saturationRadians) * hsv.s * 78}px)` }} />
+          </div>
+          <label className="circular-brightness-row"><span>明るさ <output>{Math.round(hsv.v * 100)}%</output></span><input aria-label={`${label}の明るさ`} type="range" min="0" max="1" step="0.01" value={hsv.v} onChange={(event) => applyHsv({ ...hsv, v: Number(event.target.value) })} /></label>
+          <label className="circular-hex-row"><span>HEX</span><input aria-label={`${label}のHEX値`} value={hexDraft} maxLength={7} onChange={(event) => { const next = event.target.value.toUpperCase(); setHexDraft(next); if (/^#[0-9A-F]{6}$/.test(next)) onChange(next.toLowerCase()); }} onBlur={() => setHexDraft(value.toUpperCase())} /></label>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DesignColorControl({
   label,
   value,
@@ -514,10 +658,8 @@ function DesignColorControl({
   ];
   return (
     <div className={`design-color-control ${className}`}>
-      <label className="color-row">
-        {label}
-        <span className="current-color-value"><code>{value.toUpperCase()}</code><input aria-label={label} type="color" value={value} onChange={(event) => onChange(event.target.value)} /></span>
-      </label>
+      <div className="color-row"><strong>{label}</strong><span>円形ピッカー</span></div>
+      <CircularColorPicker label={label} value={value} onChange={onChange} />
       {palettes.map((palette) => (
         <div className="design-color-palette" key={palette.label}>
           <small>{palette.label}</small>
