@@ -13,6 +13,9 @@ const OPTIONS: Array<{ value: StationerySetSelection; label: string }> = [
   { value: "envelope-letter-card", label: "封筒＋便箋＋ミニカード" },
 ];
 
+// 操作方法を整理できるまで、封筒デザインテンプレートはUIから一時的にしまっておく。
+const ENVELOPE_TEMPLATE_PICKER_ENABLED = false;
+
 function size(width: number, height: number) {
   return `${roundMm(width, 1)} × ${roundMm(height, 1)}mm`;
 }
@@ -75,14 +78,14 @@ export function LetterSetPanel({
         ] as Array<[EnvelopeFaceId, string]>).map(([faceId, label]) => <button key={faceId} type="button" role="tab" aria-selected={activeFace === faceId} className={activeFace === faceId ? "is-selected" : ""} onClick={() => onFaceChange(faceId)}>{label}</button>)}
         <small>AとCは、組み立て後に正しく見える向きで配置します。</small>
       </div>}
-      <div className="envelope-template-picker" role="group" aria-label="封筒デザインテンプレート">
+      {ENVELOPE_TEMPLATE_PICKER_ENABLED && <div className="envelope-template-picker" role="group" aria-label="封筒デザインテンプレート">
         {(Object.values(ENVELOPE_LAYOUT_TEMPLATES)).map((template) => (
           <button key={template.id} type="button" className={envelopeDesign.style === template.id ? "is-selected" : ""} aria-pressed={envelopeDesign.style === template.id} onClick={() => onTemplateSelect(template.id)}>
             <i className={`envelope-template-swatch is-${template.id}`} aria-hidden="true" />
             <span><strong>{template.label}</strong><small>{template.description}</small></span>
           </button>
         ))}
-      </div>
+      </div>}
       <div className="letter-set-options" role="group" aria-label="セットに含めるもの">
         {OPTIONS.map((option) => <button key={option.value} type="button" className={selection === option.value ? "is-selected" : ""} aria-pressed={selection === option.value} onClick={() => onSelectionChange(option.value)}>{option.label}</button>)}
       </div>

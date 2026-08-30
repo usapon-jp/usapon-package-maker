@@ -65,7 +65,7 @@ import { TemplateScreen } from "../features/templates/TemplateScreen";
 import { STAMP_SETS, stampSetsForTemplate, templateById, type PackageTemplate } from "../features/templates/template-catalog";
 import { LetterSetPanel } from "../features/letter-set/LetterSetPanel";
 import { adaptEnvelopeDesignToPage } from "../features/letter-set/design-sharing";
-import { arrangeEnvelopeTemplate, ENVELOPE_LAYOUT_TEMPLATES } from "../features/letter-set/envelope-layout-templates";
+import { arrangeEnvelopeTemplate, DEFAULT_LETTER_SET_ENVELOPE, ENVELOPE_LAYOUT_TEMPLATES } from "../features/letter-set/envelope-layout-templates";
 import { AUTUMN_THEME_PACK, themePackById, type ThemePackDefinition } from "../features/theme-packs/theme-pack-catalog";
 import { LetterSetSelectScreen } from "../features/letter-set/LetterSetSelectScreen";
 import { BottomNavBar, type BottomNavTab } from "../components/navigation/BottomNavBar";
@@ -76,7 +76,7 @@ import { NewCreationSheet } from "../components/modals/NewCreationSheet";
 import { SettingsSheetModal } from "../components/modals/SettingsSheetModal";
 import { AssembledEnvelopePreview } from "../components/common/AssembledEnvelopePreview";
 import { FinishedStationeryPreview } from "../components/common/FinishedStationeryPreview";
-import { SaveIcon } from "../components/common/UiIcons";
+import { CopyIcon, RotateIcon, SaveIcon, TrashIcon } from "../components/common/UiIcons";
 import { isPackageUIEditorAdmin } from "../ui-editor/repository";
 
 const STAMP_SHOP_URL = "https://usapon-digital-shop.vercel.app/";
@@ -1390,35 +1390,42 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
           )}
 
           {state.openEditorSection === "stamps" && (
-            <div className="drawer-section">
-              <div className="stamp-preset-grid">
-                {stampPresets.map((preset) => (
-                  <button key={preset.key} className="stamp-preset-card" type="button" aria-label={`${preset.name}を追加`} disabled={uploadingStamp} onClick={() => { void addPresetStamp(preset); }}>
-                    <img src={stampPreviewUrl(preset)} alt="" aria-hidden="true" />
-                  </button>
-                ))}
-                <div className={`stamp-add-menu ${stampAddMenuOpen ? "is-open" : ""}`}>
-                  <button className="stamp-add-menu-trigger" type="button" aria-label="スタンプを追加" aria-expanded={stampAddMenuOpen} onClick={() => setStampAddMenuOpen((open) => !open)}>＋</button>
-                  {stampAddMenuOpen && <div className="stamp-add-menu-popover">
-                    <a href={STAMP_SHOP_URL} target="_blank" rel="noreferrer" onClick={() => setStampAddMenuOpen(false)}><span aria-hidden="true">▣</span>ショップから購入する</a>
-                    <button type="button" disabled={uploadingStamp} onClick={() => { setStampAddMenuOpen(false); stampFileInput.current?.click(); }}><span aria-hidden="true">↑</span>{uploadingStamp ? "読み込み中…" : "画像をアップロード"}</button>
-                  </div>}
+            <div className="drawer-section stamp-editor-workspace">
+              <section className="stamp-editor-zone stamp-library-zone">
+                <strong className="stamp-editor-zone-title">スタンプ一覧</strong>
+                <div className="stamp-library-body">
+                  <div className="stamp-preset-scroller">
+                    <div className="stamp-preset-grid">
+                      {stampPresets.map((preset) => (
+                        <button key={preset.key} className="stamp-preset-card" type="button" aria-label={`${preset.name}を追加`} disabled={uploadingStamp} onClick={() => { void addPresetStamp(preset); }}>
+                          <img src={stampPreviewUrl(preset)} alt="" aria-hidden="true" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className={`stamp-add-menu ${stampAddMenuOpen ? "is-open" : ""}`}>
+                    <button className="stamp-add-menu-trigger" type="button" aria-label="スタンプを追加" aria-expanded={stampAddMenuOpen} onClick={() => setStampAddMenuOpen((open) => !open)}>＋</button>
+                    {stampAddMenuOpen && <div className="stamp-add-menu-popover">
+                      <a href={STAMP_SHOP_URL} target="_blank" rel="noreferrer" onClick={() => setStampAddMenuOpen(false)}><span aria-hidden="true">▣</span>ショップから購入する</a>
+                      <button type="button" disabled={uploadingStamp} onClick={() => { setStampAddMenuOpen(false); stampFileInput.current?.click(); }}><span aria-hidden="true">↑</span>{uploadingStamp ? "読み込み中…" : "画像をアップロード"}</button>
+                    </div>}
+                  </div>
                 </div>
-              </div>
+              </section>
               <input ref={stampFileInput} type="file" accept="image/png,image/svg+xml,.png,.svg" multiple hidden onChange={handleStampFiles} />
               {stampUploadError && <p className="field-error preserve-lines">{stampUploadError}</p>}
-              {pageStamps.length > 0 && <div className="layer-list" aria-label="スタンプレイヤー">{pageStamps.map((item) => <div key={item.id} className={`layer-row ${state.selectedStampId === item.id ? "is-selected" : ""}`}><button className="layer-select" type="button" onClick={() => dispatch({ type: "select-stamp", id: item.id })}><span>STAMP</span><b>{item.name}</b></button><button className="visibility-button" type="button" aria-label={`${item.name}を${item.visible ? "非表示" : "表示"}`} onClick={() => dispatch({ type: "update-stamp", id: item.id, patch: { visible: !item.visible } })}>{item.visible ? "●" : "○"}</button></div>)}</div>}
-              {selectedStamp && (
-                <div className="selected-layer-controls">
-                  <strong className="selected-layer-title">{selectedStamp.name}</strong>
-                  <label className="range-control"><span>スタンプの幅 <output>{mm(selectedStamp.widthMm)}</output></span><input type="range" min="2" max="200" step="1" value={selectedStamp.widthMm} onChange={(event) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { widthMm: Number(event.target.value) } })} /></label>
-                  <label className="range-control"><span>透明度 <output>{Math.round(selectedStamp.opacity * 100)}%</output></span><input type="range" min="0.1" max="1" step="0.05" value={selectedStamp.opacity} onChange={(event) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { opacity: Number(event.target.value) } })} /></label>
-                  <button className="rotate-button" type="button" onClick={() => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { rotationDeg: rotateByDegrees(selectedStamp.rotationDeg) } })}>↻ 90°回転 <span>{Math.round(selectedStamp.rotationDeg)}°</span></button>
-                  <div className="mini-number-grid"><NumberField label="横位置 X" value={roundMm(selectedStamp.xMm, 1)} min={0} max={geometry.bounds.widthMm} step={1} onChange={(value) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { xMm: value } })} /><NumberField label="縦位置 Y" value={roundMm(selectedStamp.yMm, 1)} min={0} max={geometry.bounds.heightMm} step={1} onChange={(value) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { yMm: value } })} /></div>
-                  <p className="drag-hint">プレビュー上でも移動できます。</p>
-                  <div className="layer-action-row"><button type="button" onClick={() => dispatch({ type: "move-stamp", id: selectedStamp.id, direction: "backward" })}>← 背面</button><button type="button" onClick={() => dispatch({ type: "move-stamp", id: selectedStamp.id, direction: "forward" })}>前面 →</button><button type="button" onClick={() => dispatch({ type: "duplicate-stamp", id: selectedStamp.id, newId: crypto.randomUUID() })}>複製</button><button className="danger" type="button" onClick={() => dispatch({ type: "remove-stamp", id: selectedStamp.id })}>削除</button></div>
-                </div>
-              )}
+              <section className="stamp-editor-zone placed-stamps-zone">
+                <strong className="stamp-editor-zone-title">配置済みスタンプ</strong>
+                {pageStamps.length > 0 ? <div className="placed-stamp-grid" aria-label="配置済みスタンプ">{pageStamps.map((item) => <div key={item.id} className={`placed-stamp-card ${state.selectedStampId === item.id ? "is-selected" : ""}`}><button className="placed-stamp-select" type="button" aria-label={`${item.name}を選択`} title={item.name} onClick={() => dispatch({ type: "select-stamp", id: item.id })}><img src={item.dataUrl} alt="" aria-hidden="true" /></button><button className="placed-stamp-visibility" type="button" aria-label={`${item.name}を${item.visible ? "非表示" : "表示"}`} onClick={() => dispatch({ type: "update-stamp", id: item.id, patch: { visible: !item.visible } })}>{item.visible ? "●" : "○"}</button></div>)}</div> : <p className="stamp-zone-empty">上の一覧からスタンプを追加してください。</p>}
+              </section>
+              <section className="stamp-editor-zone stamp-adjust-zone">
+                <strong className="stamp-editor-zone-title">スタンプの調整{selectedStamp ? <span>{selectedStamp.name}</span> : null}</strong>
+                {selectedStamp ? <div className="stamp-adjust-rows">
+                  <label className="stamp-adjust-range"><span>大きさ <output>{mm(selectedStamp.widthMm)}</output></span><input aria-label="スタンプの大きさ" type="range" min="2" max="200" step="1" value={selectedStamp.widthMm} onChange={(event) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { widthMm: Number(event.target.value) } })} /></label>
+                  <label className="stamp-adjust-range"><span>透明度 <output>{Math.round(selectedStamp.opacity * 100)}%</output></span><input aria-label="スタンプの透明度" type="range" min="0.1" max="1" step="0.05" value={selectedStamp.opacity} onChange={(event) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { opacity: Number(event.target.value) } })} /></label>
+                  <div className="stamp-layer-actions"><button type="button" onClick={() => dispatch({ type: "move-stamp", id: selectedStamp.id, direction: "backward" })}>↓ 背面</button><button type="button" onClick={() => dispatch({ type: "move-stamp", id: selectedStamp.id, direction: "forward" })}>前面 ↑</button><button type="button" aria-label="スタンプを複製" title="複製" onClick={() => dispatch({ type: "duplicate-stamp", id: selectedStamp.id, newId: crypto.randomUUID() })}><CopyIcon /><b>複製</b></button><button className="danger" type="button" aria-label="スタンプを削除" title="削除" onClick={() => dispatch({ type: "remove-stamp", id: selectedStamp.id })}><TrashIcon /><b>削除</b></button><button type="button" aria-label="スタンプを90度回転" title="90度回転" onClick={() => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { rotationDeg: rotateByDegrees(selectedStamp.rotationDeg) } })}><RotateIcon /><b>回転</b></button></div>
+                </div> : <p className="stamp-zone-empty">配置済みスタンプを選択してください。</p>}
+              </section>
             </div>
           )}
 
@@ -2093,17 +2100,17 @@ export function App() {
       templateId: template.id,
       showWritingLines: template.box.type === "envelope-v1" ? true : template.writingLines,
       stationerySetSelection: template.box.type === "envelope-v1" ? letterSetSelection ?? "envelope-letter" : "envelope-only",
-      envelopeDesign: themePack ? { ...themePack.preset.envelopeDesign } : template.box.type === "envelope-v1" ? { ...ENVELOPE_LAYOUT_TEMPLATES.cute.settings } : { ...initialState.envelopeDesign },
+      envelopeDesign: themePack ? { ...themePack.preset.envelopeDesign } : template.box.type === "envelope-v1" ? { ...DEFAULT_LETTER_SET_ENVELOPE.settings } : { ...initialState.envelopeDesign },
       backgroundColors: themePack
         ? { ...initialState.backgroundColors, ...themePack.preset.pageBackgrounds }
         : template.box.type === "envelope-v1"
-        ? { ...initialState.backgroundColors, main: ENVELOPE_LAYOUT_TEMPLATES.cute.backgroundColor, letter: ENVELOPE_LAYOUT_TEMPLATES.cute.backgroundColor, card: ENVELOPE_LAYOUT_TEMPLATES.cute.backgroundColor }
+        ? { ...initialState.backgroundColors, main: DEFAULT_LETTER_SET_ENVELOPE.backgroundColor, letter: DEFAULT_LETTER_SET_ENVELOPE.backgroundColor, card: DEFAULT_LETTER_SET_ENVELOPE.backgroundColor }
         : { ...initialState.backgroundColors },
       activeEnvelopeFace: "envelope-flap",
       surfaceBackgroundColors: themePack ? { ...themePack.preset.surfaceBackgrounds } : template.box.type === "envelope-v1" ? {
-        "envelope-front": ENVELOPE_LAYOUT_TEMPLATES.cute.backgroundColor,
-        "envelope-flap": ENVELOPE_LAYOUT_TEMPLATES.cute.settings.flapColor,
-        "envelope-back": ENVELOPE_LAYOUT_TEMPLATES.cute.backgroundColor,
+        "envelope-front": DEFAULT_LETTER_SET_ENVELOPE.backgroundColor,
+        "envelope-flap": DEFAULT_LETTER_SET_ENVELOPE.backgroundColor,
+        "envelope-back": DEFAULT_LETTER_SET_ENVELOPE.backgroundColor,
       } : {},
       lineColors: themePack ? { ...themePack.preset.lineColors } : { ...initialState.lineColors },
       openEditorSection: template.box.type === "envelope-v1" ? "artwork" : "stamps",

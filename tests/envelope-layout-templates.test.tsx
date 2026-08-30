@@ -7,13 +7,39 @@ import { A4ExportSvg } from "../src/components/dieline/A4ExportSvg";
 import { generateEnvelope } from "../src/domain/boxes/stationery";
 import { evaluateA4Fit } from "../src/domain/paper/a4";
 import { createTextItem } from "../src/features/auto-layout/text-layout";
-import { arrangeEnvelopeTemplate, ENVELOPE_LAYOUT_TEMPLATES } from "../src/features/letter-set/envelope-layout-templates";
+import { arrangeEnvelopeTemplate, DEFAULT_LETTER_SET_ENVELOPE, ENVELOPE_LAYOUT_TEMPLATES } from "../src/features/letter-set/envelope-layout-templates";
 
 const input = { ...initialState.box, type: "envelope-v1" as const, widthMm: 120, heightMm: 80, glueFlapMm: 12 };
 const geometry = generateEnvelope(input);
 const fit = evaluateA4Fit(geometry.bounds.widthMm, geometry.bounds.heightMm);
 
 describe("封筒の完成形レイアウトテンプレート", () => {
+  it("新規レターセットはA面に色違い・水玉をプリセットしない", () => {
+    const markup = renderToStaticMarkup(
+      <A4ExportSvg
+        geometry={geometry}
+        fit={fit}
+        backgroundColor={DEFAULT_LETTER_SET_ENVELOPE.backgroundColor}
+        surfaceBackgroundColors={{
+          "envelope-front": DEFAULT_LETTER_SET_ENVELOPE.backgroundColor,
+          "envelope-flap": DEFAULT_LETTER_SET_ENVELOPE.backgroundColor,
+          "envelope-back": DEFAULT_LETTER_SET_ENVELOPE.backgroundColor,
+        }}
+        artworkLayers={[]}
+        stamps={[]}
+        texts={[]}
+        lineColors={initialState.lineColors}
+        envelopeDesign={DEFAULT_LETTER_SET_ENVELOPE.settings}
+      />,
+    );
+
+    expect(DEFAULT_LETTER_SET_ENVELOPE.settings.flapAccentEnabled).toBe(false);
+    expect(DEFAULT_LETTER_SET_ENVELOPE.settings.flapPattern).toBe("solid");
+    expect(DEFAULT_LETTER_SET_ENVELOPE.settings.flapColor).toBe(DEFAULT_LETTER_SET_ENVELOPE.backgroundColor);
+    expect(markup).not.toContain("data-envelope-flap-accent");
+    expect(markup).toContain('data-envelope-address-field="visible"');
+  });
+
   it.each(["cute", "adult", "simple"] as const)("%s を宛名欄・上フラップ込みで印刷SVGへ反映する", (style) => {
     const definition = ENVELOPE_LAYOUT_TEMPLATES[style];
     const markup = renderToStaticMarkup(

@@ -35,6 +35,16 @@ export const ENVELOPE_LAYOUT_TEMPLATES: Record<EnvelopeTemplateStyle, EnvelopeTe
   },
 };
 
+export const DEFAULT_LETTER_SET_ENVELOPE = {
+  backgroundColor: ENVELOPE_LAYOUT_TEMPLATES.cute.backgroundColor,
+  settings: {
+    ...ENVELOPE_LAYOUT_TEMPLATES.cute.settings,
+    flapAccentEnabled: false,
+    flapColor: ENVELOPE_LAYOUT_TEMPLATES.cute.backgroundColor,
+    flapPattern: "solid" as const,
+  },
+};
+
 function frontPanel(geometry: DielineGeometry) {
   return geometry.panels.find((panel) => panel.id === "panel-envelope-front") ?? geometry.panels[0];
 }
