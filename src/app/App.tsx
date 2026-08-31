@@ -240,7 +240,6 @@ function AppHeader({
   const isEnvelope = templateId === "y2-kamasu-envelope";
   const isMobileDesign = screen === "design";
   const designBackTarget: Screen = isEnvelope ? "letter-set" : templateId ? "templates" : "size";
-  const designBackLabel = isEnvelope ? "セットを選び直す" : templateId ? "型を選び直す" : "サイズに戻る";
   const backTarget: Screen | null =
     screen === "design" ? (isEnvelope ? "letter-set" : templateId ? "templates" : "size") :
     screen === "print" ? "design" :
@@ -260,6 +259,7 @@ function AppHeader({
 
   return (
     <header className={`app-header ${screen === "design" || screen === "print" || screen === "size" ? "is-editor-header" : ""}`} data-ui-id="global.header">
+      {isMobileDesign && <button className="mobile-header-design-back" type="button" onClick={() => onGo(designBackTarget)} aria-label="セット選択へ戻る" title="戻る">←</button>}
       <div className="brand-button-group">
         {backTarget && (
           <button className="mobile-header-back-button" type="button" onClick={() => onGo(backTarget)} aria-label="戻る">
@@ -280,7 +280,6 @@ function AppHeader({
       </div>
 
       {isMobileDesign && <div className="mobile-design-actions" aria-label={`${screenTitle}の操作`}>
-        <button type="button" onClick={() => onGo(designBackTarget)}>{designBackLabel}</button>
         <button type="button" onClick={() => onGo("print")}>PDFを確認</button>
       </div>}
 
@@ -1339,12 +1338,11 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
           {isLetterSetDesign && (
             <div className="letter-set-mobile-page-row" data-ui-id="design.item-tabs-mobile">
               <PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} uiId="design.item-tabs-mobile-tabs" compactLabels />
-              {pages.length > 1 && <button className="letter-set-share-button" type="button" onClick={shareEnvelopeDesignWithSet}>封筒を反映</button>}
             </div>
           )}
-          {canvasToolbar("mobile-canvas-toolbar")}
           {canvasToolbar("desktop-canvas-toolbar", false)}
           <div className="dieline-stage editor-stage">
+            {canvasToolbar("mobile-canvas-toolbar")}
             <DielineSvg
               geometry={geometry}
               {...design}
@@ -1403,9 +1401,9 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                 <div className="pattern-preset-grid" aria-label="基本柄プリセット">
                   <button type="button" aria-label="ストライプを追加" onClick={() => { const item = createStripePattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "stripe-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="stripe-preview" /></button>
                   <button type="button" aria-label="水玉を追加" onClick={() => { const item = createDotPattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "dot-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="dot-preview" /></button>
+                  <button className="pattern-upload-tile" type="button" disabled={uploadingArtwork} aria-label="自分の画像を追加" title="自分の画像を追加" onClick={() => artworkFileInput.current?.click()}>{uploadingArtwork ? "…" : "+"}</button>
                 </div>
                 <input ref={artworkFileInput} type="file" accept="image/png,image/svg+xml,.png,.svg" multiple hidden onChange={handleArtworkFiles} />
-                <button className="upload-button compact-upload" type="button" disabled={uploadingArtwork} onClick={() => artworkFileInput.current?.click()}><span>↑</span>{uploadingArtwork ? "読み込み中…" : "自分の画像を追加"}</button>
                 {artworkUploadError && <p className="field-error preserve-lines">{artworkUploadError}</p>}
               </section>
 
