@@ -41,7 +41,6 @@ import {
   removeFavoriteColor,
 } from "./design-colors";
 import {
-  artworkKindLabel,
   BUILT_IN_STAMPS,
   createDotPattern,
   createStamp,
@@ -51,15 +50,11 @@ import {
   rotateByDegrees,
   rotateQuarterTurn,
 } from "./artwork";
-import type { AppAction, AppState, DielineLineColors, EditorSection, EnvelopeTemplateStyle, Screen, TextItem } from "./app-types";
+import type { AppAction, AppState, ArtworkLayer, DielineLineColors, EditorSection, EnvelopeTemplateStyle, Screen, TextItem } from "./app-types";
 import { serializeBoxDocument } from "./box-document";
 import { parseNumberDraft } from "./number-input";
 import { FAVORITE_SIZES_STORAGE_KEY, parseFavoriteSizes, registerFavoriteSize } from "./favorite-sizes";
-import { AutoLayoutPanel } from "../features/auto-layout/AutoLayoutPanel";
-import { arrangeDesign, autoLayoutElementCount } from "../features/auto-layout/layout-engine";
 import { createTextItem } from "../features/auto-layout/text-layout";
-import { DEFAULT_AUTO_LAYOUT_SETTINGS, type AutoLayoutResult, type AutoLayoutSettings } from "../features/auto-layout/types";
-import { targetIncludesRole } from "../features/auto-layout/element-roles";
 import { canOfferInstallGuide, detectInstallContext, INSTALL_GUIDE_HIDDEN_KEY } from "../lib/pwa/install-guide";
 import { TemplateScreen } from "../features/templates/TemplateScreen";
 import { STAMP_SETS, stampSetsForTemplate, templateById, type PackageTemplate } from "../features/templates/template-catalog";
@@ -168,7 +163,7 @@ function clampToEnvelopeFace(geometry: DielineGeometry, faceId: EnvelopeFaceId |
   };
 }
 
-function PageTabs({ pages, activePageId, dispatch, uiId }: { pages: DielinePageView[]; activePageId: DielinePageId; dispatch: React.Dispatch<AppAction>; uiId?: string }) {
+function PageTabs({ pages, activePageId, dispatch, uiId, compactLabels = false }: { pages: DielinePageView[]; activePageId: DielinePageId; dispatch: React.Dispatch<AppAction>; uiId?: string; compactLabels?: boolean }) {
   if (pages.length < 2) return null;
   return (
     <div className="page-part-tabs" data-ui-id={uiId} role="tablist" aria-label="編集する箱パーツ">
@@ -181,11 +176,29 @@ function PageTabs({ pages, activePageId, dispatch, uiId }: { pages: DielinePageV
           className={page.id === activePageId ? "is-selected" : ""}
           onClick={() => dispatch({ type: "set-active-page", pageId: page.id })}
         >
-          {page.id === "lid" ? "蓋" : page.id === "base" ? "本体" : page.label}
+          {page.id === "lid" ? "蓋" : page.id === "base" ? "本体" : compactLabels && page.id === "letter" ? "便箋" : page.label}
         </button>
       ))}
     </div>
   );
+}
+
+const NON_UNDOABLE_ACTIONS = new Set<AppAction["type"]>([
+  "replace-state",
+  "go",
+  "set-box-type",
+  "replace-box",
+  "set-stationery-set-selection",
+  "set-active-page",
+  "set-envelope-face",
+  "select-artwork",
+  "select-stamp",
+  "select-text",
+  "set-open-editor-section",
+]);
+
+function isUndoableAction(action: AppAction) {
+  return !NON_UNDOABLE_ACTIONS.has(action.type);
 }
 
 function mm(value: number) {
@@ -199,6 +212,10 @@ function AppHeader({
   saveState,
   saveMessage,
   onGo,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
   onSave,
   onLogin,
   onLogout,
@@ -210,6 +227,10 @@ function AppHeader({
   saveState: SaveState;
   saveMessage: string;
   onGo: (screen: Screen) => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
   onSave: () => void;
   onLogin: () => void;
   onLogout: () => void;
@@ -261,6 +282,11 @@ function AppHeader({
       {isMobileDesign && <div className="mobile-design-actions" aria-label={`${screenTitle}の操作`}>
         <button type="button" onClick={() => onGo(designBackTarget)}>{designBackLabel}</button>
         <button type="button" onClick={() => onGo("print")}>PDFを確認</button>
+      </div>}
+
+      {isMobileDesign && <div className="mobile-history-actions" aria-label="編集の履歴">
+        <button type="button" disabled={!canUndo} onClick={onUndo} aria-label="ひとつ前の操作に戻す" title="戻す">↶</button>
+        <button type="button" disabled={!canRedo} onClick={onRedo} aria-label="戻した操作をやり直す" title="やり直す">↷</button>
       </div>}
 
       {screen !== "home" && screen !== "my-boxes" && screen !== "templates" && screen !== "letter-set" && (
@@ -356,6 +382,12 @@ function LineLegend({ geometry, lineColors }: { geometry: DielineGeometry; lineC
         : <span className="no-glue-swatch">のり不要</span>}
     </div>
   );
+}
+
+function ArtworkThumbnail({ item }: { item: ArtworkLayer }) {
+  if (item.kind === "uploaded-artwork") return <img src={item.dataUrl} alt="" aria-hidden="true" />;
+  const previewStyle = { "--pattern-color": item.color } as CSSProperties;
+  return <i className={`artwork-thumbnail ${item.kind === "stripe-pattern" ? "stripe-preview" : "dot-preview"}`} style={previewStyle} aria-hidden="true" />;
 }
 
 function HomeScreen({ onStart, onTemplates, onResume, onMyBoxes }: { onStart: () => void; onTemplates: () => void; onResume: (() => void) | null; onMyBoxes: () => void }) {
@@ -976,10 +1008,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const [backgroundCopyMessage, setBackgroundCopyMessage] = useState("");
   const [letterSetShareMessage, setLetterSetShareMessage] = useState("");
   const [applyingThemePack, setApplyingThemePack] = useState(false);
-  const [autoLayoutSettings, setAutoLayoutSettings] = useState<AutoLayoutSettings>(DEFAULT_AUTO_LAYOUT_SETTINGS);
-  const [autoLayoutResult, setAutoLayoutResult] = useState<AutoLayoutResult | null>(null);
   const [sampleGuideOpen, setSampleGuideOpen] = useState(false);
-  const autoLayoutRun = useRef(0);
   const [favoriteColors, setFavoriteColors] = useState<string[]>(() => {
     try {
       return parseFavoriteColors(window.localStorage.getItem(FAVORITE_COLORS_STORAGE_KEY));
@@ -990,8 +1019,6 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const selectedArtwork = pageArtworkLayers.find((item) => item.id === state.selectedArtworkId) ?? null;
   const selectedStamp = pageStamps.find((item) => item.id === state.selectedStampId) ?? null;
   const selectedText = pageTexts.find((item) => item.id === state.selectedTextId) ?? null;
-  const activeFaceDesign = { ...design, artworkLayers: pageArtworkLayers, stamps: pageStamps, texts: pageTexts };
-  const autoLayoutDisabled = autoLayoutElementCount(activeFaceDesign, autoLayoutSettings.target) === 0;
 
   useEffect(() => {
     try {
@@ -1000,11 +1027,6 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
       // 保存できない環境でも、現在の編集セッション内では利用できます。
     }
   }, [favoriteColors]);
-
-  useEffect(() => {
-    setAutoLayoutResult(null);
-    autoLayoutRun.current = 0;
-  }, [activePage.id]);
 
   const addFavorite = (color: string) => setFavoriteColors((colors) => addFavoriteColor(colors, color));
   const removeFavorite = (color: string) => setFavoriteColors((colors) => removeFavoriteColor(colors, color));
@@ -1176,37 +1198,6 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     }
   };
 
-  const runAutoLayout = (again: boolean) => {
-    const run = again ? autoLayoutRun.current + 1 : 0;
-    autoLayoutRun.current = run;
-    const result = arrangeDesign({
-      geometry,
-      design,
-      settings: autoLayoutSettings,
-      seed: JSON.stringify({
-        pageId: activePage.id,
-        ids: [...pageArtworkLayers, ...pageStamps, ...pageTexts].map((item) => item.id),
-        settings: autoLayoutSettings,
-        run,
-      }),
-      previousSignature: again ? autoLayoutResult?.signature : null,
-    });
-    const includesBackground = targetIncludesRole(autoLayoutSettings.target, "background");
-    const includesStamps = targetIncludesRole(autoLayoutSettings.target, "stamp");
-    const includesTexts = targetIncludesRole(autoLayoutSettings.target, "text") || targetIncludesRole(autoLayoutSettings.target, "logoText");
-    const inactiveArtwork = faceScopedEditing ? design.artworkLayers.filter((item) => item.surfaceId && item.surfaceId !== state.activeEnvelopeFace) : [];
-    const inactiveStamps = faceScopedEditing ? design.stamps.filter((item) => item.surfaceId && item.surfaceId !== state.activeEnvelopeFace) : [];
-    const inactiveTexts = faceScopedEditing ? design.texts.filter((item) => item.surfaceId && item.surfaceId !== state.activeEnvelopeFace) : [];
-    dispatch({
-      type: "apply-auto-layout",
-      pageId: activePage.id,
-      artworkLayers: includesBackground ? [...inactiveArtwork, ...result.artworkLayers] : undefined,
-      stamps: includesStamps ? [...inactiveStamps, ...result.stamps] : undefined,
-      texts: includesTexts ? [...inactiveTexts, ...result.texts] : undefined,
-    });
-    setAutoLayoutResult(result);
-  };
-
   const shareEnvelopeDesignWithSet = () => {
     const sourcePage = pages.find((page) => page.id === "main");
     const targetPages = pages.filter((page) => page.id === "letter" || page.id === "card");
@@ -1298,6 +1289,12 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
 
       <div className={`editor-layout ${state.openEditorSection === "artwork" ? "is-background-editing" : ""}`} data-ui-id="design.workspace">
         <section className="editor-canvas-panel panel-card" data-ui-id="design.canvas">
+          {isLetterSetDesign && (
+            <div className="letter-set-mobile-page-row" data-ui-id="design.item-tabs-mobile">
+              <PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} uiId="design.item-tabs-mobile-tabs" compactLabels />
+              {pages.length > 1 && <button className="letter-set-share-button" type="button" onClick={shareEnvelopeDesignWithSet}>封筒を反映</button>}
+            </div>
+          )}
           {canvasToolbar("mobile-canvas-toolbar")}
           {canvasToolbar("desktop-canvas-toolbar", false)}
           <div className="dieline-stage editor-stage">
@@ -1334,7 +1331,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
         <aside className="editor-controls panel-card" data-ui-id="design.controls">
           {faceEditing && <div className="edit-scope-bar"><div className="background-scope-picker" role="group" aria-label="編集する範囲"><button type="button" className={backgroundScope === "all" ? "is-selected" : ""} onClick={() => setBackgroundScope("all")}>全体</button><button type="button" className={backgroundScope === "face" ? "is-selected" : ""} onClick={() => setBackgroundScope("face")}>選択面</button></div><button className="scope-guide-button" type="button" aria-label="組み立て見本" onClick={() => setSampleGuideOpen(true)}>?</button></div>}
           {state.openEditorSection === "artwork" && (
-            <div className="drawer-section">
+            <div className="drawer-section background-editor-workspace">
               <DesignColorControl className="background-color-control" label={faceEditing ? backgroundScope === "all" ? "セット全体の背景色" : `${envelopeFaceLetter(state.activeEnvelopeFace)}の背景色` : "基本背景色"} value={faceEditing && backgroundScope === "face" ? state.activeEnvelopeFace === "envelope-flap" && state.envelopeDesign.flapAccentEnabled ? state.envelopeDesign.flapColor : state.surfaceBackgroundColors[state.activeEnvelopeFace] ?? design.backgroundColor : design.backgroundColor} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={setScopedBackgroundColor} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
               {state.box.type === "two-piece-gift-box-v1" && activePage.id === "lid" && (
                 <div className="background-copy-control">
@@ -1343,26 +1340,25 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                   {backgroundCopyMessage && <p role="status">{backgroundCopyMessage}</p>}
                 </div>
               )}
-              <div className="preset-grid" aria-label="基本柄プリセット">
-                <button type="button" onClick={() => { const item = createStripePattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "stripe-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="stripe-preview" /><strong>ストライプ</strong><small>幅・間隔・向きを調整</small></button>
-                <button type="button" onClick={() => { const item = createDotPattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "dot-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="dot-preview" /><strong>水玉</strong><small>色・大きさ・間隔を調整</small></button>
-              </div>
-              <input ref={artworkFileInput} type="file" accept="image/png,image/svg+xml,.png,.svg" multiple hidden onChange={handleArtworkFiles} />
-              <button className="upload-button compact-upload" type="button" disabled={uploadingArtwork} onClick={() => artworkFileInput.current?.click()}><span>↑</span>{uploadingArtwork ? "読み込み中…" : "自分の画像を追加"}</button>
-              {artworkUploadError && <p className="field-error preserve-lines">{artworkUploadError}</p>}
-
-              {pageArtworkLayers.length > 0 && (
-                <div className="layer-list" aria-label="背景・柄レイヤー">
-                  {pageArtworkLayers.map((item) => (
-                    <div key={item.id} className={`layer-row ${state.selectedArtworkId === item.id ? "is-selected" : ""}`}>
-                      <button className="layer-select" type="button" onClick={() => dispatch({ type: "select-artwork", id: item.id })}><span>{artworkKindLabel(item)}</span><b>{item.name}</b></button>
-                      <button className="visibility-button" type="button" aria-label={`${item.name}を${item.visible ? "非表示" : "表示"}`} onClick={() => dispatch({ type: "update-artwork", id: item.id, patch: { visible: !item.visible } })}>{item.visible ? "●" : "○"}</button>
-                    </div>
-                  ))}
+              <section className="background-editor-zone pattern-library-zone">
+                <strong className="background-editor-zone-title">模様一覧</strong>
+                <div className="pattern-preset-grid" aria-label="基本柄プリセット">
+                  <button type="button" aria-label="ストライプを追加" onClick={() => { const item = createStripePattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "stripe-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="stripe-preview" /></button>
+                  <button type="button" aria-label="水玉を追加" onClick={() => { const item = createDotPattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "dot-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="dot-preview" /></button>
                 </div>
-              )}
+                <input ref={artworkFileInput} type="file" accept="image/png,image/svg+xml,.png,.svg" multiple hidden onChange={handleArtworkFiles} />
+                <button className="upload-button compact-upload" type="button" disabled={uploadingArtwork} onClick={() => artworkFileInput.current?.click()}><span>↑</span>{uploadingArtwork ? "読み込み中…" : "自分の画像を追加"}</button>
+                {artworkUploadError && <p className="field-error preserve-lines">{artworkUploadError}</p>}
+              </section>
 
-              {selectedArtwork && (
+              <section className="background-editor-zone placed-artwork-zone">
+                <strong className="background-editor-zone-title">配置済みの背景・模様</strong>
+                {pageArtworkLayers.length > 0 ? <div className="placed-artwork-grid" aria-label="配置済みの背景・模様">{pageArtworkLayers.map((item) => <div key={item.id} className={`placed-artwork-card ${state.selectedArtworkId === item.id ? "is-selected" : ""}`}><button className="placed-artwork-select" type="button" aria-label={`${item.name}を選択`} title={item.name} onClick={() => dispatch({ type: "select-artwork", id: item.id })}><ArtworkThumbnail item={item} /></button><button className="placed-artwork-visibility" type="button" aria-label={`${item.name}を${item.visible ? "非表示" : "表示"}`} onClick={() => dispatch({ type: "update-artwork", id: item.id, patch: { visible: !item.visible } })}>{item.visible ? "●" : "○"}</button></div>)}</div> : <p className="artwork-zone-empty">上の一覧から模様を追加してください。</p>}
+              </section>
+
+              <section className="background-editor-zone artwork-adjust-zone">
+                <strong className="background-editor-zone-title">背景・模様の調整{selectedArtwork ? <span>{selectedArtwork.name}</span> : null}</strong>
+                {selectedArtwork ? (
                 <div className="selected-layer-controls">
                   <strong className="selected-layer-title">{selectedArtwork.name}</strong>
                   <label className="range-control"><span>透明度 <output>{Math.round(selectedArtwork.opacity * 100)}%</output></span><input type="range" min="0.1" max="1" step="0.05" value={selectedArtwork.opacity} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { opacity: Number(event.target.value) } })} /></label>
@@ -1393,7 +1389,8 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                   </div>
                   <div className="layer-action-row"><button type="button" onClick={() => dispatch({ type: "move-artwork", id: selectedArtwork.id, direction: "backward" })}>← 背面</button><button type="button" onClick={() => dispatch({ type: "move-artwork", id: selectedArtwork.id, direction: "forward" })}>前面 →</button><button type="button" onClick={() => dispatch({ type: "duplicate-artwork", id: selectedArtwork.id, newId: crypto.randomUUID() })}>複製</button><button className="danger" type="button" onClick={() => dispatch({ type: "remove-artwork", id: selectedArtwork.id })}>削除</button></div>
                 </div>
-              )}
+                ) : <p className="artwork-zone-empty">配置済みの背景・模様を選択してください。</p>}
+              </section>
             </div>
           )}
 
@@ -1465,23 +1462,6 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
 
       <MobileSettingsSheet open={mobileSettingsOpen} onClose={() => setMobileSettingsOpen(false)} title="詳細設定・ツール">
         <div className="mobile-settings-stack">
-          {state.box.type !== "envelope-v1" && (
-            <div className="settings-panel-block">
-              <h3>いい感じに配置</h3>
-              <AutoLayoutPanel
-                settings={autoLayoutSettings}
-                result={autoLayoutResult}
-                disabled={autoLayoutDisabled}
-                onSettingsChange={(settings) => {
-                  setAutoLayoutSettings(settings);
-                  setAutoLayoutResult(null);
-                  autoLayoutRun.current = 0;
-                }}
-                onArrange={() => runAutoLayout(false)}
-                onArrangeAgain={() => runAutoLayout(true)}
-              />
-            </div>
-          )}
           {state.box.type === "envelope-v1" && (
             <div className="settings-panel-block">
               <h3>レターセット・テーマ設定</h3>
@@ -1851,7 +1831,43 @@ function cloudErrorMessage(error: unknown) {
 }
 
 export function App() {
-  const [state, dispatch] = useReducer(appReducer, initialState);
+  const [state, dispatchBase] = useReducer(appReducer, initialState);
+  const stateRef = useRef(state);
+  const historyRef = useRef<{ undo: AppState | null; redo: AppState | null }>({ undo: null, redo: null });
+  const [historyVersion, setHistoryVersion] = useState(0);
+  const dispatch = useCallback((action: AppAction) => {
+    const current = stateRef.current;
+    const next = appReducer(current, action);
+    if (next === current) return;
+    if (action.type === "replace-state") {
+      historyRef.current = { undo: null, redo: null };
+      setHistoryVersion((version) => version + 1);
+    } else if (isUndoableAction(action)) {
+      historyRef.current = { undo: current, redo: null };
+      setHistoryVersion((version) => version + 1);
+    }
+    stateRef.current = next;
+    dispatchBase(action);
+  }, []);
+  const undo = useCallback(() => {
+    const previous = historyRef.current.undo;
+    if (!previous) return;
+    const current = stateRef.current;
+    historyRef.current = { undo: null, redo: current };
+    stateRef.current = previous;
+    dispatchBase({ type: "replace-state", state: previous });
+    setHistoryVersion((version) => version + 1);
+  }, []);
+  const redo = useCallback(() => {
+    const next = historyRef.current.redo;
+    if (!next) return;
+    const current = stateRef.current;
+    historyRef.current = { undo: current, redo: null };
+    stateRef.current = next;
+    dispatchBase({ type: "replace-state", state: next });
+    setHistoryVersion((version) => version + 1);
+  }, []);
+  useEffect(() => { stateRef.current = state; }, [state]);
   const [user, setUser] = useState<User | null>(null);
   const [canEditUi, setCanEditUi] = useState(false);
   const [unlockedThemePackIds, setUnlockedThemePackIds] = useState<string[]>([]);
@@ -2214,6 +2230,8 @@ export function App() {
     (state.screen === "size" || state.screen === "design" || state.screen === "print")
       ? (isBoxType ? "box" : "letter-set")
       : "letter-set";
+  const canUndo = historyVersion >= 0 && historyRef.current.undo !== null;
+  const canRedo = historyVersion >= 0 && historyRef.current.redo !== null;
 
   const handleBottomNavChange = (tab: BottomNavTab) => {
     if (tab === "new") {
@@ -2256,6 +2274,10 @@ export function App() {
         saveState={saveState}
         saveMessage={saveMessage}
         onGo={(screen) => dispatch({ type: "go", screen })}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={undo}
+        onRedo={redo}
         onSave={() => { void save(); }}
         onLogin={() => { void login(); }}
         onLogout={() => { void logout(); }}
