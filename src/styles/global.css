@@ -2445,23 +2445,30 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
   }
   .antigravity-design-page .mobile-canvas-toolbar:not(.is-envelope-toolbar) .line-legend {
     position: absolute !important;
-    top: 8px !important;
-    right: 8px !important;
-    left: auto !important;
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-    gap: 3px !important;
+    top: 5px !important;
+    right: auto !important;
+    left: 50% !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    align-items: center !important;
+    gap: 6px !important;
     width: max-content !important;
+    max-width: calc(100% - 12px) !important;
     padding: 3px 5px !important;
     border: 1px solid rgba(232, 215, 210, .9) !important;
     border-radius: 8px !important;
     background: rgba(255, 253, 250, .82) !important;
     box-shadow: 0 3px 10px rgba(83, 60, 53, .06) !important;
     backdrop-filter: blur(6px) !important;
+    transform: translateX(-50%) !important;
   }
   .antigravity-design-page .mobile-canvas-toolbar:not(.is-envelope-toolbar) .line-legend span {
-    font-size: 10px !important;
+    font-size: 9px !important;
     line-height: 1.05 !important;
+  }
+  .antigravity-design-page .editor-stage:has(.mobile-canvas-toolbar:not(.is-envelope-toolbar)) {
+    /* Keep a transparent, fixed-height legend strip above every box dieline. */
+    padding-top: 31px !important;
   }
   .antigravity-design-page .mobile-canvas-toolbar:not(.is-envelope-toolbar) .dimension-pill {
     position: absolute !important;
