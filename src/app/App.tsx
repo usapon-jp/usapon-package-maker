@@ -61,7 +61,7 @@ import { STAMP_SETS, stampSetsForTemplate, templateById, type PackageTemplate } 
 import { LetterSetPanel } from "../features/letter-set/LetterSetPanel";
 import { adaptEnvelopeDesignToPage } from "../features/letter-set/design-sharing";
 import { arrangeEnvelopeTemplate, DEFAULT_LETTER_SET_ENVELOPE, ENVELOPE_LAYOUT_TEMPLATES } from "../features/letter-set/envelope-layout-templates";
-import { AUTUMN_THEME_PACK, themePackById, type ThemePackDefinition } from "../features/theme-packs/theme-pack-catalog";
+import { AUTUMN_THEME_PACK, THEME_PACKS, themePackById, type ThemePackDefinition } from "../features/theme-packs/theme-pack-catalog";
 import { LetterSetSelectScreen } from "../features/letter-set/LetterSetSelectScreen";
 import { BottomNavBar, type BottomNavTab } from "../components/navigation/BottomNavBar";
 import { SampleGuideModal } from "../components/modals/SampleGuideModal";
@@ -78,6 +78,9 @@ const STAMP_SHOP_URL = "https://usapon-digital-shop.vercel.app/";
 
 // 既存のクラウド保存利用者がいるため、端末内下書き保存と併用して提供する。
 const CLOUD_SYNC_UI_ENABLED = true;
+
+// The Details sheet stays intentionally compact. Letter-set/theme controls live in Settings → Account.
+const LETTER_SET_DETAIL_TOOLS_ENABLED = false;
 
 const FIT_COPY: Record<FitStatus, { title: string; description: string }> = {
   safe: {
@@ -1518,7 +1521,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
 
       <MobileSettingsSheet open={mobileSettingsOpen} onClose={() => setMobileSettingsOpen(false)} title="詳細設定・ツール">
         <div className="mobile-settings-stack">
-          {state.box.type === "envelope-v1" && (
+          {LETTER_SET_DETAIL_TOOLS_ENABLED && state.box.type === "envelope-v1" && (
             <div className="settings-panel-block">
               <h3>レターセット・テーマ設定</h3>
               <LetterSetPanel
@@ -2240,6 +2243,15 @@ export function App() {
     }
   }, [openTemplate, pendingTemplate, unlockPackId]);
 
+  const redeemThemePackFromSettings = useCallback(async (themePackId: string, passphrase: string) => {
+    try {
+      const unlocked = await redeemThemePack(themePackId, passphrase);
+      setUnlockedThemePackIds(unlocked);
+    } catch {
+      throw new Error("合言葉が違うか、しばらく入力が制限されています。");
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     if (!confirmDiscard()) return;
     try {
@@ -2383,6 +2395,10 @@ export function App() {
           onLogout={() => { void logout(); }}
           onDeleteAccount={() => { void deleteAccount(); }}
           onOpenPwaGuide={() => setInstallGuideOpen(true)}
+          themePacks={THEME_PACKS}
+          unlockedThemePackIds={unlockedThemePackIds}
+          onRedeemThemePack={redeemThemePackFromSettings}
+          themeShopUrl={STAMP_SHOP_URL}
           canEditUi={canEditUi}
           onOpenUiEditor={() => {
             const url = new URL(window.location.href);
