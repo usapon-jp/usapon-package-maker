@@ -422,10 +422,40 @@
 
 .brand-button-group { display: flex; align-items: center; gap: 8px; }
 .mobile-header-title-pill { display: none; }
+.mobile-design-actions { display: none; }
 .choice-thumbnail-box { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-bottom: 6px; }
 .choice-usapon-thumb { width: 36px; height: 36px; object-fit: contain; flex-shrink: 0; }
 @media (max-width: 600px) {
   .mobile-header-title-pill { display: inline-flex; align-items: center; padding: 3px 8px; font-size: calc(12px * var(--ui-font-scale)); font-weight: 800; color: var(--pink-dark); background: var(--pink-soft); border-radius: 10px; }
+
+  .app-header.is-editor-header:has(.mobile-design-actions) {
+    gap: 4px !important;
+    padding-inline: 6px !important;
+  }
+  .app-header.is-editor-header:has(.mobile-design-actions) .mobile-header-back-button { display: none !important; }
+  .app-header.is-editor-header:has(.mobile-design-actions) .brand-button-group { flex: 0 0 auto; min-width: 0; }
+  .app-header.is-editor-header:has(.mobile-design-actions) .mobile-header-title-pill {
+    padding: 4px 6px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .mobile-design-actions { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); flex: 1 1 auto; min-width: 0; gap: 3px; }
+  .mobile-design-actions button {
+    min-width: 0;
+    min-height: 34px;
+    padding: 3px 5px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    color: #765e58;
+    background: white;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.15;
+    white-space: nowrap;
+  }
+  .mobile-design-actions button:last-child { color: white; border-color: transparent; background: var(--pink); }
+  .app-header.is-editor-header:has(.mobile-design-actions) .cloud-header-actions { flex: 0 0 auto; margin-left: 0 !important; }
+  .app-header.is-editor-header:has(.mobile-design-actions) .cloud-save-button { min-width: 42px; min-height: 34px !important; padding-inline: 6px !important; font-size: 11px !important; }
 }
 
 @keyframes slideUpSheet {
@@ -879,12 +909,14 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .selected-text-controls { margin-top: 15px; padding-top: 14px; border-top: 1px solid #f0e3df; }
 .text-input-label { display: block; font-size: calc(9px * var(--ui-font-scale)); font-weight: 700; }
 .text-input-label input, .text-input-label textarea { width: 100%; min-height: 39px; margin-top: 6px; padding: 9px 10px; border: 1px solid #e7d7d2; border-radius: 10px; font: inherit; line-height: 1.5; resize: vertical; }
-.color-row { display: flex; align-items: center; justify-content: space-between; margin-top: 13px; font-size: calc(9px * var(--ui-font-scale)); font-weight: 700; }
-.color-row > span { color: #9a817a; font-size: calc(7px * var(--ui-font-scale)); font-weight: 700; }
+.color-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 13px; font-size: calc(9px * var(--ui-font-scale)); font-weight: 700; }
+.color-row > strong { flex: 0 1 auto; min-width: 0; }
 .design-color-control { margin-top: 13px; }
 .design-color-control > .color-row { margin-top: 0; }
 .circular-color-picker { margin-top: 8px; }
-.circular-color-toggle { display: grid; grid-template-columns: 28px minmax(0,1fr) auto; align-items: center; gap: 8px; width: 100%; min-height: 42px; padding: 6px 9px; border: 1px solid #e8d8d3; border-radius: 11px; color: #715b55; background: #fff; cursor: pointer; text-align: left; }
+.color-row .circular-color-picker { flex: 1 1 auto; min-width: 0; margin-top: 0; }
+.circular-color-toggle { display: grid; grid-template-columns: auto 28px minmax(0,1fr) auto; align-items: center; gap: 8px; width: 100%; min-height: 42px; padding: 6px 9px; border: 1px solid #e8d8d3; border-radius: 11px; color: #715b55; background: #fff; cursor: pointer; text-align: left; }
+.circular-current-color-label { color: #9a817a; font-size: calc(7px * var(--ui-font-scale)); font-weight: 700; white-space: nowrap; }
 .circular-color-toggle code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: calc(8px * var(--ui-font-scale)); font-weight: 800; }
 .circular-color-toggle b { color: var(--pink-dark); font-size: calc(8px * var(--ui-font-scale)); }
 .circular-color-swatch { display: block; width: 28px; height: 28px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px rgba(91,66,58,.22), 0 3px 8px rgba(91,66,58,.12); }
@@ -2177,4 +2209,116 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
   .mobile-bottom-nav button span {
     font-size: 12px !important;
   }
+}
+
+/* Mobile editing keeps all primary actions in the header. */
+@media (max-width: 600px) {
+  .app-header.is-editor-header:has(.mobile-design-actions) {
+    gap: 4px !important;
+    padding-inline: 6px !important;
+  }
+  .app-header.is-editor-header:has(.mobile-design-actions) .mobile-header-back-button { display: none !important; }
+  .app-header.is-editor-header:has(.mobile-design-actions) .brand-button-group { flex: 0 0 auto !important; min-width: 0 !important; }
+  .app-header.is-editor-header:has(.mobile-design-actions) .mobile-header-title-pill {
+    padding: 4px 6px !important;
+    font-size: 10px !important;
+    white-space: nowrap;
+  }
+  .app-header.is-editor-header .mobile-design-actions {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr);
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 3px;
+  }
+  .app-header.is-editor-header .mobile-design-actions button {
+    min-width: 0;
+    min-height: 34px;
+    padding: 3px 5px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    color: #765e58;
+    background: white;
+    font-size: 11px !important;
+    font-weight: 800;
+    line-height: 1.15;
+    white-space: nowrap;
+  }
+  .app-header.is-editor-header .mobile-design-actions button:last-child { color: white; border-color: transparent; background: var(--pink); }
+  .app-header.is-editor-header:has(.mobile-design-actions) .cloud-header-actions { flex: 0 0 auto !important; margin-left: 0 !important; }
+  .app-header.is-editor-header:has(.mobile-design-actions) .cloud-save-button { min-width: 42px; min-height: 34px !important; padding-inline: 6px !important; font-size: 11px !important; }
+
+  .antigravity-design-page .design-bottom-actions { display: none !important; }
+  .antigravity-design-page { padding-bottom: 0 !important; }
+  .antigravity-design-page .editor-layout { padding-bottom: 0 !important; }
+  .antigravity-design-page .editor-controls { padding-bottom: 12px !important; }
+
+  .antigravity-design-page .mobile-canvas-toolbar.is-envelope-toolbar {
+    position: absolute !important;
+    top: 8px !important;
+    right: 8px !important;
+    left: 8px !important;
+    display: block !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    pointer-events: none !important;
+  }
+  .antigravity-design-page .mobile-canvas-toolbar.is-envelope-toolbar .line-legend {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 3px !important;
+    width: max-content !important;
+    padding: 3px 5px !important;
+    border: 1px solid rgba(232, 215, 210, .9) !important;
+    border-radius: 8px !important;
+    background: rgba(255, 253, 250, .82) !important;
+    box-shadow: 0 3px 10px rgba(83, 60, 53, .06) !important;
+    backdrop-filter: blur(6px) !important;
+  }
+  .antigravity-design-page .mobile-canvas-toolbar.is-envelope-toolbar .line-legend span {
+    font-size: 10px !important;
+    line-height: 1.05 !important;
+  }
+  .antigravity-design-page .mobile-canvas-toolbar.is-envelope-toolbar .dimension-pill { display: none !important; }
+  .antigravity-design-page .editor-canvas-panel:has(.is-envelope-toolbar) .editor-stage {
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  .edit-scope-bar > small { display: none !important; }
+  .edit-scope-bar { grid-template-columns: minmax(0, 1fr) 30px !important; gap: 4px !important; padding: 4px !important; }
+  .edit-scope-bar .background-scope-picker { gap: 3px !important; margin-bottom: 0 !important; padding: 3px !important; border-radius: 9px !important; }
+  .edit-scope-bar .background-scope-picker button { min-height: 30px !important; padding-block: 3px !important; border-radius: 7px !important; font-size: 10px !important; }
+  .edit-scope-bar .scope-guide-button { min-height: 30px; border-radius: 8px; font-size: 10px !important; }
+  .antigravity-design-page .editor-controls:has(.edit-scope-bar) .drawer-section { gap: 7px; padding-bottom: 8px; }
+  .antigravity-design-page .editor-controls:has(.edit-scope-bar) .background-color-control { margin-block: 0 6px; padding: 7px; }
+  .antigravity-design-page .editor-controls:has(.edit-scope-bar) .preset-grid button { padding: 7px; }
+  .antigravity-design-page .editor-controls:has(.edit-scope-bar) .preset-grid i { height: 25px; margin-bottom: 4px; }
+  .antigravity-design-page .editor-controls:has(.edit-scope-bar) .preset-grid small { display: none; }
+  .antigravity-design-page .editor-controls:has(.edit-scope-bar) .compact-upload { min-height: 34px; margin-top: 0; }
+
+  .antigravity-design-page .editor-layout.is-background-editing .editor-canvas-panel {
+    flex: 0 0 190px !important;
+    height: 190px !important;
+    min-height: 190px !important;
+  }
+  .antigravity-design-page .editor-layout.is-background-editing .editor-controls {
+    flex: 1 1 auto !important;
+    max-height: none !important;
+  }
+  .antigravity-design-page .editor-controls:has(.edit-scope-bar) .favorite-color-section p { display: none; }
+  .antigravity-design-page .editor-controls:has(.edit-scope-bar) .design-color-palette { margin: 2px 0 !important; }
+  .antigravity-design-page .editor-controls:has(.edit-scope-bar) .design-color-palette > small { display: block; margin-bottom: 2px; }
+  .antigravity-design-page .editor-controls:has(.edit-scope-bar) .design-color-swatches {
+    grid-template-columns: repeat(8, 27px) !important;
+    justify-content: space-between;
+    gap: 3px !important;
+    margin-top: 3px !important;
+  }
+  .antigravity-design-page .editor-controls:has(.edit-scope-bar) .design-color-swatches button { width: 27px; height: 27px; }
+  .antigravity-design-page .editor-controls:has(.edit-scope-bar) .background-color-control .circular-color-swatch { width: 27px; height: 27px; }
 }

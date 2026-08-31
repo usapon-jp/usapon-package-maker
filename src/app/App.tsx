@@ -217,6 +217,9 @@ function AppHeader({
 }) {
   const saveLabel = saveState === "saving" ? "保存中…" : saveState === "saved" ? "保存済み" : saveState === "error" ? "保存失敗" : saveState === "conflict" ? "更新あり" : "保存";
   const isEnvelope = templateId === "y2-kamasu-envelope";
+  const isMobileDesign = screen === "design";
+  const designBackTarget: Screen = isEnvelope ? "letter-set" : templateId ? "templates" : "size";
+  const designBackLabel = isEnvelope ? "セットを選び直す" : templateId ? "型を選び直す" : "サイズに戻る";
   const backTarget: Screen | null =
     screen === "design" ? (isEnvelope ? "letter-set" : templateId ? "templates" : "size") :
     screen === "print" ? "design" :
@@ -254,6 +257,11 @@ function AppHeader({
         </button>
         <span className="mobile-header-title-pill">{screenTitle}</span>
       </div>
+
+      {isMobileDesign && <div className="mobile-design-actions" aria-label={`${screenTitle}の操作`}>
+        <button type="button" onClick={() => onGo(designBackTarget)}>{designBackLabel}</button>
+        <button type="button" onClick={() => onGo("print")}>PDFを確認</button>
+      </div>}
 
       {screen !== "home" && screen !== "my-boxes" && screen !== "templates" && screen !== "letter-set" && (
         <nav className="step-nav" data-ui-id="global.step-nav" aria-label="作成ステップ">
@@ -602,6 +610,7 @@ function CircularColorPicker({ label, value, onChange }: { label: string; value:
   return (
     <div className="circular-color-picker">
       <button type="button" className="circular-color-toggle" aria-expanded={open} onClick={() => setOpen((current) => !current)}>
+        <span className="circular-current-color-label">現在の色</span>
         <span className="circular-color-swatch" style={{ backgroundColor: value }} />
         <code>{value.toUpperCase()}</code>
         <b>{open ? "閉じる" : "色を選ぶ"}</b>
@@ -666,8 +675,7 @@ function DesignColorControl({
   ];
   return (
     <div className={`design-color-control ${className}`}>
-      <div className="color-row"><strong>{label}</strong><span>円形ピッカー</span></div>
-      <CircularColorPicker label={label} value={value} onChange={onChange} />
+      <div className="color-row"><strong>{label}</strong><CircularColorPicker label={label} value={value} onChange={onChange} /></div>
       {palettes.map((palette) => (
         <div className="design-color-palette" key={palette.label}>
           <small>{palette.label}</small>
@@ -1262,7 +1270,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     </div>
   );
   const canvasToolbar = (className: string, showDimensions = true) => (
-    <div className={`canvas-toolbar ${className}`}>
+    <div className={`canvas-toolbar ${className}${geometry.type === "envelope-v1" ? " is-envelope-toolbar" : ""}`}>
       <LineLegend geometry={geometry} lineColors={state.lineColors} />
       {showDimensions && <span className="dimension-pill">{geometry.type === "envelope-v1" ? <><b>完成 {mm(geometry.input.widthMm)} × {mm(geometry.input.heightMm)}</b><i aria-hidden="true">／</i><b>展開 {mm(geometry.bounds.widthMm)} × {mm(geometry.bounds.heightMm)}</b></> : <b>{mm(geometry.bounds.widthMm)} × {mm(geometry.bounds.heightMm)}</b>}</span>}
     </div>
@@ -1324,7 +1332,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
         {editorCategoryTabs("below-canvas")}
 
         <aside className="editor-controls panel-card" data-ui-id="design.controls">
-          {faceEditing && <div className="edit-scope-bar"><div className="background-scope-picker" role="group" aria-label="編集する範囲"><button type="button" className={backgroundScope === "all" ? "is-selected" : ""} onClick={() => setBackgroundScope("all")}>全体</button><button type="button" className={backgroundScope === "face" ? "is-selected" : ""} onClick={() => setBackgroundScope("face")}>{envelopeFaceLetter(state.activeEnvelopeFace)}</button></div>{backgroundScope === "face" && <small>展開図をクリック・タップして面を選択</small>}<button className="scope-guide-button" type="button" aria-label="組み立て見本" onClick={() => setSampleGuideOpen(true)}>?</button></div>}
+          {faceEditing && <div className="edit-scope-bar"><div className="background-scope-picker" role="group" aria-label="編集する範囲"><button type="button" className={backgroundScope === "all" ? "is-selected" : ""} onClick={() => setBackgroundScope("all")}>全体</button><button type="button" className={backgroundScope === "face" ? "is-selected" : ""} onClick={() => setBackgroundScope("face")}>選択面</button></div><button className="scope-guide-button" type="button" aria-label="組み立て見本" onClick={() => setSampleGuideOpen(true)}>?</button></div>}
           {state.openEditorSection === "artwork" && (
             <div className="drawer-section">
               <DesignColorControl className="background-color-control" label={faceEditing ? backgroundScope === "all" ? "セット全体の背景色" : `${envelopeFaceLetter(state.activeEnvelopeFace)}の背景色` : "基本背景色"} value={faceEditing && backgroundScope === "face" ? state.activeEnvelopeFace === "envelope-flap" && state.envelopeDesign.flapAccentEnabled ? state.envelopeDesign.flapColor : state.surfaceBackgroundColors[state.activeEnvelopeFace] ?? design.backgroundColor : design.backgroundColor} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={setScopedBackgroundColor} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
