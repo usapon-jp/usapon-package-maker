@@ -1,4 +1,4 @@
-import { useId, useRef, type PointerEvent } from "react";
+import { useEffect, useId, useRef, type PointerEvent } from "react";
 
 import type { ArtworkLayer as ArtworkItem, DielineLineColors, EnvelopeDesignSettings, PrintGuideMode, StampItem, TextItem } from "../../app/app-types";
 import type { DielineGeometry, EnvelopeFaceId } from "../../domain/boxes/types";
@@ -12,6 +12,27 @@ import { GuideLayer } from "./layers/GuideLayer";
 import { ArtworkLayer } from "./layers/ArtworkLayer";
 import { TextLayer } from "./layers/TextLayer";
 import { EnvelopeDesignLayer } from "./layers/EnvelopeDesignLayer";
+
+export type DielineViewportCenter = { x: number; y: number };
+
+export type DielineViewBox = DielineViewportCenter & { width: number; height: number; zoom: number };
+
+export function calculateDielineViewBox(widthMm: number, heightMm: number, padding: number, zoom: number, center: DielineViewportCenter): DielineViewBox {
+  const baseX = -padding;
+  const baseY = -padding;
+  const baseWidth = widthMm + padding * 2;
+  const baseHeight = heightMm + padding * 2;
+  const safeZoom = clamp(zoom, 1, 3);
+  const viewWidth = baseWidth / safeZoom;
+  const viewHeight = baseHeight / safeZoom;
+  const minCenterX = baseX + viewWidth / 2;
+  const maxCenterX = baseX + baseWidth - viewWidth / 2;
+  const minCenterY = baseY + viewHeight / 2;
+  const maxCenterY = baseY + baseHeight - viewHeight / 2;
+  const centerX = clamp(center.x, minCenterX, maxCenterX);
+  const centerY = clamp(center.y, minCenterY, maxCenterY);
+  return { x: centerX - viewWidth / 2, y: centerY - viewHeight / 2, width: viewWidth, height: viewHeight, zoom: safeZoom };
+}
 
 type LayersProps = {
   geometry: DielineGeometry;
@@ -152,6 +173,9 @@ type Props = Omit<LayersProps, "idPrefix" | "onArtworkPointerDown" | "onStampPoi
   onSelectText: (id: string | null) => void;
   onMoveText: (id: string, xMm: number, yMm: number) => void;
   onSelectEnvelopeFace?: (faceId: EnvelopeFaceId) => void;
+  zoom?: number;
+  viewportCenter?: DielineViewportCenter;
+  onViewportCenterChange?: (center: DielineViewportCenter) => void;
   className?: string;
 };
 
@@ -181,22 +205,100 @@ export function DielineSvg({
   onSelectText,
   onMoveText,
   onSelectEnvelopeFace,
+  zoom = 1,
+  viewportCenter,
+  onViewportCenterChange,
   className,
 }: Props) {
   const rawId = useId();
   const idPrefix = `preview-${rawId.replaceAll(":", "")}`;
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<{ kind: "artwork" | "stamp" | "text"; id: string; dx: number; dy: number } | null>(null);
+  const pan = useRef<{ pointerId: number; point: DielineViewportCenter; center: DielineViewportCenter } | null>(null);
+  const autoPan = useRef<{ pointerId: number; clientX: number; clientY: number; time: number } | null>(null);
+  const autoPanFrame = useRef<number | null>(null);
   const padding = Math.max(4, Math.min(12, geometry.bounds.widthMm * 0.06));
+  const defaultCenter = { x: geometry.bounds.widthMm / 2, y: geometry.bounds.heightMm / 2 };
+  const viewBoxRef = useRef<DielineViewBox>(calculateDielineViewBox(geometry.bounds.widthMm, geometry.bounds.heightMm, padding, zoom, viewportCenter ?? defaultCenter));
+  const viewBox = calculateDielineViewBox(geometry.bounds.widthMm, geometry.bounds.heightMm, padding, zoom, viewportCenter ?? defaultCenter);
+  viewBoxRef.current = viewBox;
 
-  const pointFromEvent = (event: PointerEvent<SVGElement>) => {
+  const pointFromClient = (clientX: number, clientY: number) => {
     const svg = svgRef.current;
     if (!svg) return { x: 0, y: 0 };
-    const point = svg.createSVGPoint();
-    point.x = event.clientX;
-    point.y = event.clientY;
-    return point.matrixTransform(svg.getScreenCTM()?.inverse());
+    const rect = svg.getBoundingClientRect();
+    const currentViewBox = viewBoxRef.current;
+    return {
+      x: currentViewBox.x + clamp((clientX - rect.left) / Math.max(1, rect.width), 0, 1) * currentViewBox.width,
+      y: currentViewBox.y + clamp((clientY - rect.top) / Math.max(1, rect.height), 0, 1) * currentViewBox.height,
+    };
   };
+
+  const pointFromEvent = (event: PointerEvent<SVGElement>) => {
+    return pointFromClient(event.clientX, event.clientY);
+  };
+
+  const setViewportCenter = (center: DielineViewportCenter) => {
+    const next = calculateDielineViewBox(geometry.bounds.widthMm, geometry.bounds.heightMm, padding, zoom, center);
+    viewBoxRef.current = next;
+    onViewportCenterChange?.({ x: next.x + next.width / 2, y: next.y + next.height / 2 });
+  };
+
+  const moveDraggedItem = (clientX: number, clientY: number) => {
+    if (!drag.current) return;
+    const point = pointFromClient(clientX, clientY);
+    const xMm = clamp(point.x + drag.current.dx, 0, geometry.bounds.widthMm);
+    const yMm = clamp(point.y + drag.current.dy, 0, geometry.bounds.heightMm);
+    if (drag.current.kind === "text") onMoveText(drag.current.id, xMm, yMm);
+    if (drag.current.kind === "artwork") onMoveArtwork(drag.current.id, xMm, yMm);
+    if (drag.current.kind === "stamp") onMoveStamp(drag.current.id, xMm, yMm);
+  };
+
+  const stopAutoPan = () => {
+    autoPan.current = null;
+    if (autoPanFrame.current !== null) cancelAnimationFrame(autoPanFrame.current);
+    autoPanFrame.current = null;
+  };
+
+  const updateAutoPan = (event: PointerEvent<SVGSVGElement>) => {
+    if (zoom <= 1 || !drag.current) return;
+    const rect = svgRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const edge = 48;
+    const nearEdge = event.clientX - rect.left < edge || rect.right - event.clientX < edge || event.clientY - rect.top < edge || rect.bottom - event.clientY < edge;
+    if (!nearEdge) {
+      stopAutoPan();
+      return;
+    }
+    autoPan.current = { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY, time: performance.now() };
+    if (autoPanFrame.current !== null) return;
+    const tick = (time: number) => {
+      const active = autoPan.current;
+      const svg = svgRef.current;
+      if (!active || !svg || !drag.current) {
+        stopAutoPan();
+        return;
+      }
+      const rect = svg.getBoundingClientRect();
+      const edge = 48;
+      const edgeVelocity = (distance: number) => distance < edge ? Math.pow((edge - Math.max(0, distance)) / edge, 1.6) : 0;
+      const xVelocity = active.clientX - rect.left < edge ? -edgeVelocity(active.clientX - rect.left) : rect.right - active.clientX < edge ? edgeVelocity(rect.right - active.clientX) : 0;
+      const yVelocity = active.clientY - rect.top < edge ? -edgeVelocity(active.clientY - rect.top) : rect.bottom - active.clientY < edge ? edgeVelocity(rect.bottom - active.clientY) : 0;
+      if (!xVelocity && !yVelocity) {
+        stopAutoPan();
+        return;
+      }
+      const elapsed = Math.min(0.05, Math.max(0, (time - active.time) / 1000));
+      active.time = time;
+      const current = viewBoxRef.current;
+      setViewportCenter({ x: current.x + current.width / 2 + xVelocity * current.width * 0.4 * elapsed, y: current.y + current.height / 2 + yVelocity * current.height * 0.4 * elapsed });
+      moveDraggedItem(active.clientX, active.clientY);
+      autoPanFrame.current = requestAnimationFrame(tick);
+    };
+    autoPanFrame.current = requestAnimationFrame(tick);
+  };
+
+  useEffect(() => () => stopAutoPan(), []);
 
   const handleEnvelopeFacePointerDown = (event: PointerEvent<SVGSVGElement>) => {
     if (exportMode || !onSelectEnvelopeFace || geometry.envelope?.construction !== "kamasu") return;
@@ -253,23 +355,36 @@ export function DielineSvg({
   };
 
   const handlePointerMove = (event: PointerEvent<SVGSVGElement>) => {
+    if (pan.current) {
+      const point = pointFromEvent(event);
+      setViewportCenter({ x: pan.current.center.x + pan.current.point.x - point.x, y: pan.current.center.y + pan.current.point.y - point.y });
+      return;
+    }
     if (!drag.current) return;
-    const point = pointFromEvent(event);
-    const xMm = clamp(point.x + drag.current.dx, 0, geometry.bounds.widthMm);
-    const yMm = clamp(point.y + drag.current.dy, 0, geometry.bounds.heightMm);
-    if (drag.current.kind === "text") onMoveText(drag.current.id, xMm, yMm);
-    if (drag.current.kind === "artwork") onMoveArtwork(drag.current.id, xMm, yMm);
-    if (drag.current.kind === "stamp") onMoveStamp(drag.current.id, xMm, yMm);
+    moveDraggedItem(event.clientX, event.clientY);
+    updateAutoPan(event);
+  };
+
+  const startPan = (event: PointerEvent<SVGSVGElement>) => {
+    if (zoom <= 1 || !onViewportCenterChange) return false;
+    const target = event.target as Element;
+    if (target.closest("[data-artwork-id], [data-stamp-id], [data-text-container], [data-stamp-rotate-handle]")) return false;
+    const current = viewBoxRef.current;
+    pan.current = { pointerId: event.pointerId, point: pointFromEvent(event), center: { x: current.x + current.width / 2, y: current.y + current.height / 2 } };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.stopPropagation();
+    return true;
   };
 
   return (
     <svg
       ref={svgRef}
       className={className}
-      viewBox={`${-padding} ${-padding} ${geometry.bounds.widthMm + padding * 2} ${geometry.bounds.heightMm + padding * 2}`}
+      viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
       role="img"
       aria-label="箱の実寸展開図プレビュー"
-      onPointerDownCapture={handleEnvelopeFacePointerDown}
+      style={zoom > 1 ? { touchAction: "none" } : undefined}
+      onPointerDownCapture={(event) => { if (!startPan(event)) handleEnvelopeFacePointerDown(event); }}
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) {
           onSelectArtwork(null);
@@ -280,9 +395,13 @@ export function DielineSvg({
       onPointerMove={handlePointerMove}
       onPointerUp={() => {
         drag.current = null;
+        pan.current = null;
+        stopAutoPan();
       }}
       onPointerCancel={() => {
         drag.current = null;
+        pan.current = null;
+        stopAutoPan();
       }}
     >
       {!exportMode && onSelectEnvelopeFace && geometry.envelope?.construction === "kamasu" && (

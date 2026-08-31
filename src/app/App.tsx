@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ChangeEvent, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 
 import { A4ExportSvg, A4PreviewSvg, CalibrationSvg } from "../components/dieline/A4ExportSvg";
@@ -388,6 +388,39 @@ function ArtworkThumbnail({ item }: { item: ArtworkLayer }) {
   if (item.kind === "uploaded-artwork") return <img src={item.dataUrl} alt="" aria-hidden="true" />;
   const previewStyle = { "--pattern-color": item.color } as CSSProperties;
   return <i className={`artwork-thumbnail ${item.kind === "stripe-pattern" ? "stripe-preview" : "dot-preview"}`} style={previewStyle} aria-hidden="true" />;
+}
+
+function CanvasZoomSlider({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  const setFromPointer = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const progress = clamp((rect.bottom - event.clientY) / Math.max(1, rect.height), 0, 1);
+    onChange(Math.round((1 + progress * 2) * 10) / 10);
+  };
+  return (
+    <div
+      className="canvas-zoom-slider"
+      role="slider"
+      tabIndex={0}
+      aria-label="展開図の倍率"
+      aria-valuemin={1}
+      aria-valuemax={3}
+      aria-valuenow={value}
+      aria-valuetext={`${value.toFixed(1)}倍`}
+      onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); setFromPointer(event); }}
+      onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) setFromPointer(event); }}
+      onPointerUp={(event) => event.currentTarget.releasePointerCapture(event.pointerId)}
+      onKeyDown={(event) => {
+        if (event.key === "Home") onChange(1);
+        else if (event.key === "End") onChange(3);
+        else if (event.key === "ArrowUp" || event.key === "ArrowRight") onChange(Math.min(3, Math.round((value + 0.1) * 10) / 10));
+        else if (event.key === "ArrowDown" || event.key === "ArrowLeft") onChange(Math.max(1, Math.round((value - 0.1) * 10) / 10));
+        else return;
+        event.preventDefault();
+      }}
+    >
+      <i style={{ bottom: `${((value - 1) / 2) * 100}%` }} aria-hidden="true" />
+    </div>
+  );
 }
 
 function HomeScreen({ onStart, onTemplates, onResume, onMyBoxes }: { onStart: () => void; onTemplates: () => void; onResume: (() => void) | null; onMyBoxes: () => void }) {
@@ -1009,6 +1042,9 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const [letterSetShareMessage, setLetterSetShareMessage] = useState("");
   const [applyingThemePack, setApplyingThemePack] = useState(false);
   const [sampleGuideOpen, setSampleGuideOpen] = useState(false);
+  const [canvasZoom, setCanvasZoom] = useState(1);
+  const [canvasCenter, setCanvasCenter] = useState({ x: geometry.bounds.widthMm / 2, y: geometry.bounds.heightMm / 2 });
+  const [zoomControlsOpen, setZoomControlsOpen] = useState(false);
   const [favoriteColors, setFavoriteColors] = useState<string[]>(() => {
     try {
       return parseFavoriteColors(window.localStorage.getItem(FAVORITE_COLORS_STORAGE_KEY));
@@ -1027,6 +1063,17 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
       // 保存できない環境でも、現在の編集セッション内では利用できます。
     }
   }, [favoriteColors]);
+
+  useEffect(() => {
+    setCanvasZoom(1);
+    setCanvasCenter({ x: geometry.bounds.widthMm / 2, y: geometry.bounds.heightMm / 2 });
+    setZoomControlsOpen(false);
+  }, [activePage.id]);
+
+  const resetCanvasZoom = () => {
+    setCanvasZoom(1);
+    setCanvasCenter({ x: geometry.bounds.widthMm / 2, y: geometry.bounds.heightMm / 2 });
+  };
 
   const addFavorite = (color: string) => setFavoriteColors((colors) => addFavoriteColor(colors, color));
   const removeFavorite = (color: string) => setFavoriteColors((colors) => removeFavoriteColor(colors, color));
@@ -1309,6 +1356,9 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
               exportMode={false}
               showWritingLines={state.showWritingLines}
               envelopeDesign={state.envelopeDesign}
+              zoom={canvasZoom}
+              viewportCenter={canvasCenter}
+              onViewportCenterChange={setCanvasCenter}
               activeEnvelopeFace={faceScopedEditing ? state.activeEnvelopeFace : undefined}
               onSelectArtwork={(id) => { const item = design.artworkLayers.find((candidate) => candidate.id === id); if (faceEditing && item?.surfaceId) dispatch({ type: "set-envelope-face", faceId: item.surfaceId }); dispatch({ type: "select-artwork", id }); if (id) dispatch({ type: "set-open-editor-section", section: "artwork" }); }}
               onMoveArtwork={(id, xMm, yMm) => { const item = design.artworkLayers.find((candidate) => candidate.id === id); const point = clampToEnvelopeFace(geometry, faceEditing ? item?.surfaceId : undefined, xMm, yMm); dispatch({ type: "update-artwork", id, patch: { offsetXmm: point.xMm, offsetYmm: point.yMm } }); }}
@@ -1322,6 +1372,14 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
               onMoveText={(id, xMm, yMm) => { const item = design.texts.find((candidate) => candidate.id === id); const point = clampToEnvelopeFace(geometry, faceEditing ? item?.surfaceId : undefined, xMm, yMm); dispatch({ type: "update-text", id, patch: point }); }}
               onSelectEnvelopeFace={faceScopedEditing ? (faceId) => dispatch({ type: "set-envelope-face", faceId }) : undefined}
             />
+            <div className={`canvas-zoom-controls ${zoomControlsOpen ? "is-open" : ""}`} aria-label="展開図のズーム操作">
+              {zoomControlsOpen && <div className="canvas-zoom-popover">
+                <output aria-live="polite">{canvasZoom.toFixed(1)}倍</output>
+                <CanvasZoomSlider value={canvasZoom} onChange={setCanvasZoom} />
+                <button type="button" onClick={resetCanvasZoom}>全体に戻す</button>
+              </div>}
+              <button className="canvas-zoom-toggle" type="button" aria-label={zoomControlsOpen ? "ズーム操作を閉じる" : "展開図をズーム"} aria-expanded={zoomControlsOpen} onClick={() => setZoomControlsOpen((open) => !open)}>⌕</button>
+            </div>
           </div>
           {geometry.type === "envelope-v1" ? <p className="canvas-caption envelope-canvas-caption"><strong>完成品：横 {mm(geometry.input.widthMm)} × 縦 {mm(geometry.input.heightMm)}{geometry.input.widthMm === 162 && geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong>{geometry.envelope?.construction === "kamasu" ? <><span>カマス貼り ／ A フタ {mm(geometry.envelope.topFlapMm)} ／ 左右のりしろ 各{mm(geometry.envelope.glueWidthMm)}</span><span>Cの左右を内側へ折り、Bを重ねて貼ります。AとCは完成時の向きで配置されます。</span></> : <><span>上 {mm(geometry.envelope?.topFlapMm ?? 0)} ／ 下 {mm(geometry.envelope?.bottomFlapMm ?? 0)} ／ 左右 各{mm(geometry.envelope?.sideFlapMm ?? 0)}</span><span>左右 → 下の順に折り、貼って袋状にします。</span></>}</p> : <p className="canvas-caption">画面では見やすい大きさに拡大表示しています。印刷寸法は下のmm値とPDFの実寸座標が基準です。</p>}
         </section>

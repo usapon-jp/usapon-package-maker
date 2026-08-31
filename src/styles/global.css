@@ -702,6 +702,7 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .preview-card-head > span, .dimension-pill { padding: 7px 10px; border-radius: 999px; color: #9c5c66; background: var(--pink-soft); font-size: calc(9px * var(--ui-font-scale)); font-weight: 700; }
 .dieline-stage { display: grid; place-items: center; overflow: hidden; border: 1px solid #e9ddd8; border-radius: 17px; background-color: #fff; background-image: linear-gradient(#f1ebe7 1px, transparent 1px), linear-gradient(90deg, #f1ebe7 1px, transparent 1px); background-size: 18px 18px; }
 .dieline-stage svg { display: block; width: 100%; height: 100%; }
+.canvas-zoom-controls { display: none; }
 .compact-stage { height: 355px; margin-top: 18px; padding: 18px; }
 .size-paper-stage { display: grid; place-items: center; height: 430px; margin-top: 18px; padding: 16px; overflow: hidden; border: 1px solid #e9ddd8; border-radius: 17px; background: linear-gradient(135deg, #f8f3ef, #f2ebe6); }
 .size-paper-preview { position: relative; overflow: hidden; border: 1px solid #d9cfcb; background: white; box-shadow: 0 15px 35px rgba(74, 56, 50, .15); }
@@ -2232,6 +2233,87 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 /* Mobile editing keeps all primary actions in the header. */
 @media (max-width: 600px) {
   .antigravity-design-page .desktop-canvas-toolbar { display: none !important; }
+
+  .antigravity-design-page .editor-stage .canvas-zoom-controls {
+    position: absolute;
+    z-index: 12;
+    right: 8px;
+    bottom: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    pointer-events: none;
+  }
+  .canvas-zoom-toggle,
+  .canvas-zoom-popover { pointer-events: auto; }
+  .canvas-zoom-toggle {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border: 1px solid rgba(224, 201, 194, .96);
+    border-radius: 12px;
+    color: #805d59;
+    background: rgba(255, 253, 250, .94);
+    box-shadow: 0 4px 13px rgba(83, 60, 53, .15);
+    backdrop-filter: blur(7px);
+    font-size: 25px !important;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .canvas-zoom-popover {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 42px;
+    padding: 5px;
+    border: 1px solid rgba(224, 201, 194, .96);
+    border-radius: 12px;
+    background: rgba(255, 253, 250, .96);
+    box-shadow: 0 4px 13px rgba(83, 60, 53, .14);
+    backdrop-filter: blur(7px);
+  }
+  .canvas-zoom-popover output { color: #805d59; font-size: 9px; font-weight: 800; white-space: nowrap; }
+  .canvas-zoom-slider {
+    position: relative;
+    width: 14px;
+    height: 68px;
+    border-radius: 999px;
+    background: linear-gradient(to top, #f3ddd8, #e88a9b);
+    box-shadow: inset 0 0 0 1px rgba(165, 97, 105, .16);
+    cursor: ns-resize;
+    touch-action: none;
+  }
+  .canvas-zoom-slider i {
+    position: absolute;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    border: 2px solid white;
+    border-radius: 50%;
+    background: var(--pink);
+    box-shadow: 0 2px 5px rgba(117, 62, 68, .25);
+    transform: translate(-50%, 50%);
+  }
+  .canvas-zoom-popover button {
+    width: 42px;
+    min-height: 25px;
+    padding: 3px;
+    border: 1px solid #eadbd6;
+    border-radius: 7px;
+    color: #805d59;
+    background: white;
+    font-size: 8px !important;
+    font-weight: 800;
+    line-height: 1.15;
+  }
+  .antigravity-design-page .editor-canvas-panel:has(.canvas-zoom-controls.is-open),
+  .antigravity-design-page .editor-stage:has(.canvas-zoom-controls.is-open) {
+    overflow: visible !important;
+  }
 
   .app-header.is-editor-header:has(.mobile-design-actions) {
     gap: 4px !important;

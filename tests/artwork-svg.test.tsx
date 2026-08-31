@@ -5,7 +5,7 @@ import { initialState } from "../src/app/app-state";
 import { createDotPattern, createStamp, createStripePattern, createUploadedArtwork } from "../src/app/artwork";
 import type { TextItem, UploadedAsset } from "../src/app/app-types";
 import { A4ExportSvg } from "../src/components/dieline/A4ExportSvg";
-import { DielineSvg } from "../src/components/dieline/DielineSvg";
+import { calculateDielineViewBox, DielineSvg } from "../src/components/dieline/DielineSvg";
 import { generateStraightTuckCarton } from "../src/domain/boxes/straight-tuck-carton";
 import { evaluateA4Fit } from "../src/domain/paper/a4";
 import { createTextItem } from "../src/features/auto-layout/text-layout";
@@ -21,6 +21,15 @@ const asset: UploadedAsset = {
 };
 
 describe("背景・柄・スタンプのSVG描画", () => {
+  it("ズーム表示範囲を展開図の内側に収める", () => {
+    const view = calculateDielineViewBox(100, 80, 6, 3, { x: 200, y: -100 });
+    expect(view.zoom).toBe(3);
+    expect(view.width).toBeCloseTo(112 / 3);
+    expect(view.height).toBeCloseTo(92 / 3);
+    expect(view.x).toBeCloseTo(100 + 6 - view.width);
+    expect(view.y).toBeCloseTo(-6);
+  });
+
   it("背景色、柄設定、画像回転をA4出力SVGへ反映する", () => {
     const stripe = { ...createStripePattern("stripe-1", 1), color: "#c9b080", stripeWidthMm: 6, gapMm: 4, angleDeg: 135 as const, opacity: 0.5 };
     const dots = { ...createDotPattern("dots-1", 1), color: "#f2cc55", dotDiameterMm: 10, spacingMm: 26, offsetXmm: 3, offsetYmm: 7 };
