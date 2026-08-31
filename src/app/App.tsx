@@ -1333,7 +1333,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
         {editorCategoryTabs("top")}
       </div>
 
-      <div className={`editor-layout ${state.openEditorSection === "artwork" ? "is-background-editing" : ""}`} data-ui-id="design.workspace">
+      <div className="editor-layout" data-ui-id="design.workspace">
         <section className="editor-canvas-panel panel-card" data-ui-id="design.canvas">
           {isLetterSetDesign && (
             <div className="letter-set-mobile-page-row" data-ui-id="design.item-tabs-mobile">

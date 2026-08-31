@@ -30,6 +30,14 @@ describe("背景・柄・スタンプのSVG描画", () => {
     expect(view.y).toBeCloseTo(-6);
   });
 
+  it("ズーム時は作業枠の縦横比へ表示範囲を近づける", () => {
+    const view = calculateDielineViewBox(100, 80, 6, 3, { x: 50, y: 40 }, 2);
+    expect(view.width / view.height).toBeCloseTo(2);
+    expect(view.width).toBeGreaterThan(112 / 3);
+    expect(view.x).toBeGreaterThanOrEqual(-6);
+    expect(view.y).toBeGreaterThanOrEqual(-6);
+  });
+
   it("背景色、柄設定、画像回転をA4出力SVGへ反映する", () => {
     const stripe = { ...createStripePattern("stripe-1", 1), color: "#c9b080", stripeWidthMm: 6, gapMm: 4, angleDeg: 135 as const, opacity: 0.5 };
     const dots = { ...createDotPattern("dots-1", 1), color: "#f2cc55", dotDiameterMm: 10, spacingMm: 26, offsetXmm: 3, offsetYmm: 7 };

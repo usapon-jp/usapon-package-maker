@@ -2319,6 +2319,17 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
   .antigravity-design-page .editor-stage:has(.canvas-zoom-controls.is-open) {
     overflow: visible !important;
   }
+  .antigravity-design-page .editor-canvas-panel:has(.canvas-zoom-controls.is-open) {
+    flex: 0 0 55dvh !important;
+    height: 55dvh !important;
+    min-height: 0 !important;
+    max-height: none !important;
+  }
+  .antigravity-design-page .editor-canvas-panel:has(.canvas-zoom-controls.is-open) .editor-stage {
+    flex: 1 1 auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
 
   .app-header.is-editor-header:has(.mobile-design-actions) {
     gap: 4px !important;

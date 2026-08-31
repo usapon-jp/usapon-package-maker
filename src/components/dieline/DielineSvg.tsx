@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type PointerEvent } from "react";
+import { useEffect, useId, useRef, useState, type PointerEvent } from "react";
 
 import type { ArtworkLayer as ArtworkItem, DielineLineColors, EnvelopeDesignSettings, PrintGuideMode, StampItem, TextItem } from "../../app/app-types";
 import type { DielineGeometry, EnvelopeFaceId } from "../../domain/boxes/types";
@@ -17,14 +17,17 @@ export type DielineViewportCenter = { x: number; y: number };
 
 export type DielineViewBox = DielineViewportCenter & { width: number; height: number; zoom: number };
 
-export function calculateDielineViewBox(widthMm: number, heightMm: number, padding: number, zoom: number, center: DielineViewportCenter): DielineViewBox {
+export function calculateDielineViewBox(widthMm: number, heightMm: number, padding: number, zoom: number, center: DielineViewportCenter, viewportAspect?: number): DielineViewBox {
   const baseX = -padding;
   const baseY = -padding;
   const baseWidth = widthMm + padding * 2;
   const baseHeight = heightMm + padding * 2;
   const safeZoom = clamp(zoom, 1, 3);
-  const viewWidth = baseWidth / safeZoom;
   const viewHeight = baseHeight / safeZoom;
+  const baseAspect = baseWidth / baseHeight;
+  const targetAspect = viewportAspect && viewportAspect > 0 ? viewportAspect : baseAspect;
+  const zoomProgress = (safeZoom - 1) / 2;
+  const viewWidth = viewHeight * (baseAspect + (targetAspect - baseAspect) * zoomProgress);
   const minCenterX = baseX + viewWidth / 2;
   const maxCenterX = baseX + baseWidth - viewWidth / 2;
   const minCenterY = baseY + viewHeight / 2;
@@ -219,9 +222,24 @@ export function DielineSvg({
   const autoPanFrame = useRef<number | null>(null);
   const padding = Math.max(4, Math.min(12, geometry.bounds.widthMm * 0.06));
   const defaultCenter = { x: geometry.bounds.widthMm / 2, y: geometry.bounds.heightMm / 2 };
-  const viewBoxRef = useRef<DielineViewBox>(calculateDielineViewBox(geometry.bounds.widthMm, geometry.bounds.heightMm, padding, zoom, viewportCenter ?? defaultCenter));
-  const viewBox = calculateDielineViewBox(geometry.bounds.widthMm, geometry.bounds.heightMm, padding, zoom, viewportCenter ?? defaultCenter);
+  const defaultViewportAspect = (geometry.bounds.widthMm + padding * 2) / (geometry.bounds.heightMm + padding * 2);
+  const [viewportAspect, setViewportAspect] = useState(defaultViewportAspect);
+  const viewBoxRef = useRef<DielineViewBox>(calculateDielineViewBox(geometry.bounds.widthMm, geometry.bounds.heightMm, padding, zoom, viewportCenter ?? defaultCenter, viewportAspect));
+  const viewBox = calculateDielineViewBox(geometry.bounds.widthMm, geometry.bounds.heightMm, padding, zoom, viewportCenter ?? defaultCenter, viewportAspect);
   viewBoxRef.current = viewBox;
+
+  useEffect(() => {
+    const stage = svgRef.current?.parentElement;
+    if (!stage || typeof ResizeObserver === "undefined") return;
+    const updateAspect = () => {
+      const { width, height } = stage.getBoundingClientRect();
+      if (width > 0 && height > 0) setViewportAspect(width / height);
+    };
+    updateAspect();
+    const observer = new ResizeObserver(updateAspect);
+    observer.observe(stage);
+    return () => observer.disconnect();
+  }, [geometry.bounds.heightMm, geometry.bounds.widthMm]);
 
   const pointFromClient = (clientX: number, clientY: number) => {
     const svg = svgRef.current;
@@ -239,7 +257,7 @@ export function DielineSvg({
   };
 
   const setViewportCenter = (center: DielineViewportCenter) => {
-    const next = calculateDielineViewBox(geometry.bounds.widthMm, geometry.bounds.heightMm, padding, zoom, center);
+    const next = calculateDielineViewBox(geometry.bounds.widthMm, geometry.bounds.heightMm, padding, zoom, center, viewportAspect);
     viewBoxRef.current = next;
     onViewportCenterChange?.({ x: next.x + next.width / 2, y: next.y + next.height / 2 });
   };
