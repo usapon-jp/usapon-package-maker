@@ -2434,6 +2434,47 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
     min-height: 0 !important;
     height: auto !important;
   }
+  .antigravity-design-page .mobile-canvas-toolbar:not(.is-envelope-toolbar) {
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    pointer-events: none !important;
+  }
+  .antigravity-design-page .mobile-canvas-toolbar:not(.is-envelope-toolbar) .line-legend {
+    position: absolute !important;
+    top: 8px !important;
+    right: 8px !important;
+    left: auto !important;
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 3px !important;
+    width: max-content !important;
+    padding: 3px 5px !important;
+    border: 1px solid rgba(232, 215, 210, .9) !important;
+    border-radius: 8px !important;
+    background: rgba(255, 253, 250, .82) !important;
+    box-shadow: 0 3px 10px rgba(83, 60, 53, .06) !important;
+    backdrop-filter: blur(6px) !important;
+  }
+  .antigravity-design-page .mobile-canvas-toolbar:not(.is-envelope-toolbar) .line-legend span {
+    font-size: 10px !important;
+    line-height: 1.05 !important;
+  }
+  .antigravity-design-page .mobile-canvas-toolbar:not(.is-envelope-toolbar) .dimension-pill {
+    position: absolute !important;
+    top: auto !important;
+    right: 52px !important;
+    bottom: 8px !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 4px 7px !important;
+    font-size: 9px !important;
+    line-height: 1.15 !important;
+    white-space: nowrap !important;
+  }
 
   .edit-scope-bar > small { display: none !important; }
   .edit-scope-bar { grid-template-columns: minmax(0, 1fr) 30px !important; gap: 4px !important; padding: 4px !important; }
