@@ -2213,6 +2213,8 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 
 /* Mobile editing keeps all primary actions in the header. */
 @media (max-width: 600px) {
+  .antigravity-design-page .desktop-canvas-toolbar { display: none !important; }
+
   .app-header.is-editor-header:has(.mobile-design-actions) {
     gap: 4px !important;
     padding-inline: 6px !important;
