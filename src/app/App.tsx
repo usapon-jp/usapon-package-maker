@@ -866,9 +866,11 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
                   aria-pressed={state.box.type === type}
                   onClick={() => dispatch({ type: "set-box-type", boxType: type })}
                 >
+                  <div className="box-type-copy">
+                    <strong>{copy.name}</strong>
+                    <small>{copy.description}</small>
+                  </div>
                   <span aria-hidden="true"><BoxTypeIcon className="box-type-icon" type={type} /></span>
-                  <strong>{copy.name}</strong>
-                  <small>{copy.description}</small>
                 </button>
                 );
               })}
