@@ -68,7 +68,7 @@ export function LetterSetPanel({
         <div><span>{themePackUnlocked ? "✓ アンロック済み" : "🔒 テーマパック"}</span><strong>{themePack.name}</strong><small>{themePack.description}</small></div>
         {themePackUnlocked
           ? <button type="button" className={themePackActive ? "is-active" : ""} disabled={applyingThemePack} onClick={onApplyThemePack}>{applyingThemePack ? "適用中…" : themePackActive ? "秋テーマをもう一度適用" : "セット全体に秋テーマを適用"}</button>
-          : <button type="button" onClick={onUnlockThemePack}>合言葉で解除</button>}
+          : <button type="button" onClick={onUnlockThemePack}>購入権利を確認</button>}
       </div>
       {box.envelopeConstruction === "kamasu" && <div className="envelope-face-picker" role="tablist" aria-label="編集する封筒の面">
         {([

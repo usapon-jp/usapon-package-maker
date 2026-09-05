@@ -79,7 +79,7 @@ export function TemplateScreen({ onBack, onSelect, unlockedThemePackIds }: { onB
                   <button className={`template-favorite ${favorite ? "is-favorite" : ""}`} type="button" aria-label={`${template.name}をお気に入り${favorite ? "から外す" : "に追加"}`} aria-pressed={favorite} onClick={() => setFavorites((items) => favorite ? items.filter((id) => id !== template.id) : [...items, template.id])}>{favorite ? "♥" : "♡"}</button>
                   <button className="template-select" type="button" onClick={() => onSelect(template)}>
                     <TemplatePreview template={template} />
-                    <div className="template-card-copy"><div className="template-card-meta"><span>{template.categoryLabel}</span>{template.badge && <b>{template.badge}</b>}</div><h3>{template.name}</h3><p>{template.description}</p>{template.category === "envelope" && <div className="template-finished-size"><span>完成サイズ</span><strong>{template.box.widthMm} × {template.box.heightMm}mm</strong><small>展開 186 × 258mm・A4縦</small></div>}<small>{template.seriesName}</small><strong>{locked ? "🔒 合言葉で解除" : "この型でつくる →"}</strong></div>
+                    <div className="template-card-copy"><div className="template-card-meta"><span>{template.categoryLabel}</span>{template.badge && <b>{template.badge}</b>}</div><h3>{template.name}</h3><p>{template.description}</p>{template.category === "envelope" && <div className="template-finished-size"><span>完成サイズ</span><strong>{template.box.widthMm} × {template.box.heightMm}mm</strong><small>展開 186 × 258mm・A4縦</small></div>}<small>{template.seriesName}</small><strong>{locked ? "🔒 ショップ購入後に解除" : "この型でつくる →"}</strong></div>
                   </button>
                 </article>
               );

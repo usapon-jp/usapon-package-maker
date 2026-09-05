@@ -23,7 +23,7 @@ export const AUTUMN_THEME_PACK: ThemePackDefinition = {
   id: "autumn-letter-set",
   name: "秋のレターセット",
   description: "秋うさぎスタンプと、背景・文字・枠・アクセントをおそろいで使えるテーマパック",
-  badge: "合言葉で解除",
+  badge: "ショップ購入特典",
   stampKeys: [
     "autumn-rabbit-acorn-hug",
     "autumn-rabbit-sweet-potato-car",

@@ -25,7 +25,6 @@ import {
   openCloudProject,
   ProjectConflictError,
   saveCloudProject,
-  redeemThemePack,
   signInWithGoogle,
   signOutLocally,
 } from "../cloud/box-repository";
@@ -75,6 +74,7 @@ import { CopyIcon, RotateIcon, SaveIcon, TrashIcon } from "../components/common/
 import { isPackageUIEditorAdmin } from "../ui-editor/repository";
 
 const STAMP_SHOP_URL = "https://usapon-digital-shop.vercel.app/";
+const AUTUMN_THEME_SHOP_URL = "https://usapon-digital-shop.vercel.app/products/goodnotes-autumn-full-set";
 
 // 既存のクラウド保存利用者がいるため、端末内下書き保存と併用して提供する。
 const CLOUD_SYNC_UI_ENABLED = true;
@@ -1852,18 +1852,16 @@ function ConflictDialog({ onLoadLatest, onSaveCopy, onCancel }: { onLoadLatest: 
   );
 }
 
-function ThemePackUnlockDialog({ pack, user, onLogin, onCancel, onRedeem }: { pack: ThemePackDefinition; user: User | null; onLogin: () => void; onCancel: () => void; onRedeem: (passphrase: string) => Promise<void> }) {
-  const [passphrase, setPassphrase] = useState("");
+function ThemePackUnlockDialog({ pack, user, onLogin, onCancel, onRefresh, shopUrl }: { pack: ThemePackDefinition; user: User | null; onLogin: () => void; onCancel: () => void; onRefresh: () => Promise<void>; shopUrl: string }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const submit = async () => {
-    if (!passphrase.trim()) return;
     setSubmitting(true);
     setError("");
     try {
-      await onRedeem(passphrase.trim());
+      await onRefresh();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "合言葉を確認できませんでした。");
+      setError(reason instanceof Error ? reason.message : "購入権利を確認できませんでした。");
     } finally {
       setSubmitting(false);
     }
@@ -1873,10 +1871,10 @@ function ThemePackUnlockDialog({ pack, user, onLogin, onCancel, onRedeem }: { pa
       <p className="eyebrow">THEME PACK</p>
       <h2 id="theme-unlock-title">{pack.name}</h2>
       <p>{pack.description}</p>
-      {!user ? <><div className="theme-login-note"><strong>購入したテーマはGoogleアカウントへ保存します</strong><small>同じアカウントなら別の端末でも合言葉の再入力は不要です。</small></div><div className="modal-actions"><button type="button" onClick={onCancel}>キャンセル</button><button className="primary-button" type="button" onClick={onLogin}>Googleでログインして解除</button></div></> : <>
-        <label className="text-input-label">合言葉<input autoFocus type="password" autoComplete="off" value={passphrase} onChange={(event) => setPassphrase(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void submit(); }} /></label>
+      <div className="theme-login-note"><strong>ショップ購入者向けのテーマです</strong><small>合言葉だけでは解除されません。購入と入金連絡を完了したGoogleアカウントの権利を読み込みます。</small></div>
+      {!user ? <div className="modal-actions stacked"><button className="primary-button" type="button" onClick={onLogin}>購入時のGoogleアカウントでログイン</button><a className="primary-button" href={shopUrl} target="_blank" rel="noreferrer">ショップで購入する</a><button type="button" onClick={onCancel}>閉じる</button></div> : <>
         {error && <p className="field-error" role="alert">{error}</p>}
-        <div className="modal-actions"><button type="button" onClick={onCancel}>キャンセル</button><button className="primary-button" type="button" disabled={submitting || !passphrase.trim()} onClick={() => { void submit(); }}>{submitting ? "確認中…" : "テーマを解除"}</button></div>
+        <div className="modal-actions stacked"><button className="primary-button" type="button" disabled={submitting} onClick={() => { void submit(); }}>{submitting ? "確認中…" : "購入権利を再確認"}</button><a className="primary-button" href={shopUrl} target="_blank" rel="noreferrer">ショップで購入する</a><button type="button" onClick={onCancel}>閉じる</button></div>
       </>}
     </section>
   </div>;
@@ -2028,7 +2026,14 @@ export function App() {
       setUnlockedThemePackIds([]);
       return;
     }
-    void listThemePackEntitlements().then(setUnlockedThemePackIds).catch(() => setUnlockedThemePackIds([]));
+    let mounted = true;
+    const refreshEntitlements = () => {
+      void listThemePackEntitlements().then((ids) => { if (mounted) setUnlockedThemePackIds(ids); }).catch(() => undefined);
+    };
+    refreshEntitlements();
+    const refreshWhenVisible = () => { if (window.document.visibilityState === "visible") refreshEntitlements(); };
+    window.addEventListener("focus", refreshEntitlements);
+    window.document.addEventListener("visibilitychange", refreshWhenVisible);
     const pendingPack = window.sessionStorage.getItem("usapon-package-maker.pending-theme-pack");
     if (pendingPack) {
       window.sessionStorage.removeItem("usapon-package-maker.pending-theme-pack");
@@ -2036,6 +2041,11 @@ export function App() {
       const pendingTemplateId = window.sessionStorage.getItem("usapon-package-maker.pending-template");
       if (pendingTemplateId) setPendingTemplate(templateById(pendingTemplateId));
     }
+    return () => {
+      mounted = false;
+      window.removeEventListener("focus", refreshEntitlements);
+      window.document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [user]);
 
   useEffect(() => {
@@ -2230,28 +2240,22 @@ export function App() {
     setUnlockPackId(themePackId);
   }, []);
 
-  const completeThemeUnlock = useCallback(async (passphrase: string) => {
+  const refreshThemeUnlock = useCallback(async () => {
     if (!unlockPackId) return;
-    try {
-      const unlocked = await redeemThemePack(unlockPackId, passphrase);
-      setUnlockedThemePackIds(unlocked);
-      setUnlockPackId(null);
-      window.sessionStorage.removeItem("usapon-package-maker.pending-template");
-      const template = pendingTemplate;
-      setPendingTemplate(null);
-      if (template) openTemplate(template);
-    } catch {
-      throw new Error("合言葉が違うか、しばらく入力が制限されています。");
-    }
+    const unlocked = await listThemePackEntitlements();
+    setUnlockedThemePackIds(unlocked);
+    if (!unlocked.includes(unlockPackId)) throw new Error("購入権利がまだ見つかりません。ショップで入金連絡まで完了し、購入時と同じGoogleアカウントか確認してください。");
+    setUnlockPackId(null);
+    window.sessionStorage.removeItem("usapon-package-maker.pending-template");
+    const template = pendingTemplate;
+    setPendingTemplate(null);
+    if (template) openTemplate(template);
   }, [openTemplate, pendingTemplate, unlockPackId]);
 
-  const redeemThemePackFromSettings = useCallback(async (themePackId: string, passphrase: string) => {
-    try {
-      const unlocked = await redeemThemePack(themePackId, passphrase);
-      setUnlockedThemePackIds(unlocked);
-    } catch {
-      throw new Error("合言葉が違うか、しばらく入力が制限されています。");
-    }
+  const refreshThemePacksFromSettings = useCallback(async () => {
+    const unlocked = await listThemePackEntitlements();
+    setUnlockedThemePackIds(unlocked);
+    if (!unlocked.includes(AUTUMN_THEME_PACK.id)) throw new Error("購入権利がまだ見つかりません。入金連絡とGoogleアカウントをご確認ください。");
   }, []);
 
   const logout = useCallback(async () => {
@@ -2399,8 +2403,8 @@ export function App() {
           onOpenPwaGuide={() => setInstallGuideOpen(true)}
           themePacks={THEME_PACKS}
           unlockedThemePackIds={unlockedThemePackIds}
-          onRedeemThemePack={redeemThemePackFromSettings}
-          themeShopUrl={STAMP_SHOP_URL}
+          onRefreshThemePacks={refreshThemePacksFromSettings}
+          themeShopUrl={AUTUMN_THEME_SHOP_URL}
           canEditUi={canEditUi}
           onOpenUiEditor={() => {
             const url = new URL(window.location.href);
@@ -2434,7 +2438,8 @@ export function App() {
         user={user}
         onLogin={() => { window.sessionStorage.setItem("usapon-package-maker.pending-theme-pack", unlockPackId); void login(); }}
         onCancel={() => { window.sessionStorage.removeItem("usapon-package-maker.pending-template"); setUnlockPackId(null); setPendingTemplate(null); }}
-        onRedeem={completeThemeUnlock}
+        onRefresh={refreshThemeUnlock}
+        shopUrl={AUTUMN_THEME_SHOP_URL}
       />}
     </div>
   );

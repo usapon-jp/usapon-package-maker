@@ -103,15 +103,6 @@ export async function listThemePackEntitlements(): Promise<string[]> {
   return (data as Array<{ theme_pack_id: string }>).map((row) => row.theme_pack_id);
 }
 
-export async function redeemThemePack(themePackId: string, passphrase: string): Promise<string[]> {
-  const { data, error } = await requireSupabase().functions.invoke("package-redeem-theme-pack", {
-    body: { themePackId, passphrase },
-  });
-  if (error) throw error;
-  const value = data as { unlockedThemePackIds?: string[] };
-  return value.unlockedThemePackIds ?? [themePackId];
-}
-
 export async function downloadThemeAsset(themePackId: string, fileName: string): Promise<Blob> {
   const { data, error } = await requireSupabase().storage.from(PACKAGE_THEME_PACK_ASSETS_BUCKET).download(`${themePackId}/${fileName}`);
   if (error) throw error;

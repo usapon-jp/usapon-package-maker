@@ -9,7 +9,7 @@ interface Props {
   onDeleteAccount: () => void;
   themePacks?: readonly ThemePackDefinition[];
   unlockedThemePackIds?: string[];
-  onRedeemThemePack?: (themePackId: string, passphrase: string) => Promise<void>;
+  onRefreshThemePacks?: () => Promise<void>;
   themeShopUrl?: string;
   onOpenPwaGuide: () => void;
   canEditUi?: boolean;
@@ -18,25 +18,19 @@ interface Props {
   onClose: () => void;
 }
 
-export function SettingsSheetModal({ user, onLogin, onLogout, onDeleteAccount, themePacks = [], unlockedThemePackIds = [], onRedeemThemePack, themeShopUrl, onOpenPwaGuide, canEditUi = false, onOpenUiEditor, isStandalone = false, onClose }: Props) {
-  const [passphrases, setPassphrases] = useState<Record<string, string>>({});
-  const [submittingPackId, setSubmittingPackId] = useState<string | null>(null);
+export function SettingsSheetModal({ user, onLogin, onLogout, onDeleteAccount, themePacks = [], unlockedThemePackIds = [], onRefreshThemePacks, themeShopUrl, onOpenPwaGuide, canEditUi = false, onOpenUiEditor, isStandalone = false, onClose }: Props) {
+  const [refreshingPacks, setRefreshingPacks] = useState(false);
   const [themeError, setThemeError] = useState("");
-  const [addingPackId, setAddingPackId] = useState<string | null>(null);
-  const [inputPackId, setInputPackId] = useState<string | null>(null);
-  const redeem = async (themePackId: string) => {
-    const passphrase = passphrases[themePackId]?.trim();
-    if (!passphrase) return;
-    setSubmittingPackId(themePackId);
+  const refreshPacks = async () => {
+    if (!onRefreshThemePacks) return;
+    setRefreshingPacks(true);
     setThemeError("");
     try {
-      if (!onRedeemThemePack) return;
-      await onRedeemThemePack(themePackId, passphrase);
-      setPassphrases((current) => ({ ...current, [themePackId]: "" }));
+      await onRefreshThemePacks();
     } catch (reason) {
-      setThemeError(reason instanceof Error ? reason.message : "合言葉を確認できませんでした。");
+      setThemeError(reason instanceof Error ? reason.message : "購入権利を確認できませんでした。");
     } finally {
-      setSubmittingPackId(null);
+      setRefreshingPacks(false);
     }
   };
   return (
@@ -123,26 +117,14 @@ export function SettingsSheetModal({ user, onLogin, onLogout, onDeleteAccount, t
             )}
           </div>
           <div className="settings-option-list theme-pack-account-list">
-            <p className="settings-subsection-title">テーマパックを追加</p>
+            <p className="settings-subsection-title">購入済みテーマパック</p>
             {themePacks.map((pack) => {
               const unlocked = unlockedThemePackIds.includes(pack.id);
               return <div className="theme-pack-account-item" key={pack.id}>
                 <div><strong>{pack.name}</strong><small>{unlocked ? "✓ 追加済み" : pack.description}</small></div>
-                {!unlocked && addingPackId !== pack.id && <button type="button" className="outline-button theme-pack-add-button" onClick={() => { setAddingPackId(pack.id); setInputPackId(null); setThemeError(""); }}>テーマパックを追加</button>}
-                {!unlocked && addingPackId === pack.id && <div className="theme-pack-add-flow">
-                  {!user ? <button type="button" className="outline-button" onClick={onLogin}>Googleでログインして合言葉を入力</button> : inputPackId !== pack.id ? <button type="button" className="outline-button" onClick={() => setInputPackId(pack.id)}>合言葉を入力して追加</button> : <div className="theme-pack-password-row">
-                  <input
-                    aria-label={`${pack.name}の合言葉`}
-                    type="password"
-                    autoComplete="off"
-                    placeholder="合言葉を入力"
-                    value={passphrases[pack.id] ?? ""}
-                    onChange={(event) => setPassphrases((current) => ({ ...current, [pack.id]: event.target.value }))}
-                    onKeyDown={(event) => { if (event.key === "Enter") void redeem(pack.id); }}
-                  />
-                  <button type="button" className="outline-button" disabled={submittingPackId === pack.id || !(passphrases[pack.id]?.trim())} onClick={() => { void redeem(pack.id); }}>{submittingPackId === pack.id ? "確認中…" : "追加"}</button>
-                </div>}
-                  {themeShopUrl && <a href={themeShopUrl} target="_blank" rel="noreferrer" className="outline-button theme-pack-shop-link">ショップで見る</a>}
+                {!unlocked && <div className="theme-pack-add-flow">
+                  {!user ? <button type="button" className="outline-button" onClick={onLogin}>購入時のGoogleアカウントでログイン</button> : <button type="button" className="outline-button" disabled={refreshingPacks} onClick={() => { void refreshPacks(); }}>{refreshingPacks ? "確認中…" : "購入権利を再確認"}</button>}
+                  {themeShopUrl && <a href={themeShopUrl} target="_blank" rel="noreferrer" className="outline-button theme-pack-shop-link">ショップで購入する</a>}
                 </div>}
               </div>;
             })}

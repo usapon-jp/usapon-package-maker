@@ -7,6 +7,7 @@ describe("テーマパック", () => {
   it("秋カラーを役割付き設定データとして提供する", () => {
     expect(AUTUMN_THEME_PACK.colors.map((color) => color.role)).toEqual(expect.arrayContaining(["background", "text", "frame", "accent"]));
     expect(AUTUMN_THEME_PACK.stampKeys).toHaveLength(5);
+    expect(AUTUMN_THEME_PACK.badge).toBe("ショップ購入特典");
   });
 
   it("再適用時は同じテーマ由来スタンプだけを置き換え、手動素材を残す", () => {
