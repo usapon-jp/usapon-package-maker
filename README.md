@@ -90,7 +90,7 @@ Googleから取得する情報は氏名、メールアドレス、プロフィ�
 
 1. `20260827134001`〜`20260827134006`のpackage migrationを、共有本番の既存migration履歴と照合して適用する
 2. Data APIの公開スキーマへ、既存項目を残したまま`package`を追加する
-3. `package-upload-box-asset`、`package-delete-box-project`、`package-delete-cloud-data`、`package-cleanup-box-assets`、`package-redeem-theme-pack`をデプロイする
+3. `package-upload-box-asset`、`package-delete-box-project`、`package-delete-cloud-data`、`package-redeem-theme-pack`をデプロイする
 4. 共有本番のGoogle Providerを利用し、既存Site URLを変更せずRedirect URLsへ`https://package.usa-pon.com/`と開発URLを追加する
 5. GitHub Repository Variablesへ共有本番の`VITE_SUPABASE_URL`と`VITE_SUPABASE_PUBLISHABLE_KEY`を登録する
 

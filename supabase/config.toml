@@ -9,8 +9,5 @@ verify_jwt = true
 [functions.package-delete-cloud-data]
 verify_jwt = true
 
-[functions.package-cleanup-box-assets]
-verify_jwt = false
-
 [functions.package-redeem-theme-pack]
 verify_jwt = true
