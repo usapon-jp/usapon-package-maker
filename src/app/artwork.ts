@@ -97,12 +97,13 @@ export function createUploadedArtwork(asset: UploadedAsset, geometry: DielineGeo
   };
 }
 
-// Uses the existing uploaded-artwork layer. The full-page fit keeps the cover's
-// aspect ratio intact, so the rabbit is not cropped when it is first placed.
-export function createFullPanelArtwork(asset: UploadedAsset, geometry: DielineGeometry, pageId: DielinePageId = "main"): UploadedArtworkLayer {
+// Uses the existing uploaded-artwork layer and fills the target panel's width.
+// Tall stationery artwork is clipped by the panel, leaving its paper color
+// continuous from edge to edge instead of appearing as a narrow portrait tile.
+export function createFullPanelArtwork(asset: UploadedAsset, geometry: DielineGeometry, pageId: DielinePageId = "main", targetPanel?: Panel): UploadedArtworkLayer {
   const item = createUploadedArtwork(asset, geometry, pageId);
-  const panel = geometry.panels[0];
-  item.widthMm = Math.min(panel.width, panel.height * asset.aspectRatio);
+  const panel = targetPanel ?? geometry.panels[0];
+  item.widthMm = panel.width;
   item.offsetXmm = panel.x + panel.width / 2;
   item.offsetYmm = panel.y + panel.height / 2;
   return item;

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { appReducer, initialState } from "../src/app/app-state";
 import {
+  createFullPanelArtwork,
   createDotPattern,
   createStamp,
   createStripePattern,
@@ -53,6 +54,8 @@ describe("背景・柄・スタンプの状態管理", () => {
 
   it("アップロード背景とスタンプを主要面中央へ追加する", () => {
     const artwork = createUploadedArtwork(asset, geometry);
+    const targetPanel = geometry.panels[1];
+    const fullPanelArtwork = createFullPanelArtwork(asset, geometry, "main", targetPanel);
     const stamp = createStamp({ ...asset, id: "stamp-1" }, geometry, "Pofumofu friends");
     const firstPanel = geometry.panels[0];
     const expectedCenter = {
@@ -61,6 +64,11 @@ describe("背景・柄・スタンプの状態管理", () => {
     };
 
     expect(artwork).toMatchObject({ kind: "uploaded-artwork", repeat: false, rotationDeg: 0, offsetXmm: expectedCenter.x, offsetYmm: expectedCenter.y });
+    expect(fullPanelArtwork).toMatchObject({
+      widthMm: targetPanel.width,
+      offsetXmm: targetPanel.x + targetPanel.width / 2,
+      offsetYmm: targetPanel.y + targetPanel.height / 2,
+    });
     expect(stamp).toMatchObject({ kind: "stamp", name: "Pofumofu friends", rotationDeg: 0, xMm: expectedCenter.x, yMm: expectedCenter.y });
     expect(stamp.widthMm / asset.aspectRatio).toBeLessThanOrEqual(firstPanel.height * 0.72);
   });

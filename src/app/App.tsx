@@ -1247,8 +1247,12 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
       const response = await fetch(`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`);
       if (!response.ok) throw new Error("プリセット画像を読み込めませんでした。");
       const file = new File([await response.blob()], preset.fileName, { type: "image/png" });
-      const item = createFullPanelArtwork(markAsBuiltInStamp(await readPatternFile(file), preset.key), geometry, activePage.id);
-      if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace;
+      const targetPanel = faceScopedEditing ? envelopeFacePanel(geometry, state.activeEnvelopeFace) : undefined;
+      const item = createFullPanelArtwork(markAsBuiltInStamp(await readPatternFile(file), preset.key), geometry, activePage.id, targetPanel);
+      if (faceScopedEditing) {
+        item.surfaceId = state.activeEnvelopeFace;
+        item.rotationDeg = envelopeFaceRotation(state.activeEnvelopeFace);
+      }
       dispatch({ type: "add-artwork", item });
     } catch (error) {
       setArtworkUploadError(error instanceof Error ? error.message : "プリセット画像を読み込めませんでした。");
@@ -1510,8 +1514,8 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                 <div className="pattern-preset-grid" aria-label="基本柄プリセット">
                   <button type="button" aria-label="ストライプを追加" onClick={() => { const item = createStripePattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "stripe-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="stripe-preview" /></button>
                   <button type="button" aria-label="水玉を追加" onClick={() => { const item = createDotPattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "dot-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="dot-preview" /></button>
-                  <button className="pattern-upload-tile" type="button" disabled={uploadingArtwork} aria-label="自分の画像を追加" title="自分の画像を追加" onClick={() => artworkFileInput.current?.click()}>{uploadingArtwork ? "…" : "+"}</button>
                   {otherStamps.filter((preset) => preset.key === "autumn-trial-cover").map((preset) => <button key={preset.key} className="pattern-upload-tile" type="button" disabled={uploadingArtwork} aria-label={`${preset.name}を背景に追加`} title={`${preset.name}を背景に追加`} onClick={() => { void addPresetArtwork(preset); }}><img src={`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`} alt="" aria-hidden="true" /></button>)}
+                  <button className="pattern-upload-tile" type="button" disabled={uploadingArtwork} aria-label="自分の画像を追加" title="自分の画像を追加" onClick={() => artworkFileInput.current?.click()}>{uploadingArtwork ? "…" : "+"}</button>
                 </div>
                 <input ref={artworkFileInput} type="file" accept="image/png,image/svg+xml,.png,.svg" multiple hidden onChange={handleArtworkFiles} />
                 {artworkUploadError && <p className="field-error preserve-lines">{artworkUploadError}</p>}
