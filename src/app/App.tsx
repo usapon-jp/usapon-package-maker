@@ -2124,10 +2124,11 @@ export function App() {
         } });
         setWorkspace(draft.workspace);
         setShouldPersistLocalDraft(true);
-        const hasEditedDocument = JSON.stringify(serializeBoxDocument(draft.state)) !== JSON.stringify(serializeBoxDocument(initialState));
-        lastSavedSignature.current = hasEditedDocument ? "" : JSON.stringify(serializeBoxDocument(initialState));
+        const restoredSignature = JSON.stringify(serializeBoxDocument(draft.state));
+        const hasEditedDocument = restoredSignature !== JSON.stringify(serializeBoxDocument(initialState));
+        lastSavedSignature.current = restoredSignature;
         setHasRestoredLocalDraft(hasEditedDocument);
-        setSaveState(hasEditedDocument ? "dirty" : "idle");
+        setSaveState("idle");
         setSaveMessage(hasEditedDocument ? "端末内の前回作業を復元しました" : "");
       })
       .catch(() => undefined)
@@ -2185,17 +2186,17 @@ export function App() {
     if (!CLOUD_SYNC_UI_ENABLED) return;
     const warn = (event: BeforeUnloadEvent) => {
       if (oauthRedirecting.current) return;
-      if (saveState === "dirty" || saveState === "error" || saveState === "conflict") event.preventDefault();
+      if (documentSignature !== lastSavedSignature.current) event.preventDefault();
     };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [saveState]);
+  }, [documentSignature]);
 
   const confirmDiscard = useCallback(() => {
-    if (saveState !== "dirty" && saveState !== "error" && saveState !== "conflict") return true;
-    if (!CLOUD_SYNC_UI_ENABLED) return window.confirm("現在の端末内作業は、新しい作品で上書きされます。移動しますか？");
-    return window.confirm("クラウドへ保存していない変更があります。今の編集内容から移動しますか？\n端末内の下書きは残ります。");
-  }, [saveState]);
+    if (documentSignature === lastSavedSignature.current) return true;
+    if (!CLOUD_SYNC_UI_ENABLED) return window.confirm("いまの編集をいったん閉じて、別の作品へ移動しますか？\n作業内容はこの端末に残ります。");
+    return window.confirm("いまの編集をいったん閉じて、別の画面へ移動しますか？\n作業内容はこの端末に残るので、あとから続けられます。");
+  }, [documentSignature]);
 
   const login = useCallback(async () => {
     try {
@@ -2299,9 +2300,9 @@ export function App() {
     setHasRestoredLocalDraft(false);
     setShouldPersistLocalDraft(true);
     setWorkspace(null);
-    lastSavedSignature.current = "";
-    setSaveState("dirty");
-    setSaveMessage("新しい作品（未保存）");
+    lastSavedSignature.current = JSON.stringify(serializeBoxDocument(next));
+    setSaveState("idle");
+    setSaveMessage("");
   }, [confirmDiscard]);
 
   const openTemplate = useCallback((template: PackageTemplate, letterSetSelection?: StationerySetSelection) => {
@@ -2335,9 +2336,9 @@ export function App() {
     setHasRestoredLocalDraft(false);
     setShouldPersistLocalDraft(true);
     setWorkspace(null);
-    lastSavedSignature.current = "";
-    setSaveState("dirty");
-    setSaveMessage(`${template.name}（未保存）`);
+    lastSavedSignature.current = JSON.stringify(serializeBoxDocument(next));
+    setSaveState("idle");
+    setSaveMessage("");
   }, [confirmDiscard]);
 
   const startLetterSet = useCallback((selection: StationerySetSelection) => {

@@ -19,6 +19,8 @@ describe("モバイル中心のレターセットUI", () => {
     expect(markup).toContain("フルセット");
     expect(markup).toContain("封筒のみ");
     expect(markup).toContain("洋形2号カマス貼り");
+    expect(markup).toContain('class="mini-envelope-flap"');
+    expect(markup).toContain('class="mini-usapon-stamp"');
     expect(markup).not.toContain("ふりこみました");
     expect(markup).toContain('data-ui-id="letter.screen"');
     expect(markup).toContain('data-ui-id="letter.choice-grid"');
