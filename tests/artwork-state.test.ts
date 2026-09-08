@@ -62,6 +62,7 @@ describe("背景・柄・スタンプの状態管理", () => {
 
     expect(artwork).toMatchObject({ kind: "uploaded-artwork", repeat: false, rotationDeg: 0, offsetXmm: expectedCenter.x, offsetYmm: expectedCenter.y });
     expect(stamp).toMatchObject({ kind: "stamp", name: "Pofumofu friends", rotationDeg: 0, xMm: expectedCenter.x, yMm: expectedCenter.y });
+    expect(stamp.widthMm / asset.aspectRatio).toBeLessThanOrEqual(firstPanel.height * 0.72);
   });
 
   it("スタンプを追加、更新、複製、並べ替え、表示切替、削除できる", () => {

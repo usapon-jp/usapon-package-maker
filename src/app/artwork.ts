@@ -147,7 +147,9 @@ export function createDotPattern(id: string, number: number, pageId: DielinePage
 export function createStamp(asset: UploadedAsset, geometry: DielineGeometry, name = asset.fileName, pageId: DielinePageId = "main", targetPanel?: Panel): StampItem {
   const center = panelCenter(geometry, targetPanel);
   const runtime = runtimeAsset(asset);
-  const baseWidth = Math.min(center.panel.width * 0.72, center.panel.height / Math.max(asset.aspectRatio, 0.35) * 0.72);
+  // Width is constrained by the panel width and the resulting image height.
+  // This keeps portrait stamps clear of the fold line as well as wide stamps.
+  const baseWidth = Math.min(center.panel.width * 0.72, center.panel.height * Math.max(asset.aspectRatio, 0.35) * 0.72);
   return {
     ...runtime.asset,
     id: runtime.id,
