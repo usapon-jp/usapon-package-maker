@@ -1,5 +1,6 @@
 import type { BuiltInStampKey } from "../../app/app-types";
 import type { BoxInput, BoxType } from "../../domain/boxes/types";
+import { AUTUMN_STAMP_IDS } from "../theme-packs/autumn-stamp-catalog";
 
 export type TemplateCategory = "box" | "envelope" | "letter-paper" | "card" | "mount" | "tag";
 
@@ -17,6 +18,7 @@ export type PackageTemplate = {
   recommendedStampSetIds: string[];
   writingLines: boolean;
   themePackId?: string;
+  selectable?: boolean;
 };
 
 export type StampSet = {
@@ -29,10 +31,10 @@ export type StampSet = {
 const defaults = { depthMm: 1, paperThicknessMm: 0.12, glueFlapMm: 12 };
 
 export const STAMP_SETS: StampSet[] = [{
-  id: "autumn-rabbits",
+  id: "autumn-booth-full-set",
   name: "秋うさぎスタンプセット",
-  description: "どんぐり・おいも・栗の秋うさぎ",
-  stampKeys: ["autumn-rabbit-acorn-hug", "autumn-rabbit-sweet-potato-car", "autumn-rabbit-sweet-potato", "autumn-rabbit-chestnut", "autumn-rabbit-sleeping-sweet-potato"],
+  description: "購入者向け秋スタンプ26点",
+  stampKeys: [...AUTUMN_STAMP_IDS],
 }];
 
 export const PACKAGE_TEMPLATES: PackageTemplate[] = [
@@ -61,9 +63,10 @@ export const PACKAGE_TEMPLATES: PackageTemplate[] = [
     badge: "人気",
     box: { ...defaults, type: "letter-paper-v1", widthMm: 190, heightMm: 277 },
     previewStampKey: "autumn-rabbit-acorn-hug",
-    recommendedStampSetIds: ["autumn-rabbits"],
+    recommendedStampSetIds: ["autumn-booth-full-set"],
     writingLines: true,
     themePackId: "autumn-letter-set",
+    selectable: false,
   },
   {
     id: "autumn-envelope",
@@ -76,9 +79,10 @@ export const PACKAGE_TEMPLATES: PackageTemplate[] = [
     badge: "A4実寸",
     box: { ...defaults, type: "envelope-v1", widthMm: 162, heightMm: 114, glueFlapMm: 12, envelopeConstruction: "kamasu" },
     previewStampKey: "autumn-rabbit-sweet-potato-car",
-    recommendedStampSetIds: ["autumn-rabbits"],
+    recommendedStampSetIds: ["autumn-booth-full-set"],
     writingLines: false,
     themePackId: "autumn-letter-set",
+    selectable: false,
   },
   {
     id: "autumn-mini-card",
@@ -91,9 +95,10 @@ export const PACKAGE_TEMPLATES: PackageTemplate[] = [
     badge: "A4に10枚",
     box: { ...defaults, type: "mini-card-v1", widthMm: 91, heightMm: 55 },
     previewStampKey: "autumn-rabbit-sleeping-sweet-potato",
-    recommendedStampSetIds: ["autumn-rabbits"],
+    recommendedStampSetIds: ["autumn-booth-full-set"],
     writingLines: false,
     themePackId: "autumn-letter-set",
+    selectable: false,
   },
 ];
 

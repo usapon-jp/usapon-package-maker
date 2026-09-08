@@ -92,7 +92,9 @@ async function assetRows(ids: string[]): Promise<Map<string, AssetRow>> {
 }
 
 function builtInAssetUrl(ref: Extract<AssetRef, { kind: "builtin" }>) {
-  return `${import.meta.env.BASE_URL}assets/stamps/${builtInStampForKey(ref.key).fileName}`;
+  const preset = builtInStampForKey(ref.key);
+  if (preset.delivery === "private") throw new Error("購入済みスタンプは非公開素材として読み込みます。");
+  return `${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`;
 }
 
 export async function listThemePackEntitlements(): Promise<string[]> {

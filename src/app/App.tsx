@@ -45,6 +45,7 @@ import {
   createStamp,
   createStripePattern,
   createUploadedArtwork,
+  isBuiltInStampPickerVisible,
   markAsBuiltInStamp,
   rotateByDegrees,
   rotateQuarterTurn,
@@ -1017,13 +1018,13 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const template = templateById(state.templateId);
   const activeThemePack = themePackById(state.themePackId);
   const autumnUnlocked = unlockedThemePackIds.includes(AUTUMN_THEME_PACK.id);
-  const templateStampSets = stampSetsForTemplate(template);
-  const autumnStampSet = STAMP_SETS.find((set) => set.id === "autumn-rabbits");
+  const templateStampSets = stampSetsForTemplate(template).filter((set) => set.id !== "autumn-booth-full-set" || autumnUnlocked);
+  const autumnStampSet = STAMP_SETS.find((set) => set.id === "autumn-booth-full-set");
   const recommendedStampSets = activeThemePack?.id === AUTUMN_THEME_PACK.id && autumnUnlocked && autumnStampSet && !templateStampSets.some((set) => set.id === autumnStampSet.id)
     ? [...templateStampSets, autumnStampSet]
     : templateStampSets;
   const recommendedKeys = new Set(recommendedStampSets.flatMap((set) => set.stampKeys));
-  const otherStamps = BUILT_IN_STAMPS.filter((preset) => !recommendedKeys.has(preset.key) && (!preset.themePackId || unlockedThemePackIds.includes(preset.themePackId)));
+  const otherStamps = BUILT_IN_STAMPS.filter((preset) => isBuiltInStampPickerVisible(preset) && !recommendedKeys.has(preset.key) && (!preset.themePackId || unlockedThemePackIds.includes(preset.themePackId)));
   const stampPresets = [...new Map([
     ...recommendedStampSets.flatMap((set) => set.stampKeys.flatMap((key) => BUILT_IN_STAMPS.filter((preset) => preset.key === key))),
     ...otherStamps,
@@ -1045,6 +1046,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const [backgroundCopyMessage, setBackgroundCopyMessage] = useState("");
   const [letterSetShareMessage, setLetterSetShareMessage] = useState("");
   const [applyingThemePack, setApplyingThemePack] = useState(false);
+  const [privateStampPreviewUrls, setPrivateStampPreviewUrls] = useState<Record<string, string>>({});
   const [sampleGuideOpen, setSampleGuideOpen] = useState(false);
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [canvasCenter, setCanvasCenter] = useState({ x: geometry.bounds.widthMm / 2, y: geometry.bounds.heightMm / 2 });
@@ -1067,6 +1069,28 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
       // 保存できない環境でも、現在の編集セッション内では利用できます。
     }
   }, [favoriteColors]);
+
+  const stampPresetSignature = stampPresets.map((preset) => preset.key).join(",");
+  useEffect(() => {
+    let cancelled = false;
+    const objectUrls: string[] = [];
+    setPrivateStampPreviewUrls({});
+    const privatePresets = stampPresets.filter((preset) => preset.delivery === "private" && preset.themePackId && unlockedThemePackIds.includes(preset.themePackId));
+    void Promise.allSettled(privatePresets.map(async (preset) => {
+      const blob = await downloadThemeAsset(preset.themePackId!, preset.fileName);
+      if (cancelled) return null;
+      const url = URL.createObjectURL(blob);
+      objectUrls.push(url);
+      return [preset.key, url] as const;
+    })).then((results) => {
+      if (cancelled) return;
+      setPrivateStampPreviewUrls(Object.fromEntries(results.flatMap((result) => result.status === "fulfilled" && result.value ? [result.value] : [])));
+    });
+    return () => {
+      cancelled = true;
+      objectUrls.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [stampPresetSignature, unlockedThemePackIds.join(",")]);
 
   useEffect(() => {
     setCanvasZoom(1);
@@ -1178,8 +1202,8 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
       const frontPage = pages.find((page) => page.id === "main");
       const letterPage = pages.find((page) => page.id === "letter");
       const definitions = [
-        { key: "autumn-rabbit-sweet-potato-car" as const, page: frontPage, slot: "front", surfaceId: "envelope-front" as const, x: 0.86, y: 0.82, width: 27 },
-        { key: "autumn-rabbit-acorn-hug" as const, page: letterPage, slot: "letter", surfaceId: undefined, x: 0.86, y: 0.9, width: 24 },
+        { key: "autumn-stamp-9798" as const, page: frontPage, slot: "front", surfaceId: "envelope-front" as const, x: 0.86, y: 0.82, width: 27 },
+        { key: "autumn-stamp-9799" as const, page: letterPage, slot: "letter", surfaceId: undefined, x: 0.86, y: 0.9, width: 24 },
       ];
       for (const definition of definitions) {
         if (!definition.page) continue;
@@ -1217,9 +1241,11 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     ? [{ label: `${activeThemePack.name}カラー`, colors: activeThemePack.colors }]
     : [];
 
-  const stampPreviewUrl = (preset: (typeof BUILT_IN_STAMPS)[number]) => preset.themePackId
-    ? `${import.meta.env.BASE_URL}assets/theme-previews/${preset.fileName}`
-    : `${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`;
+  // Paid originals never receive a public preview URL. The button still downloads
+  // the selected entitled asset only after the user chooses it.
+  const stampPreviewUrl = (preset: (typeof BUILT_IN_STAMPS)[number]) => preset.delivery === "public"
+    ? `${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`
+    : privateStampPreviewUrls[preset.key] ?? null;
 
   const addText = () => {
     const front = faceScopedEditing ? envelopeFacePanel(geometry, state.activeEnvelopeFace) : geometry.panels[0];
@@ -1464,7 +1490,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                     <div className="stamp-preset-grid">
                       {stampPresets.map((preset) => (
                         <button key={preset.key} className="stamp-preset-card" type="button" aria-label={`${preset.name}を追加`} disabled={uploadingStamp} onClick={() => { void addPresetStamp(preset); }}>
-                          <img src={stampPreviewUrl(preset)} alt="" aria-hidden="true" />
+                          {stampPreviewUrl(preset) ? <img src={stampPreviewUrl(preset)!} alt="" aria-hidden="true" /> : <span aria-hidden="true">🍂</span>}
                         </button>
                       ))}
                     </div>

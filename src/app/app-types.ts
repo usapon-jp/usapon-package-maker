@@ -28,6 +28,11 @@ export const BUILT_IN_STAMP_KEYS = [
   "autumn-rabbit-sweet-potato",
   "autumn-rabbit-chestnut",
   "autumn-rabbit-sleeping-sweet-potato",
+  "autumn-stamp-9798", "autumn-stamp-9799", "autumn-stamp-9800", "autumn-stamp-9801", "autumn-stamp-9802", "autumn-stamp-9803",
+  "autumn-stamp-9804", "autumn-stamp-9805", "autumn-stamp-9806", "autumn-stamp-9807", "autumn-stamp-9809", "autumn-stamp-9810",
+  "autumn-stamp-9811", "autumn-stamp-9812", "autumn-stamp-9813", "autumn-stamp-9814", "autumn-stamp-9815", "autumn-stamp-9816",
+  "autumn-stamp-9817", "autumn-stamp-9818", "autumn-stamp-9819", "autumn-stamp-9820", "autumn-stamp-9821", "autumn-stamp-9822",
+  "autumn-stamp-9823", "autumn-stamp-extra",
 ] as const;
 export type BuiltInStampKey = (typeof BUILT_IN_STAMP_KEYS)[number];
 

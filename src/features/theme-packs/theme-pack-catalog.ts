@@ -1,5 +1,6 @@
 import type { BuiltInStampKey, DielineLineColors, EnvelopeDesignSettings } from "../../app/app-types";
 import type { EnvelopeFaceId } from "../../domain/boxes/types";
+import { AUTUMN_STAMP_IDS } from "./autumn-stamp-catalog";
 
 export type ThemeColorRole = "background" | "text" | "frame" | "accent";
 
@@ -24,13 +25,7 @@ export const AUTUMN_THEME_PACK: ThemePackDefinition = {
   name: "秋のレターセット",
   description: "秋うさぎスタンプと、背景・文字・枠・アクセントをおそろいで使えるテーマパック",
   badge: "ショップ購入特典",
-  stampKeys: [
-    "autumn-rabbit-acorn-hug",
-    "autumn-rabbit-sweet-potato-car",
-    "autumn-rabbit-sweet-potato",
-    "autumn-rabbit-chestnut",
-    "autumn-rabbit-sleeping-sweet-potato",
-  ],
+  stampKeys: [...AUTUMN_STAMP_IDS.filter((id) => id !== "autumn-stamp-9803")],
   colors: [
     { name: "焼きいもクリーム", value: "#fff4dc", role: "background" },
     { name: "落ち葉ベージュ", value: "#ead2ad", role: "background" },

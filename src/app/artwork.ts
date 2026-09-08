@@ -9,6 +9,7 @@ import type {
   UploadedAsset,
 } from "./app-types";
 import type { DielineGeometry, DielinePageId } from "../domain/boxes/types";
+import { AUTUMN_FREE_TRIAL_STAMP_ID, AUTUMN_STAMP_FILES, AUTUMN_STAMP_IDS, LEGACY_AUTUMN_STAMP_FILES } from "../features/theme-packs/autumn-stamp-catalog";
 
 export const POFUMOFU_STAMP_FILE = "pofumofu-friends.png";
 export const POFUMOFU_STAMP_KEY = "pofumofu-friends" as const;
@@ -19,19 +20,26 @@ export const BUILT_IN_STAMPS = [
     fileName: "usapon-box-rabbits.png",
     name: "うさぽんBOX",
     themePackId: null,
+    delivery: "public",
   },
   {
     key: POFUMOFU_STAMP_KEY,
     fileName: POFUMOFU_STAMP_FILE,
     name: "Pofumofu friends",
     themePackId: null,
+    delivery: "public",
   },
-  { key: "autumn-rabbit-sweet-potato-car", fileName: "autumn-rabbit-sweet-potato-car.png", name: "おいもの車", themePackId: "autumn-letter-set" },
-  { key: "autumn-rabbit-acorn-hug", fileName: "autumn-rabbit-acorn-hug.png", name: "どんぐりぎゅっ", themePackId: "autumn-letter-set" },
-  { key: "autumn-rabbit-sweet-potato", fileName: "autumn-rabbit-sweet-potato.png", name: "おいもをもぐもぐ", themePackId: "autumn-letter-set" },
-  { key: "autumn-rabbit-chestnut", fileName: "autumn-rabbit-chestnut.png", name: "栗からこんにちは", themePackId: "autumn-letter-set" },
-  { key: "autumn-rabbit-sleeping-sweet-potato", fileName: "autumn-rabbit-sleeping-sweet-potato-no-text.png", name: "おいもの中でおやすみ", themePackId: "autumn-letter-set" },
-] as const satisfies ReadonlyArray<{ key: BuiltInStampKey; fileName: string; name: string; themePackId: string | null }>;
+  { key: "autumn-rabbit-sweet-potato-car", fileName: LEGACY_AUTUMN_STAMP_FILES["autumn-rabbit-sweet-potato-car"], name: "秋うさぎ（旧作品用）", themePackId: "autumn-letter-set", delivery: "private" as const, legacy: true },
+  { key: "autumn-rabbit-acorn-hug", fileName: LEGACY_AUTUMN_STAMP_FILES["autumn-rabbit-acorn-hug"], name: "秋うさぎ（旧作品用）", themePackId: "autumn-letter-set", delivery: "private" as const, legacy: true },
+  { key: "autumn-rabbit-sweet-potato", fileName: LEGACY_AUTUMN_STAMP_FILES["autumn-rabbit-sweet-potato"], name: "秋うさぎ（旧作品用）", themePackId: "autumn-letter-set", delivery: "private" as const, legacy: true },
+  { key: "autumn-rabbit-chestnut", fileName: LEGACY_AUTUMN_STAMP_FILES["autumn-rabbit-chestnut"], name: "秋うさぎ（旧作品用）", themePackId: "autumn-letter-set", delivery: "private" as const, legacy: true },
+  { key: "autumn-rabbit-sleeping-sweet-potato", fileName: LEGACY_AUTUMN_STAMP_FILES["autumn-rabbit-sleeping-sweet-potato"], name: "秋うさぎ（旧作品用）", themePackId: "autumn-letter-set", delivery: "private" as const, legacy: true },
+  ...AUTUMN_STAMP_IDS.map((key) => ({ key, fileName: AUTUMN_STAMP_FILES[key], name: key === AUTUMN_FREE_TRIAL_STAMP_ID ? "秋スタンプ（無料お試し）" : `秋スタンプ ${key.replace("autumn-stamp-", "")}`, themePackId: key === AUTUMN_FREE_TRIAL_STAMP_ID ? null : "autumn-letter-set", delivery: key === AUTUMN_FREE_TRIAL_STAMP_ID ? "public" as const : "private" as const })),
+] as const satisfies ReadonlyArray<{ key: BuiltInStampKey; fileName: string; name: string; themePackId: string | null; delivery?: "public" | "private"; legacy?: boolean }>;
+
+export function isBuiltInStampPickerVisible(preset: (typeof BUILT_IN_STAMPS)[number]) {
+  return !("legacy" in preset && preset.legacy);
+}
 
 export function builtInStampForKey(key: BuiltInStampKey) {
   const preset = BUILT_IN_STAMPS.find((item) => item.key === key);

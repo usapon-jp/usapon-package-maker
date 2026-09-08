@@ -16,7 +16,7 @@ function readFavorites(): string[] {
 
 function TemplatePreview({ template }: { template: PackageTemplate }) {
   const stamp = builtInStampForKey(template.previewStampKey);
-  const stampUrl = stamp.themePackId ? `${import.meta.env.BASE_URL}assets/theme-previews/${stamp.fileName}` : `${import.meta.env.BASE_URL}assets/stamps/${stamp.fileName}`;
+  const stampUrl = `${import.meta.env.BASE_URL}assets/stamps/${stamp.fileName}`;
   if (template.category === "envelope") {
     return (
       <div className="template-preview is-envelope" data-template-id={template.id} aria-hidden="true">
@@ -56,7 +56,8 @@ export function TemplateScreen({ onBack, onSelect, unlockedThemePackIds }: { onB
     try { window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites)); } catch { /* 端末内保存が無効でも一覧は使える。 */ }
   }, [favorites]);
 
-  const series = [...new Map(PACKAGE_TEMPLATES.map((template) => [template.seriesId, { id: template.seriesId, name: template.seriesName }])).values()];
+  const selectableTemplates = PACKAGE_TEMPLATES.filter((template) => template.selectable !== false);
+  const series = [...new Map(selectableTemplates.map((template) => [template.seriesId, { id: template.seriesId, name: template.seriesName }])).values()];
 
   return (
     <main className="tool-page template-page" data-ui-id="templates.screen">
@@ -69,9 +70,9 @@ export function TemplateScreen({ onBack, onSelect, unlockedThemePackIds }: { onB
 
       {series.map((group) => (
         <section className="template-series" key={group.id} aria-labelledby={`template-series-${group.id}`}>
-          <div className="template-series-heading"><div><p className="eyebrow">{group.id === "autumn-letter-set" ? "AUTUMN LETTER COLLECTION" : "LETTER SET BASICS"}</p><h2 id={`template-series-${group.id}`}>{group.name}</h2></div><span>{PACKAGE_TEMPLATES.filter((template) => template.seriesId === group.id).length}アイテム</span></div>
+          <div className="template-series-heading"><div><p className="eyebrow">{group.id === "autumn-letter-set" ? "AUTUMN LETTER COLLECTION" : "LETTER SET BASICS"}</p><h2 id={`template-series-${group.id}`}>{group.name}</h2></div><span>{selectableTemplates.filter((template) => template.seriesId === group.id).length}アイテム</span></div>
           <div className="template-card-grid" data-ui-id={`templates.grid.${group.id}`}>
-            {PACKAGE_TEMPLATES.filter((template) => template.seriesId === group.id).map((template) => {
+            {selectableTemplates.filter((template) => template.seriesId === group.id).map((template) => {
               const favorite = favorites.includes(template.id);
               const locked = Boolean(template.themePackId && !unlockedThemePackIds.includes(template.themePackId));
               return (

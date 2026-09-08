@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { appReducer, initialState } from "../src/app/app-state";
 import { AUTUMN_THEME_PACK } from "../src/features/theme-packs/theme-pack-catalog";
+import { AUTUMN_STAMP_IDS } from "../src/features/theme-packs/autumn-stamp-catalog";
 
 describe("テーマパック", () => {
   it("秋カラーを役割付き設定データとして提供する", () => {
     expect(AUTUMN_THEME_PACK.colors.map((color) => color.role)).toEqual(expect.arrayContaining(["background", "text", "frame", "accent"]));
-    expect(AUTUMN_THEME_PACK.stampKeys).toHaveLength(5);
+    expect(AUTUMN_THEME_PACK.stampKeys).toEqual(AUTUMN_STAMP_IDS.filter((id) => id !== "autumn-stamp-9803"));
     expect(AUTUMN_THEME_PACK.badge).toBe("ショップ購入特典");
+    expect(AUTUMN_STAMP_IDS).toHaveLength(26);
   });
 
   it("再適用時は同じテーマ由来スタンプだけを置き換え、手動素材を残す", () => {
