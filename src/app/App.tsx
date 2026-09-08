@@ -82,6 +82,7 @@ import { isPackageUIEditorAdmin } from "../ui-editor/repository";
 const STAMP_SHOP_URL = "https://usapon-digital-shop.vercel.app/";
 const AUTUMN_THEME_SHOP_URL = "https://usapon-digital-shop.vercel.app/products/goodnotes-autumn-full-set";
 const AUTUMN_TRIAL_PRODUCT_KEY = "goodnotes-autumn-trial-set";
+const AUTUMN_COVER_BACKGROUND = "#f3ebdc";
 
 // 既存のクラウド保存利用者がいるため、端末内下書き保存と併用して提供する。
 const CLOUD_SYNC_UI_ENABLED = true;
@@ -1252,6 +1253,9 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
       if (faceScopedEditing) {
         item.surfaceId = state.activeEnvelopeFace;
         item.rotationDeg = envelopeFaceRotation(state.activeEnvelopeFace);
+        dispatch({ type: "set-surface-background-color", faceId: state.activeEnvelopeFace, color: AUTUMN_COVER_BACKGROUND });
+      } else {
+        dispatch({ type: "set-background-color", pageId: activePage.id, color: AUTUMN_COVER_BACKGROUND });
       }
       dispatch({ type: "add-artwork", item });
     } catch (error) {

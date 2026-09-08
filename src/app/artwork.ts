@@ -97,13 +97,12 @@ export function createUploadedArtwork(asset: UploadedAsset, geometry: DielineGeo
   };
 }
 
-// Uses the existing uploaded-artwork layer and fills the target panel's width.
-// Tall stationery artwork is clipped by the panel, leaving its paper color
-// continuous from edge to edge instead of appearing as a narrow portrait tile.
+// Uses the existing uploaded-artwork layer and keeps the full illustration at a
+// comfortable size. Callers can fill the surrounding panel with its paper color.
 export function createFullPanelArtwork(asset: UploadedAsset, geometry: DielineGeometry, pageId: DielinePageId = "main", targetPanel?: Panel): UploadedArtworkLayer {
   const item = createUploadedArtwork(asset, geometry, pageId);
   const panel = targetPanel ?? geometry.panels[0];
-  item.widthMm = panel.width;
+  item.widthMm = Math.min(panel.width, panel.height * asset.aspectRatio);
   item.offsetXmm = panel.x + panel.width / 2;
   item.offsetYmm = panel.y + panel.height / 2;
   return item;

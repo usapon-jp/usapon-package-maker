@@ -65,7 +65,7 @@ describe("背景・柄・スタンプの状態管理", () => {
 
     expect(artwork).toMatchObject({ kind: "uploaded-artwork", repeat: false, rotationDeg: 0, offsetXmm: expectedCenter.x, offsetYmm: expectedCenter.y });
     expect(fullPanelArtwork).toMatchObject({
-      widthMm: targetPanel.width,
+      widthMm: Math.min(targetPanel.width, targetPanel.height * asset.aspectRatio),
       offsetXmm: targetPanel.x + targetPanel.width / 2,
       offsetYmm: targetPanel.y + targetPanel.height / 2,
     });
