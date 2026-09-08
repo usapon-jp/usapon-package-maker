@@ -91,6 +91,14 @@ describe("背景・柄・スタンプの状態管理", () => {
     expect(stamp.widthMm).toBeLessThan(geometry.panels[0].width);
   });
 
+  it("背景付きと判定された縦長画像は蓋幅に合わせる", () => {
+    const portrait = { ...asset, id: "future-cover", aspectRatio: 0.5 };
+    const stamp = createStamp(portrait, geometry, "追加の表紙", "main", undefined, true);
+
+    expect(stamp.rotationDeg).toBe(90);
+    expect(stamp.widthMm / portrait.aspectRatio).toBe(geometry.panels[0].width);
+  });
+
   it("スタンプを追加、更新、複製、並べ替え、表示切替、削除できる", () => {
     const first = createStamp({ ...asset, id: "stamp-1" }, geometry, "1つ目");
     const second = createStamp({ ...asset, id: "stamp-2" }, geometry, "2つ目");

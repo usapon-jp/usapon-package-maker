@@ -16,7 +16,7 @@ import { downloadPdfBlob } from "../lib/pdf/download-pdf";
 import { canSharePdfFile, createPdfShareFile, createTimestampedPdfFileName, sharePdfFile } from "../lib/pdf/share-pdf";
 import { detectClientContext, type ClientContext } from "../lib/browser/client-context";
 import { readPatternFile, readStoredPatternBlob } from "../lib/uploads/read-pattern";
-import { readImageEdgeColor } from "../lib/uploads/image-edge-color";
+import { readImageBackgroundColor, readImageEdgeColor } from "../lib/uploads/image-edge-color";
 import { loadMyImages, saveMyImage, mergeMyImages } from "../features/stamps/my-images";
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from "../lib/drafts/local-draft";
 import {
@@ -1198,13 +1198,18 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     for (const file of files) {
       try {
         const panel = faceScopedEditing ? envelopeFacePanel(geometry, state.activeEnvelopeFace) : undefined;
-        const item = createStamp(await readPatternFile(file), geometry, file.name, activePage.id, panel);
+        const asset = await readPatternFile(file);
+        const backgroundColor = geometry.type === "straight-tuck-carton-v1" && asset.aspectRatio < 1
+          ? await readImageBackgroundColor(asset.dataUrl)
+          : null;
+        const item = createStamp(asset, geometry, file.name, activePage.id, panel, Boolean(backgroundColor));
         if (faceScopedEditing && panel) {
           item.surfaceId = state.activeEnvelopeFace;
           item.xMm = panel.x + panel.width / 2;
           item.yMm = panel.y + panel.height / 2;
           item.rotationDeg = envelopeFaceRotation(state.activeEnvelopeFace);
         }
+        if (backgroundColor) dispatch({ type: "set-background-color", pageId: activePage.id, color: backgroundColor });
         dispatch({ type: "add-stamp", item });
         setMyImages((items) => mergeMyImages(items, [item]));
         setStampTab("my-images");
@@ -1227,16 +1232,21 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
         : await (async () => { const response = await fetch(`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`); if (!response.ok) throw new Error("プリセット画像を読み込めませんでした。"); return response.blob(); })();
       const file = new File([blob], preset.fileName, { type: "image/png" });
       const panel = faceScopedEditing ? envelopeFacePanel(geometry, state.activeEnvelopeFace) : undefined;
-      const item = createStamp(markAsBuiltInStamp(await readPatternFile(file), preset.key), geometry, preset.name, activePage.id, panel);
+      const asset = markAsBuiltInStamp(await readPatternFile(file), preset.key);
+      const detectedBackground = geometry.type === "straight-tuck-carton-v1" && asset.aspectRatio < 1
+        ? await readImageBackgroundColor(asset.dataUrl)
+        : null;
+      const backgroundColor = preset.key === "autumn-trial-cover" ? AUTUMN_COVER_BACKGROUND : detectedBackground;
+      const item = createStamp(asset, geometry, preset.name, activePage.id, panel, Boolean(backgroundColor));
       if (faceScopedEditing && panel) {
         item.surfaceId = state.activeEnvelopeFace;
         item.xMm = panel.x + panel.width / 2;
         item.yMm = panel.y + panel.height / 2;
         item.rotationDeg = envelopeFaceRotation(state.activeEnvelopeFace);
       }
-      if (preset.key === "autumn-trial-cover") {
-        if (faceScopedEditing) dispatch({ type: "set-surface-background-color", faceId: state.activeEnvelopeFace, color: AUTUMN_COVER_BACKGROUND });
-        else dispatch({ type: "set-background-color", pageId: activePage.id, color: AUTUMN_COVER_BACKGROUND });
+      if (backgroundColor) {
+        if (faceScopedEditing) dispatch({ type: "set-surface-background-color", faceId: state.activeEnvelopeFace, color: backgroundColor });
+        else dispatch({ type: "set-background-color", pageId: activePage.id, color: backgroundColor });
       }
       dispatch({ type: "add-stamp", item });
     } catch (error) {
@@ -1607,12 +1617,16 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                   <div className="stamp-preset-scroller">
                     <div className="stamp-preset-grid">
                       {activeStampTab === "my-images" ? uploadedImages.map((image) => (
-                        <button key={image.assetRef.kind === "user" ? image.assetRef.assetId : image.id} className="stamp-preset-card" type="button" aria-label={`${image.name}を追加`} title={image.name} onClick={() => {
+                        <button key={image.assetRef.kind === "user" ? image.assetRef.assetId : image.id} className="stamp-preset-card" type="button" aria-label={`${image.name}を追加`} title={image.name} onClick={() => { void (async () => {
                           const panel = faceScopedEditing ? envelopeFacePanel(geometry, state.activeEnvelopeFace) : undefined;
-                          const item = createStamp(image, geometry, image.name, activePage.id, panel);
+                          const backgroundColor = geometry.type === "straight-tuck-carton-v1" && image.aspectRatio < 1
+                            ? await readImageBackgroundColor(image.dataUrl)
+                            : null;
+                          const item = createStamp(image, geometry, image.name, activePage.id, panel, Boolean(backgroundColor));
                           if (faceScopedEditing && panel) { item.surfaceId = state.activeEnvelopeFace; item.xMm = panel.x + panel.width / 2; item.yMm = panel.y + panel.height / 2; item.rotationDeg = envelopeFaceRotation(state.activeEnvelopeFace); }
+                          if (backgroundColor) dispatch({ type: "set-background-color", pageId: activePage.id, color: backgroundColor });
                           dispatch({ type: "add-stamp", item });
-                        }}><img src={image.dataUrl} alt="" /></button>
+                        })(); }}><img src={image.dataUrl} alt="" /></button>
                       )) : visibleStampPresets.map((preset) => (
                         <button key={preset.key} className="stamp-preset-card" type="button" aria-label={`${preset.name}を追加`} title={preset.name} disabled={uploadingStamp} onClick={() => { void addPresetStamp(preset); }}>{stampPreviewUrl(preset) ? <img src={stampPreviewUrl(preset)!} alt="" /> : <span aria-hidden="true">🍂</span>}</button>
                       ))}
