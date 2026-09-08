@@ -58,7 +58,7 @@ function sanitizeSvg(raw: string): { svg: string; aspectRatio: number } {
   return { svg: new XMLSerializer().serializeToString(root), aspectRatio };
 }
 
-async function readPng(file: File): Promise<{ dataUrl: string; aspectRatio: number }> {
+async function readPng(file: File): Promise<{ dataUrl: string; aspectRatio: number; blob: Blob }> {
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("PNGを読み取れませんでした。"));
@@ -69,7 +69,55 @@ async function readPng(file: File): Promise<{ dataUrl: string; aspectRatio: numb
   image.decoding = "async";
   image.src = dataUrl;
   await image.decode();
-  return { dataUrl, aspectRatio: image.naturalWidth / image.naturalHeight };
+  const trimmed = await trimTransparentPng(image, dataUrl, file);
+  return { dataUrl: trimmed.dataUrl, aspectRatio: trimmed.aspectRatio, blob: trimmed.blob };
+}
+
+async function trimTransparentPng(image: HTMLImageElement, dataUrl: string, source: Blob): Promise<{ dataUrl: string; aspectRatio: number; blob: Blob }> {
+  const width = image.naturalWidth;
+  const height = image.naturalHeight;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", { willReadFrequently: true });
+  if (!context) return { dataUrl, aspectRatio: width / height, blob: source };
+  context.drawImage(image, 0, 0);
+
+  const pixels = context.getImageData(0, 0, width, height).data;
+  let left = width;
+  let top = height;
+  let right = -1;
+  let bottom = -1;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (pixels[(y * width + x) * 4 + 3] <= 8) continue;
+      left = Math.min(left, x);
+      top = Math.min(top, y);
+      right = Math.max(right, x);
+      bottom = Math.max(bottom, y);
+    }
+  }
+  if (right < 0) return { dataUrl, aspectRatio: width / height, blob: source };
+
+  // 輪郭に触れる半透明ピクセルを守るため、ほんの少しだけ余白を残す。
+  const padding = 2;
+  left = Math.max(0, left - padding);
+  top = Math.max(0, top - padding);
+  right = Math.min(width - 1, right + padding);
+  bottom = Math.min(height - 1, bottom + padding);
+  const croppedWidth = right - left + 1;
+  const croppedHeight = bottom - top + 1;
+  if (croppedWidth === width && croppedHeight === height) return { dataUrl, aspectRatio: width / height, blob: source };
+
+  const cropped = document.createElement("canvas");
+  cropped.width = croppedWidth;
+  cropped.height = croppedHeight;
+  cropped.getContext("2d")?.drawImage(canvas, left, top, croppedWidth, croppedHeight, 0, 0, croppedWidth, croppedHeight);
+  const croppedDataUrl = cropped.toDataURL("image/png");
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    cropped.toBlob((result) => result ? resolve(result) : reject(new Error("画像の余白を整えられませんでした。")), "image/png");
+  });
+  return { dataUrl: croppedDataUrl, aspectRatio: croppedWidth / croppedHeight, blob };
 }
 
 export function blobToDataUrl(blob: Blob): Promise<string> {
@@ -96,8 +144,8 @@ export async function readStoredPatternBlob(
   }
 
   const file = new File([blob], fileName, { type: "image/png" });
-  const { dataUrl, aspectRatio } = await readPng(file);
-  return { id, assetRef, fileName, sourceType, dataUrl, aspectRatio, blob: file };
+  const { dataUrl, aspectRatio, blob: trimmedBlob } = await readPng(file);
+  return { id, assetRef, fileName, sourceType, dataUrl, aspectRatio, blob: trimmedBlob };
 }
 
 export async function readPatternFile(file: File): Promise<UploadedAsset> {

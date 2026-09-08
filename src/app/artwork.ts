@@ -8,7 +8,7 @@ import type {
   UploadedArtworkLayer,
   UploadedAsset,
 } from "./app-types";
-import type { DielineGeometry, DielinePageId } from "../domain/boxes/types";
+import type { DielineGeometry, DielinePageId, Panel } from "../domain/boxes/types";
 import { AUTUMN_FREE_TRIAL_STAMP_ID, AUTUMN_STAMP_FILES, AUTUMN_STAMP_IDS, AUTUMN_TRIAL_STAMP_FILES, LEGACY_AUTUMN_STAMP_FILES } from "../features/theme-packs/autumn-stamp-catalog";
 
 export const POFUMOFU_STAMP_FILE = "pofumofu-friends.png";
@@ -66,8 +66,8 @@ export function markAsBuiltInStamp(asset: UploadedAsset, key: BuiltInStampKey = 
   return { ...asset, assetRef: { kind: "builtin", key } };
 }
 
-function panelCenter(geometry: DielineGeometry) {
-  const panel = geometry.panels[0];
+function panelCenter(geometry: DielineGeometry, targetPanel?: Panel) {
+  const panel = targetPanel ?? geometry.panels[0];
   return { x: panel.x + panel.width / 2, y: panel.y + panel.height / 2, panel };
 }
 
@@ -144,9 +144,10 @@ export function createDotPattern(id: string, number: number, pageId: DielinePage
   };
 }
 
-export function createStamp(asset: UploadedAsset, geometry: DielineGeometry, name = asset.fileName, pageId: DielinePageId = "main"): StampItem {
-  const center = panelCenter(geometry);
+export function createStamp(asset: UploadedAsset, geometry: DielineGeometry, name = asset.fileName, pageId: DielinePageId = "main", targetPanel?: Panel): StampItem {
+  const center = panelCenter(geometry, targetPanel);
   const runtime = runtimeAsset(asset);
+  const baseWidth = Math.min(center.panel.width * 0.72, center.panel.height / Math.max(asset.aspectRatio, 0.35) * 0.72);
   return {
     ...runtime.asset,
     id: runtime.id,
@@ -156,7 +157,7 @@ export function createStamp(asset: UploadedAsset, geometry: DielineGeometry, nam
     name,
     xMm: center.x,
     yMm: center.y,
-    widthMm: Math.min(40, Math.max(10, center.panel.width * 0.72)),
+    widthMm: Math.min(40, Math.max(10, baseWidth)),
     rotationDeg: 0,
     visible: true,
     opacity: 1,

@@ -1,3 +1,4 @@
+import { StampPinch } from "../../features/stamps/pinch";
 import { useEffect, useId, useRef, useState, type PointerEvent } from "react";
 
 import type { ArtworkLayer as ArtworkItem, DielineLineColors, EnvelopeDesignSettings, PrintGuideMode, StampItem, TextItem } from "../../app/app-types";
@@ -173,6 +174,7 @@ type Props = Omit<LayersProps, "idPrefix" | "onArtworkPointerDown" | "onStampPoi
   onSelectStamp: (id: string | null) => void;
   onMoveStamp: (id: string, xMm: number, yMm: number) => void;
   onRotateStamp: (id: string) => void;
+  onResizeStamp?: (id: string, widthMm: number) => void;
   onSelectText: (id: string | null) => void;
   onMoveText: (id: string, xMm: number, yMm: number) => void;
   onSelectEnvelopeFace?: (faceId: EnvelopeFaceId) => void;
@@ -205,6 +207,7 @@ export function DielineSvg({
   onSelectStamp,
   onMoveStamp,
   onRotateStamp,
+  onResizeStamp,
   onSelectText,
   onMoveText,
   onSelectEnvelopeFace,
@@ -216,6 +219,7 @@ export function DielineSvg({
   const rawId = useId();
   const idPrefix = `preview-${rawId.replaceAll(":", "")}`;
   const svgRef = useRef<SVGSVGElement>(null);
+  const pinch = useRef(new StampPinch());
   const drag = useRef<{ kind: "artwork" | "stamp" | "text"; id: string; dx: number; dy: number } | null>(null);
   const pan = useRef<{ pointerId: number; point: DielineViewportCenter; center: DielineViewportCenter } | null>(null);
   const autoPan = useRef<{ pointerId: number; clientX: number; clientY: number; time: number } | null>(null);
@@ -373,6 +377,9 @@ export function DielineSvg({
   };
 
   const handlePointerMove = (event: PointerEvent<SVGSVGElement>) => {
+    const resized = pinch.current.move(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (resized) onResizeStamp?.(resized.id, resized.widthMm);
+    if (pinch.current.suppressDrag) return;
     if (pan.current) {
       const point = pointFromEvent(event);
       setViewportCenter({ x: pan.current.center.x + pan.current.point.x - point.x, y: pan.current.center.y + pan.current.point.y - point.y });
@@ -401,8 +408,20 @@ export function DielineSvg({
       viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
       role="img"
       aria-label="箱の実寸展開図プレビュー"
-      style={zoom > 1 ? { touchAction: "none" } : undefined}
-      onPointerDownCapture={(event) => { if (!startPan(event)) handleEnvelopeFacePointerDown(event); }}
+      style={{ touchAction: "none" }}
+      onPointerDownCapture={(event) => {
+        if (event.pointerType === "touch" && onResizeStamp) {
+          const id = (event.target as Element).closest("[data-stamp-id]")?.getAttribute("data-stamp-id");
+          const stamp = stamps.find((item) => item.id === id);
+          if (pinch.current.down(event.pointerId, { x: event.clientX, y: event.clientY }, stamp ? { id: stamp.id, width: stamp.widthMm } : undefined)) {
+            drag.current = null; pan.current = null; stopAutoPan();
+            event.currentTarget.setPointerCapture(event.pointerId);
+            event.stopPropagation();
+            return;
+          }
+        }
+        if (!startPan(event)) handleEnvelopeFacePointerDown(event);
+      }}
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) {
           onSelectArtwork(null);
@@ -411,12 +430,14 @@ export function DielineSvg({
         }
       }}
       onPointerMove={handlePointerMove}
-      onPointerUp={() => {
+      onPointerUp={(event) => {
+        pinch.current.up(event.pointerId);
         drag.current = null;
         pan.current = null;
         stopAutoPan();
       }}
       onPointerCancel={() => {
+        pinch.current.cancel();
         drag.current = null;
         pan.current = null;
         stopAutoPan();

@@ -15,7 +15,8 @@ import { clamp, roundMm } from "../domain/units";
 import { downloadPdfBlob } from "../lib/pdf/download-pdf";
 import { canSharePdfFile, createPdfShareFile, createTimestampedPdfFileName, sharePdfFile } from "../lib/pdf/share-pdf";
 import { detectClientContext, type ClientContext } from "../lib/browser/client-context";
-import { readPatternFile } from "../lib/uploads/read-pattern";
+import { readPatternFile, readStoredPatternBlob } from "../lib/uploads/read-pattern";
+import { loadMyImages, saveMyImage, mergeMyImages } from "../features/stamps/my-images";
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from "../lib/drafts/local-draft";
 import {
   currentUser,
@@ -1016,7 +1017,7 @@ function AccordionSection({
   );
 }
 
-function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds, hasFreeTrialEntitlement, onUnlockThemePack }: ScreenProps & { unlockedThemePackIds: string[]; hasFreeTrialEntitlement: boolean; onUnlockThemePack: (themePackId: string) => void }) {
+function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds, hasFreeTrialEntitlement, onUnlockThemePack, imageOwner }: ScreenProps & { imageOwner: string; unlockedThemePackIds: string[]; hasFreeTrialEntitlement: boolean; onUnlockThemePack: (themePackId: string) => void }) {
   const geometry = activePage.geometry;
   const fit = activePage.fit;
   const design = pageDesign(state, activePage.id);
@@ -1056,12 +1057,42 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const [uploadingArtwork, setUploadingArtwork] = useState(false);
   const [uploadingStamp, setUploadingStamp] = useState(false);
   const [stampAddMenuOpen, setStampAddMenuOpen] = useState(false);
+  const [stampTab, setStampTab] = useState("basic");
+  const [myImages, setMyImages] = useState<typeof state.stamps>([]);
+  useEffect(() => {
+    let current = true;
+    loadMyImages(imageOwner).then((items) => { if (current) setMyImages((previous) => mergeMyImages(items, previous)); })
+      .catch(() => { if (current) setStampUploadError("マイ画像の端末内保存を読み込めませんでした。"); });
+    return () => { current = false; };
+  }, [imageOwner]);
+  useEffect(() => {
+    let current = true;
+    const trimPlacedPngStamps = async () => {
+      for (const stamp of state.stamps) {
+        if (stamp.sourceType !== "png") continue;
+        try {
+          const asset = await readStoredPatternBlob(stamp.blob ?? await (await fetch(stamp.dataUrl)).blob(), stamp.fileName, "png", stamp.id, stamp.assetRef);
+          if (!current || asset.dataUrl === stamp.dataUrl) continue;
+          dispatch({ type: "update-stamp", id: stamp.id, patch: { dataUrl: asset.dataUrl, aspectRatio: asset.aspectRatio, blob: asset.blob } });
+        } catch { /* トリミングできない画像は元の表示を保ちます。 */ }
+      }
+    };
+    void trimPlacedPngStamps();
+    return () => { current = false; };
+  }, [state.stamps]);
   const [backgroundCopyMessage, setBackgroundCopyMessage] = useState("");
   const [letterSetShareMessage, setLetterSetShareMessage] = useState("");
   const [applyingThemePack, setApplyingThemePack] = useState(false);
   const [privateStampPreviewUrls, setPrivateStampPreviewUrls] = useState<Record<string, string>>({});
   const [freeTrialPassphrase, setFreeTrialPassphrase] = useState("");
   const [freeTrialMessage, setFreeTrialMessage] = useState("");
+  const uploadedImages = mergeMyImages(myImages, state.stamps);
+  const stampTabs = [
+    { id: "basic", name: "うさぽん", presets: stampPresets.filter((preset) => !STAMP_SETS.some((set) => set.stampKeys.includes(preset.key))) },
+    ...STAMP_SETS.map((set) => ({ id: set.id, name: set.name, presets: stampPresets.filter((preset) => set.stampKeys.includes(preset.key)) })),
+  ].filter((set) => set.presets.length > 0);
+  const activeStampTab = stampTab === "my-images" || stampTabs.some((set) => set.id === stampTab) ? stampTab : stampTabs[0]?.id;
+  const visibleStampPresets = stampTabs.find((set) => set.id === activeStampTab)?.presets ?? [];
   const [sampleGuideOpen, setSampleGuideOpen] = useState(false);
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [canvasCenter, setCanvasCenter] = useState({ x: geometry.bounds.widthMm / 2, y: geometry.bounds.heightMm / 2 });
@@ -1164,15 +1195,19 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     const errors: string[] = [];
     for (const file of files) {
       try {
-        const item = createStamp(await readPatternFile(file), geometry, file.name, activePage.id);
-        if (faceScopedEditing) {
-          const panel = envelopeFacePanel(geometry, state.activeEnvelopeFace);
+        const panel = faceScopedEditing ? envelopeFacePanel(geometry, state.activeEnvelopeFace) : undefined;
+        const item = createStamp(await readPatternFile(file), geometry, file.name, activePage.id, panel);
+        if (faceScopedEditing && panel) {
           item.surfaceId = state.activeEnvelopeFace;
           item.xMm = panel.x + panel.width / 2;
           item.yMm = panel.y + panel.height / 2;
           item.rotationDeg = envelopeFaceRotation(state.activeEnvelopeFace);
         }
         dispatch({ type: "add-stamp", item });
+        setMyImages((items) => mergeMyImages(items, [item]));
+        setStampTab("my-images");
+        try { await saveMyImage(imageOwner, item); }
+        catch { errors.push(`${file.name}: 配置しましたが、マイ画像を端末内へ保存できませんでした。`); }
       } catch (error) {
         errors.push(`${file.name}: ${error instanceof Error ? error.message : "読み込めませんでした。"}`);
       }
@@ -1189,9 +1224,9 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
         ? await downloadThemeAsset(preset.themePackId, preset.fileName)
         : await (async () => { const response = await fetch(`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`); if (!response.ok) throw new Error("プリセット画像を読み込めませんでした。"); return response.blob(); })();
       const file = new File([blob], preset.fileName, { type: "image/png" });
-      const item = createStamp(markAsBuiltInStamp(await readPatternFile(file), preset.key), geometry, preset.name, activePage.id);
-      if (faceScopedEditing) {
-        const panel = envelopeFacePanel(geometry, state.activeEnvelopeFace);
+      const panel = faceScopedEditing ? envelopeFacePanel(geometry, state.activeEnvelopeFace) : undefined;
+      const item = createStamp(markAsBuiltInStamp(await readPatternFile(file), preset.key), geometry, preset.name, activePage.id, panel);
+      if (faceScopedEditing && panel) {
         item.surfaceId = state.activeEnvelopeFace;
         item.xMm = panel.x + panel.width / 2;
         item.yMm = panel.y + panel.height / 2;
@@ -1528,16 +1563,12 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
           {state.openEditorSection === "stamps" && (
             <div className="drawer-section stamp-editor-workspace">
               <section className="stamp-editor-zone stamp-library-zone">
-                <strong className="stamp-editor-zone-title">スタンプ一覧</strong>
-                <div className="stamp-library-body">
-                  <div className="stamp-preset-scroller">
-                    <div className="stamp-preset-grid">
-                      {stampPresets.map((preset) => (
-                        <button key={preset.key} className="stamp-preset-card" type="button" aria-label={`${preset.name}を追加`} disabled={uploadingStamp} onClick={() => { void addPresetStamp(preset); }}>
-                          {stampPreviewUrl(preset) ? <img src={stampPreviewUrl(preset)!} alt="" aria-hidden="true" /> : <span aria-hidden="true">🍂</span>}
-                        </button>
-                      ))}
-                    </div>
+                <div className="stamp-library-toolbar">
+                  <div className="stamp-set-tabs" role="tablist" aria-label="スタンプの種類">
+                    {stampTabs.map((set) => <button key={set.id} id={`stamp-tab-${set.id}`} role="tab" aria-selected={activeStampTab === set.id} aria-controls="stamp-library-panel" type="button" title={set.name} aria-label={set.name} onClick={() => setStampTab(set.id)}>{stampPreviewUrl(set.presets[0]) ? <img src={stampPreviewUrl(set.presets[0])!} alt="" /> : <span aria-hidden="true">🍂</span>}<span>{set.id === "basic" ? "うさぽん" : set.name.replace("スタンプセット", "")}</span></button>)}
+                    <button id="stamp-tab-my-images" aria-label="マイ画像" title="マイ画像" role="tab" aria-selected={activeStampTab === "my-images"} aria-controls="stamp-library-panel" type="button" onClick={() => setStampTab("my-images")}>
+                      {uploadedImages[0] ? <img src={uploadedImages[0].dataUrl} alt="" /> : <span className="my-images-symbol" aria-hidden="true">▧</span>}<span>マイ画像</span>
+                    </button>
                   </div>
                   {!freeTrialAvailable && <form className="free-trial-receipt" onSubmit={(event) => { event.preventDefault(); receiveFreeTrial(); }}>
                     <label>端末内の無料お試しを受け取る（IMG9803のみ）<input aria-label="無料お試しの合言葉" value={freeTrialPassphrase} onChange={(event) => setFreeTrialPassphrase(event.target.value)} /></label>
@@ -1550,6 +1581,23 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                       <a href={STAMP_SHOP_URL} target="_blank" rel="noreferrer" onClick={() => setStampAddMenuOpen(false)}><span aria-hidden="true">▣</span>ショップから購入する</a>
                       <button type="button" disabled={uploadingStamp} onClick={() => { setStampAddMenuOpen(false); stampFileInput.current?.click(); }}><span aria-hidden="true">↑</span>{uploadingStamp ? "読み込み中…" : "画像をアップロード"}</button>
                     </div>}
+                  </div>
+                </div>
+                <div className="stamp-library-body" id="stamp-library-panel" role="tabpanel" aria-labelledby={`stamp-tab-${activeStampTab}`}>
+                  <div className="stamp-preset-scroller">
+                    <div className="stamp-preset-grid">
+                      {activeStampTab === "my-images" ? uploadedImages.map((image) => (
+                        <button key={image.assetRef.kind === "user" ? image.assetRef.assetId : image.id} className="stamp-preset-card" type="button" aria-label={`${image.name}を追加`} title={image.name} onClick={() => {
+                          const panel = faceScopedEditing ? envelopeFacePanel(geometry, state.activeEnvelopeFace) : undefined;
+                          const item = createStamp(image, geometry, image.name, activePage.id, panel);
+                          if (faceScopedEditing && panel) { item.surfaceId = state.activeEnvelopeFace; item.xMm = panel.x + panel.width / 2; item.yMm = panel.y + panel.height / 2; item.rotationDeg = envelopeFaceRotation(state.activeEnvelopeFace); }
+                          dispatch({ type: "add-stamp", item });
+                        }}><img src={image.dataUrl} alt="" /></button>
+                      )) : visibleStampPresets.map((preset) => (
+                        <button key={preset.key} className="stamp-preset-card" type="button" aria-label={`${preset.name}を追加`} title={preset.name} disabled={uploadingStamp} onClick={() => { void addPresetStamp(preset); }}>{stampPreviewUrl(preset) ? <img src={stampPreviewUrl(preset)!} alt="" /> : <span aria-hidden="true">🍂</span>}</button>
+                      ))}
+                    </div>
+                    {activeStampTab === "my-images" && !uploadedImages.length && <p className="my-images-empty">＋から画像を追加できます。<br />この端末のマイ画像に保存されます。</p>}
                   </div>
                 </div>
               </section>
@@ -2439,7 +2487,7 @@ export function App() {
       {(state.screen === "home" || state.screen === "letter-set") && <LetterSetSelectScreen onSelect={startLetterSet} />}
       {state.screen === "templates" && <TemplateScreen onBack={() => dispatch({ type: "go", screen: "home" })} onSelect={startTemplate} unlockedThemePackIds={unlockedThemePackIds} />}
       {state.screen === "size" && <SizeScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
-      {state.screen === "design" && <DesignScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} unlockedThemePackIds={unlockedThemePackIds} hasFreeTrialEntitlement={hasFreeTrialEntitlement} onUnlockThemePack={requestThemeUnlock} />}
+      {state.screen === "design" && <DesignScreen key={user?.id ?? "device"} imageOwner={user?.id ?? "device"} state={state} dispatch={dispatch} pages={pages} activePage={activePage} unlockedThemePackIds={unlockedThemePackIds} hasFreeTrialEntitlement={hasFreeTrialEntitlement} onUnlockThemePack={requestThemeUnlock} />}
       {state.screen === "print" && <PrintScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} clientContext={clientContext} onSuccessfulExport={offerInstallAfterSuccess} />}
       {CLOUD_SYNC_UI_ENABLED && state.screen === "my-boxes" && (
         <MyBoxesScreen

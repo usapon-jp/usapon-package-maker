@@ -14,7 +14,7 @@ export function LetterSetSelectScreen({ onSelect }: { onSelect: (selection: Stat
         <div>
           <p className="eyebrow">LETTER SET</p>
           <h1>レターセットを選ぶ</h1>
-          <span>完成162 × 114mm 封筒と便箋・カードの組み合わせを選択</span>
+          <span>封筒に添える便箋やカードを選びましょう</span>
         </div>
       </div>
       <div className="letter-set-choice-grid" data-ui-id="letter.choice-grid">
@@ -46,7 +46,7 @@ export function LetterSetSelectScreen({ onSelect }: { onSelect: (selection: Stat
             </div>
             <strong>{option.title}</strong>
             <small>{option.content}</small>
-            <span className="letter-set-meta-tag">完成 162 × 114mm ／ A4印刷</span>
+            <span className="letter-set-meta-tag"><span>封筒 162 × 114mm</span><span>A4印刷</span></span>
             <b className="choice-action-link">このセットで作る →</b>
           </button>
         ))}
