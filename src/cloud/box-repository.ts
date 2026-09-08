@@ -105,6 +105,19 @@ export async function listThemePackEntitlements(): Promise<string[]> {
   return (data as Array<{ theme_pack_id: string }>).map((row) => row.theme_pack_id);
 }
 
+export async function hasFreeProductEntitlement(productKey: string, userId: string): Promise<boolean> {
+  const { data, error } = await requireSupabase()
+    .schema("digital_shop")
+    .from("free_product_entitlements")
+    .select("purchaser_user_id")
+    .eq("product_key", productKey)
+    .is("revoked_at", null)
+    .eq("purchaser_user_id", userId)
+    .maybeSingle();
+  if (error) throw error;
+  return data?.purchaser_user_id === userId;
+}
+
 export async function downloadThemeAsset(themePackId: string, fileName: string): Promise<Blob> {
   const { data, error } = await requireSupabase().storage.from(PACKAGE_THEME_PACK_ASSETS_BUCKET).download(`${themePackId}/${fileName}`);
   if (error) throw error;

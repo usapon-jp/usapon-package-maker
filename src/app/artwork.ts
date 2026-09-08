@@ -9,7 +9,7 @@ import type {
   UploadedAsset,
 } from "./app-types";
 import type { DielineGeometry, DielinePageId } from "../domain/boxes/types";
-import { AUTUMN_FREE_TRIAL_STAMP_ID, AUTUMN_STAMP_FILES, AUTUMN_STAMP_IDS, LEGACY_AUTUMN_STAMP_FILES } from "../features/theme-packs/autumn-stamp-catalog";
+import { AUTUMN_FREE_TRIAL_STAMP_ID, AUTUMN_STAMP_FILES, AUTUMN_STAMP_IDS, AUTUMN_TRIAL_STAMP_FILES, LEGACY_AUTUMN_STAMP_FILES } from "../features/theme-packs/autumn-stamp-catalog";
 
 export const POFUMOFU_STAMP_FILE = "pofumofu-friends.png";
 export const POFUMOFU_STAMP_KEY = "pofumofu-friends" as const;
@@ -34,8 +34,12 @@ export const BUILT_IN_STAMPS = [
   { key: "autumn-rabbit-sweet-potato", fileName: LEGACY_AUTUMN_STAMP_FILES["autumn-rabbit-sweet-potato"], name: "秋うさぎ（旧作品用）", themePackId: "autumn-letter-set", delivery: "private" as const, legacy: true },
   { key: "autumn-rabbit-chestnut", fileName: LEGACY_AUTUMN_STAMP_FILES["autumn-rabbit-chestnut"], name: "秋うさぎ（旧作品用）", themePackId: "autumn-letter-set", delivery: "private" as const, legacy: true },
   { key: "autumn-rabbit-sleeping-sweet-potato", fileName: LEGACY_AUTUMN_STAMP_FILES["autumn-rabbit-sleeping-sweet-potato"], name: "秋うさぎ（旧作品用）", themePackId: "autumn-letter-set", delivery: "private" as const, legacy: true },
+  { key: "autumn-trial-cover", fileName: AUTUMN_TRIAL_STAMP_FILES["autumn-trial-cover"], name: "秋うさぎ表紙（無料お試し）", themePackId: null, delivery: "public" as const, trial: true },
+  { key: "autumn-trial-sticky", fileName: AUTUMN_TRIAL_STAMP_FILES["autumn-trial-sticky"], name: "秋うさぎ付箋（無料お試し）", themePackId: null, delivery: "public" as const, trial: true },
+  { key: "autumn-trial-heading", fileName: AUTUMN_TRIAL_STAMP_FILES["autumn-trial-heading"], name: "イチョウ見出し（無料お試し）", themePackId: null, delivery: "public" as const, trial: true },
+  { key: "autumn-trial-tape", fileName: AUTUMN_TRIAL_STAMP_FILES["autumn-trial-tape"], name: "イチョウうさぎマステ（無料お試し）", themePackId: null, delivery: "public" as const, trial: true },
   ...AUTUMN_STAMP_IDS.map((key) => ({ key, fileName: AUTUMN_STAMP_FILES[key], name: key === AUTUMN_FREE_TRIAL_STAMP_ID ? "秋スタンプ（無料お試し）" : `秋スタンプ ${key.replace("autumn-stamp-", "")}`, themePackId: key === AUTUMN_FREE_TRIAL_STAMP_ID ? null : "autumn-letter-set", delivery: key === AUTUMN_FREE_TRIAL_STAMP_ID ? "public" as const : "private" as const })),
-] as const satisfies ReadonlyArray<{ key: BuiltInStampKey; fileName: string; name: string; themePackId: string | null; delivery?: "public" | "private"; legacy?: boolean }>;
+] as const satisfies ReadonlyArray<{ key: BuiltInStampKey; fileName: string; name: string; themePackId: string | null; delivery?: "public" | "private"; legacy?: boolean; trial?: boolean }>;
 
 export function isBuiltInStampPickerVisible(preset: (typeof BUILT_IN_STAMPS)[number]) {
   return !("legacy" in preset && preset.legacy);
@@ -91,6 +95,17 @@ export function createUploadedArtwork(asset: UploadedAsset, geometry: DielineGeo
     visible: true,
     opacity: 1,
   };
+}
+
+// Uses the existing uploaded-artwork layer. The full-page fit keeps the cover's
+// aspect ratio intact, so the rabbit is not cropped when it is first placed.
+export function createFullPanelArtwork(asset: UploadedAsset, geometry: DielineGeometry, pageId: DielinePageId = "main"): UploadedArtworkLayer {
+  const item = createUploadedArtwork(asset, geometry, pageId);
+  const panel = geometry.panels[0];
+  item.widthMm = Math.min(panel.width, panel.height * asset.aspectRatio);
+  item.offsetXmm = panel.x + panel.width / 2;
+  item.offsetYmm = panel.y + panel.height / 2;
+  return item;
 }
 
 export function createStripePattern(id: string, number: number, pageId: DielinePageId = "main"): StripePatternLayer {

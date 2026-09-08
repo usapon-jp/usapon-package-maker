@@ -21,6 +21,7 @@ import {
   currentUser,
   deletePackageCloudData,
   downloadThemeAsset,
+  hasFreeProductEntitlement,
   listThemePackEntitlements,
   openCloudProject,
   ProjectConflictError,
@@ -42,6 +43,7 @@ import {
 import {
   BUILT_IN_STAMPS,
   createDotPattern,
+  createFullPanelArtwork,
   createStamp,
   createStripePattern,
   createUploadedArtwork,
@@ -63,7 +65,7 @@ import { adaptEnvelopeDesignToPage } from "../features/letter-set/design-sharing
 import { arrangeEnvelopeTemplate, DEFAULT_LETTER_SET_ENVELOPE, ENVELOPE_LAYOUT_TEMPLATES } from "../features/letter-set/envelope-layout-templates";
 import { AUTUMN_THEME_PACK, THEME_PACKS, themePackById, type ThemePackDefinition } from "../features/theme-packs/theme-pack-catalog";
 import { AUTUMN_FREE_TRIAL_STAMP_ID } from "../features/theme-packs/autumn-stamp-catalog";
-import { canUseAutumnStamp, hasFreeTrialReceipt, isFreeTrialPassphrase, saveFreeTrialReceipt } from "../features/theme-packs/free-trial";
+import { canUseAutumnTrialStamp, hasFreeTrialReceipt, isAutumnTrialStamp, isFreeTrialPassphrase, saveFreeTrialReceipt } from "../features/theme-packs/free-trial";
 import { LetterSetSelectScreen } from "../features/letter-set/LetterSetSelectScreen";
 import { BottomNavBar, type BottomNavTab } from "../components/navigation/BottomNavBar";
 import { SampleGuideModal } from "../components/modals/SampleGuideModal";
@@ -78,6 +80,7 @@ import { isPackageUIEditorAdmin } from "../ui-editor/repository";
 
 const STAMP_SHOP_URL = "https://usapon-digital-shop.vercel.app/";
 const AUTUMN_THEME_SHOP_URL = "https://usapon-digital-shop.vercel.app/products/goodnotes-autumn-full-set";
+const AUTUMN_TRIAL_PRODUCT_KEY = "goodnotes-autumn-trial-set";
 
 // 既存のクラウド保存利用者がいるため、端末内下書き保存と併用して提供する。
 const CLOUD_SYNC_UI_ENABLED = true;
@@ -1013,7 +1016,7 @@ function AccordionSection({
   );
 }
 
-function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds, onUnlockThemePack }: ScreenProps & { unlockedThemePackIds: string[]; onUnlockThemePack: (themePackId: string) => void }) {
+function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds, hasFreeTrialEntitlement, onUnlockThemePack }: ScreenProps & { unlockedThemePackIds: string[]; hasFreeTrialEntitlement: boolean; onUnlockThemePack: (themePackId: string) => void }) {
   const geometry = activePage.geometry;
   const fit = activePage.fit;
   const design = pageDesign(state, activePage.id);
@@ -1029,9 +1032,10 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const [freeTrialUnlocked, setFreeTrialUnlocked] = useState(() => {
     try { return hasFreeTrialReceipt(window.localStorage); } catch { return false; }
   });
+  const freeTrialAvailable = freeTrialUnlocked || hasFreeTrialEntitlement || autumnUnlocked;
   const otherStamps = BUILT_IN_STAMPS.filter((preset) => isBuiltInStampPickerVisible(preset) && !recommendedKeys.has(preset.key) && (
-    preset.key === AUTUMN_FREE_TRIAL_STAMP_ID
-      ? canUseAutumnStamp(AUTUMN_FREE_TRIAL_STAMP_ID, freeTrialUnlocked, autumnUnlocked)
+    isAutumnTrialStamp(preset.key)
+      ? canUseAutumnTrialStamp(preset.key, freeTrialUnlocked, hasFreeTrialEntitlement, autumnUnlocked)
       : !preset.themePackId || unlockedThemePackIds.includes(preset.themePackId)
   ));
   const stampPresets = [...new Map([
@@ -1198,6 +1202,23 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
       setStampUploadError(error instanceof Error ? error.message : "プリセット画像を読み込めませんでした。");
     } finally {
       setUploadingStamp(false);
+    }
+  };
+
+  const addPresetArtwork = async (preset: (typeof BUILT_IN_STAMPS)[number]) => {
+    setUploadingArtwork(true);
+    setArtworkUploadError("");
+    try {
+      const response = await fetch(`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`);
+      if (!response.ok) throw new Error("プリセット画像を読み込めませんでした。");
+      const file = new File([await response.blob()], preset.fileName, { type: "image/png" });
+      const item = createFullPanelArtwork(markAsBuiltInStamp(await readPatternFile(file), preset.key), geometry, activePage.id);
+      if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace;
+      dispatch({ type: "add-artwork", item });
+    } catch (error) {
+      setArtworkUploadError(error instanceof Error ? error.message : "プリセット画像を読み込めませんでした。");
+    } finally {
+      setUploadingArtwork(false);
     }
   };
 
@@ -1455,6 +1476,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                   <button type="button" aria-label="ストライプを追加" onClick={() => { const item = createStripePattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "stripe-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="stripe-preview" /></button>
                   <button type="button" aria-label="水玉を追加" onClick={() => { const item = createDotPattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "dot-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="dot-preview" /></button>
                   <button className="pattern-upload-tile" type="button" disabled={uploadingArtwork} aria-label="自分の画像を追加" title="自分の画像を追加" onClick={() => artworkFileInput.current?.click()}>{uploadingArtwork ? "…" : "+"}</button>
+                  {otherStamps.filter((preset) => preset.key === "autumn-trial-cover").map((preset) => <button key={preset.key} className="pattern-upload-tile" type="button" disabled={uploadingArtwork} aria-label={`${preset.name}を背景に追加`} title={`${preset.name}を背景に追加`} onClick={() => { void addPresetArtwork(preset); }}><img src={`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`} alt="" aria-hidden="true" /></button>)}
                 </div>
                 <input ref={artworkFileInput} type="file" accept="image/png,image/svg+xml,.png,.svg" multiple hidden onChange={handleArtworkFiles} />
                 {artworkUploadError && <p className="field-error preserve-lines">{artworkUploadError}</p>}
@@ -1517,8 +1539,8 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                       ))}
                     </div>
                   </div>
-                  {!autumnUnlocked && !freeTrialUnlocked && <form className="free-trial-receipt" onSubmit={(event) => { event.preventDefault(); receiveFreeTrial(); }}>
-                    <label>無料お試しを受け取る（IMG9803のみ）<input aria-label="無料お試しの合言葉" value={freeTrialPassphrase} onChange={(event) => setFreeTrialPassphrase(event.target.value)} /></label>
+                  {!freeTrialAvailable && <form className="free-trial-receipt" onSubmit={(event) => { event.preventDefault(); receiveFreeTrial(); }}>
+                    <label>端末内の無料お試しを受け取る（IMG9803のみ）<input aria-label="無料お試しの合言葉" value={freeTrialPassphrase} onChange={(event) => setFreeTrialPassphrase(event.target.value)} /></label>
                     <button type="submit">受け取る</button>
                   </form>}
                   {freeTrialMessage && <small className="free-trial-message" role="status">{freeTrialMessage}</small>}
@@ -1983,6 +2005,7 @@ export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [canEditUi, setCanEditUi] = useState(false);
   const [unlockedThemePackIds, setUnlockedThemePackIds] = useState<string[]>([]);
+  const [hasFreeTrialEntitlement, setHasFreeTrialEntitlement] = useState(false);
   const [unlockPackId, setUnlockPackId] = useState<string | null>(null);
   const [pendingTemplate, setPendingTemplate] = useState<PackageTemplate | null>(null);
   const [workspace, setWorkspace] = useState<ProjectWorkspace | null>(null);
@@ -2077,11 +2100,13 @@ export function App() {
   useEffect(() => {
     if (!user || !isCloudConfigured) {
       setUnlockedThemePackIds([]);
+      setHasFreeTrialEntitlement(false);
       return;
     }
     let mounted = true;
     const refreshEntitlements = () => {
       void listThemePackEntitlements().then((ids) => { if (mounted) setUnlockedThemePackIds(ids); }).catch(() => undefined);
+      void hasFreeProductEntitlement(AUTUMN_TRIAL_PRODUCT_KEY, user.id).then((entitled) => { if (mounted) setHasFreeTrialEntitlement(entitled); }).catch(() => { if (mounted) setHasFreeTrialEntitlement(false); });
     };
     refreshEntitlements();
     const refreshWhenVisible = () => { if (window.document.visibilityState === "visible") refreshEntitlements(); };
@@ -2414,7 +2439,7 @@ export function App() {
       {(state.screen === "home" || state.screen === "letter-set") && <LetterSetSelectScreen onSelect={startLetterSet} />}
       {state.screen === "templates" && <TemplateScreen onBack={() => dispatch({ type: "go", screen: "home" })} onSelect={startTemplate} unlockedThemePackIds={unlockedThemePackIds} />}
       {state.screen === "size" && <SizeScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
-      {state.screen === "design" && <DesignScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} unlockedThemePackIds={unlockedThemePackIds} onUnlockThemePack={requestThemeUnlock} />}
+      {state.screen === "design" && <DesignScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} unlockedThemePackIds={unlockedThemePackIds} hasFreeTrialEntitlement={hasFreeTrialEntitlement} onUnlockThemePack={requestThemeUnlock} />}
       {state.screen === "print" && <PrintScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} clientContext={clientContext} onSuccessfulExport={offerInstallAfterSuccess} />}
       {CLOUD_SYNC_UI_ENABLED && state.screen === "my-boxes" && (
         <MyBoxesScreen

@@ -16,6 +16,7 @@ describe("内蔵スタンプ", () => {
   it("プリセットごとに保存用キーと画像を引ける", () => {
     expect(BUILT_IN_STAMPS.map((item) => item.key)).toEqual(expect.arrayContaining([
       "usapon-box-rabbits", "pofumofu-friends", "autumn-rabbit-sweet-potato-car", ...AUTUMN_STAMP_IDS,
+      "autumn-trial-cover", "autumn-trial-sticky", "autumn-trial-heading", "autumn-trial-tape",
     ]));
     expect(builtInStampForKey("usapon-box-rabbits")).toMatchObject({
       fileName: "usapon-box-rabbits.png",
@@ -30,6 +31,7 @@ describe("内蔵スタンプ", () => {
       "autumn-rabbit-sleeping-sweet-potato": "autumn-rabbit-sleeping-sweet-potato-no-text.png",
     });
     expect(builtInStampForKey("autumn-stamp-9803")).toMatchObject({ fileName: "autumn-stamp-9803.png", delivery: "public", themePackId: null });
+    expect(builtInStampForKey("autumn-trial-cover")).toMatchObject({ fileName: "autumn-trial-cover.png", delivery: "public", trial: true });
     expect(BUILT_IN_STAMPS.filter(isBuiltInStampPickerVisible).map((item) => item.key)).not.toEqual(expect.arrayContaining([
       "autumn-rabbit-sweet-potato-car", "autumn-rabbit-acorn-hug", "autumn-rabbit-sweet-potato", "autumn-rabbit-chestnut", "autumn-rabbit-sleeping-sweet-potato",
     ]));

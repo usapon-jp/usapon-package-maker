@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { AUTUMN_FREE_TRIAL_STAMP_ID } from "../src/features/theme-packs/autumn-stamp-catalog";
-import { canUseAutumnStamp, FREE_TRIAL_RECEIPT_STORAGE_KEY, hasFreeTrialReceipt, isFreeTrialPassphrase, saveFreeTrialReceipt } from "../src/features/theme-packs/free-trial";
+import { canUseAutumnStamp, canUseAutumnTrialStamp, FREE_TRIAL_RECEIPT_STORAGE_KEY, hasFreeTrialReceipt, isFreeTrialPassphrase, saveFreeTrialReceipt } from "../src/features/theme-packs/free-trial";
 
 function memoryStorage() {
   const values = new Map<string, string>();
@@ -29,5 +29,12 @@ describe("秋スタンプ無料お試し", () => {
 
   it("購入権利がある場合だけ全スタンプを許可する", () => {
     expect(canUseAutumnStamp("autumn-stamp-9798", false, true)).toBe(true);
+  });
+
+  it("共通の無料権利はお試し5点だけを許可する", () => {
+    expect(canUseAutumnTrialStamp("autumn-trial-cover", false, true, false)).toBe(true);
+    expect(canUseAutumnTrialStamp(AUTUMN_FREE_TRIAL_STAMP_ID, false, true, false)).toBe(true);
+    expect(canUseAutumnTrialStamp("autumn-trial-heading", true, false, false)).toBe(false);
+    expect(canUseAutumnTrialStamp("autumn-trial-cover", false, false, true)).toBe(false);
   });
 });

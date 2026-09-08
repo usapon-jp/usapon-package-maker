@@ -10,6 +10,25 @@ export type AutumnStampId = (typeof AUTUMN_STAMP_IDS)[number];
 
 export const AUTUMN_FREE_TRIAL_STAMP_ID = "autumn-stamp-9803" as const;
 
+// The free GoodNotes mini pack has one existing IMG9803 stamp plus these four
+// public PNGs. Keep this separate from the paid 26-piece catalog above.
+export const AUTUMN_TRIAL_STAMP_IDS = [
+  "autumn-trial-cover",
+  "autumn-trial-sticky",
+  "autumn-trial-heading",
+  "autumn-trial-tape",
+  AUTUMN_FREE_TRIAL_STAMP_ID,
+] as const;
+
+export type AutumnTrialStampId = (typeof AUTUMN_TRIAL_STAMP_IDS)[number];
+
+export const AUTUMN_TRIAL_STAMP_FILES: Record<Exclude<AutumnTrialStampId, typeof AUTUMN_FREE_TRIAL_STAMP_ID>, string> = {
+  "autumn-trial-cover": "autumn-trial-cover.png",
+  "autumn-trial-sticky": "autumn-trial-sticky.png",
+  "autumn-trial-heading": "autumn-trial-heading.png",
+  "autumn-trial-tape": "autumn-trial-tape.png",
+};
+
 export const AUTUMN_STAMP_FILES: Record<AutumnStampId, string> = Object.fromEntries(
   AUTUMN_STAMP_IDS.map((id) => [id, `${id}.png`]),
 ) as Record<AutumnStampId, string>;
