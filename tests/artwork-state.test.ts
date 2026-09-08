@@ -74,13 +74,21 @@ describe("背景・柄・スタンプの状態管理", () => {
   });
 
   it("差し込み箱の縦長画像は回転後の横幅を前面幅に合わせる", () => {
-    const portrait = { ...asset, id: "portrait", aspectRatio: 0.5 };
+    const portrait = { ...asset, id: "portrait", aspectRatio: 0.5, assetRef: { kind: "builtin" as const, key: "autumn-trial-cover" as const } };
     const stamp = createStamp(portrait, geometry, "縦長の表紙");
     const front = geometry.panels[0];
 
     expect(stamp.rotationDeg).toBe(90);
     expect(stamp.widthMm / portrait.aspectRatio).toBe(front.width);
     expect(stamp).toMatchObject({ xMm: front.x + front.width / 2, yMm: front.y + front.height / 2 });
+  });
+
+  it("その他の縦長スタンプは従来の向きと余白を保つ", () => {
+    const portrait = { ...asset, id: "portrait", aspectRatio: 0.5 };
+    const stamp = createStamp(portrait, geometry, "縦長スタンプ");
+
+    expect(stamp.rotationDeg).toBe(0);
+    expect(stamp.widthMm).toBeLessThan(geometry.panels[0].width);
   });
 
   it("スタンプを追加、更新、複製、並べ替え、表示切替、削除できる", () => {
