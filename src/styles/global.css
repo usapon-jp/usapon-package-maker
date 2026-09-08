@@ -2594,10 +2594,10 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .stamp-set-tabs button[aria-selected="true"] { border-color: #d8798e; background: #fff0f3; box-shadow: inset 0 0 0 1px #f6cbd5; }
 .stamp-set-tabs img { width: 26px; height: 26px; object-fit: contain; }
 .stamp-set-tabs button > span:not(.my-images-symbol) { display: none; }
-.stamp-set-tabs button .my-images-symbol { font-size: 24px; line-height: 26px; }
+.stamp-set-tabs button .my-images-symbol { font-size: 19px; line-height: 26px; }
 .stamp-library-toolbar .stamp-add-menu { position: static; top: auto; right: auto; flex: 0 0 34px; width: 34px; height: 34px; }
 .stamp-library-toolbar .stamp-add-menu-trigger { display: grid; place-items: center; padding: 0; line-height: 1; text-indent: 0; }
-.stamp-library-body { padding-right: 0; margin-top: 8px; }
+.stamp-library-body { flex: 1 1 auto; min-height: 118px; padding-right: 0; margin-top: 8px; }
 .stamp-preset-grid { grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 8px; }
 .stamp-preset-card { padding: 5px; }
 .stamp-preset-card img { background: transparent; }
@@ -2610,7 +2610,8 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .stamp-adjust-range { grid-template-columns: auto minmax(0, 1fr); gap: 10px; border-top: 0; }
 .stamp-adjust-range > span { gap: 8px; }
 .stamp-layer-actions { grid-column: 1 / -1; }
-.placed-stamp-grid { grid-template-columns: repeat(auto-fill, 52px); grid-auto-rows: 52px; flex: none; height: 56px; padding-bottom: 4px; }
+.placed-stamp-grid { display: flex; flex: none; flex-wrap: nowrap; gap: 8px; height: 56px; padding-bottom: 4px; overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; }
+.placed-stamp-card { flex: 0 0 52px; height: 52px; }
 .stamp-preset-grid { grid-auto-rows: max-content; }
 .stamp-preset-card { overflow: hidden; }
 .stamp-preset-card img { min-width: 0; min-height: 0; }
@@ -2621,7 +2622,7 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .range-control input[type="range"]::-moz-range-thumb, .stamp-adjust-range input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; background: #d9798e; }
 @media (min-width: 768px) {
   .antigravity-design-page .editor-controls:has(.stamp-editor-workspace) { overflow-y: auto; }
-  .antigravity-design-page .stamp-editor-workspace { grid-template-rows: minmax(124px, 1fr) 96px 96px; min-height: 316px; overflow: visible; }
+  .antigravity-design-page .stamp-editor-workspace { grid-template-rows: minmax(160px, 1fr) 76px 72px; min-height: 308px; overflow: visible; }
 }
 @media (max-width: 767px) {
   .letter-set-choice-card .choice-thumbnail-box { height: 128px; }

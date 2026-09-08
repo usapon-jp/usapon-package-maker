@@ -1091,7 +1091,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     { id: "basic", name: "うさぽん", presets: stampPresets.filter((preset) => !STAMP_SETS.some((set) => set.stampKeys.includes(preset.key))) },
     ...STAMP_SETS.map((set) => ({ id: set.id, name: set.name, presets: stampPresets.filter((preset) => set.stampKeys.includes(preset.key)) })),
   ].filter((set) => set.presets.length > 0);
-  const activeStampTab = stampTab === "my-images" || stampTabs.some((set) => set.id === stampTab) ? stampTab : stampTabs[0]?.id;
+  const activeStampTab = (stampTab === "my-images" && uploadedImages.length > 0) || stampTabs.some((set) => set.id === stampTab) ? stampTab : stampTabs[0]?.id;
   const visibleStampPresets = stampTabs.find((set) => set.id === activeStampTab)?.presets ?? [];
   const [sampleGuideOpen, setSampleGuideOpen] = useState(false);
   const [canvasZoom, setCanvasZoom] = useState(1);
@@ -1566,15 +1566,8 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                 <div className="stamp-library-toolbar">
                   <div className="stamp-set-tabs" role="tablist" aria-label="スタンプの種類">
                     {stampTabs.map((set) => <button key={set.id} id={`stamp-tab-${set.id}`} role="tab" aria-selected={activeStampTab === set.id} aria-controls="stamp-library-panel" type="button" title={set.name} aria-label={set.name} onClick={() => setStampTab(set.id)}>{stampPreviewUrl(set.presets[0]) ? <img src={stampPreviewUrl(set.presets[0])!} alt="" /> : <span aria-hidden="true">🍂</span>}<span>{set.id === "basic" ? "うさぽん" : set.name.replace("スタンプセット", "")}</span></button>)}
-                    <button id="stamp-tab-my-images" aria-label="マイ画像" title="マイ画像" role="tab" aria-selected={activeStampTab === "my-images"} aria-controls="stamp-library-panel" type="button" onClick={() => setStampTab("my-images")}>
-                      {uploadedImages[0] ? <img src={uploadedImages[0].dataUrl} alt="" /> : <span className="my-images-symbol" aria-hidden="true">▧</span>}<span>マイ画像</span>
-                    </button>
+                    {uploadedImages.length > 0 && <button id="stamp-tab-my-images" aria-label="マイ画像" title="マイ画像" role="tab" aria-selected={activeStampTab === "my-images"} aria-controls="stamp-library-panel" type="button" onClick={() => setStampTab("my-images")}><img src={uploadedImages[0].dataUrl} alt="" /><span>マイ画像</span></button>}
                   </div>
-                  {!freeTrialAvailable && <form className="free-trial-receipt" onSubmit={(event) => { event.preventDefault(); receiveFreeTrial(); }}>
-                    <label>端末内の無料お試しを受け取る（IMG9803のみ）<input aria-label="無料お試しの合言葉" value={freeTrialPassphrase} onChange={(event) => setFreeTrialPassphrase(event.target.value)} /></label>
-                    <button type="submit">受け取る</button>
-                  </form>}
-                  {freeTrialMessage && <small className="free-trial-message" role="status">{freeTrialMessage}</small>}
                   <div className={`stamp-add-menu ${stampAddMenuOpen ? "is-open" : ""}`}>
                     <button className="stamp-add-menu-trigger" type="button" aria-label="スタンプを追加" aria-expanded={stampAddMenuOpen} onClick={() => setStampAddMenuOpen((open) => !open)}>＋</button>
                     {stampAddMenuOpen && <div className="stamp-add-menu-popover">
