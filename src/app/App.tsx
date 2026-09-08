@@ -16,6 +16,7 @@ import { downloadPdfBlob } from "../lib/pdf/download-pdf";
 import { canSharePdfFile, createPdfShareFile, createTimestampedPdfFileName, sharePdfFile } from "../lib/pdf/share-pdf";
 import { detectClientContext, type ClientContext } from "../lib/browser/client-context";
 import { readPatternFile, readStoredPatternBlob } from "../lib/uploads/read-pattern";
+import { readImageEdgeColor } from "../lib/uploads/image-edge-color";
 import { loadMyImages, saveMyImage, mergeMyImages } from "../features/stamps/my-images";
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from "../lib/drafts/local-draft";
 import {
@@ -1233,11 +1234,29 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
         item.yMm = panel.y + panel.height / 2;
         item.rotationDeg = envelopeFaceRotation(state.activeEnvelopeFace);
       }
+      if (preset.key === "autumn-trial-cover") {
+        if (faceScopedEditing) dispatch({ type: "set-surface-background-color", faceId: state.activeEnvelopeFace, color: AUTUMN_COVER_BACKGROUND });
+        else dispatch({ type: "set-background-color", pageId: activePage.id, color: AUTUMN_COVER_BACKGROUND });
+      }
       dispatch({ type: "add-stamp", item });
     } catch (error) {
       setStampUploadError(error instanceof Error ? error.message : "プリセット画像を読み込めませんでした。");
     } finally {
       setUploadingStamp(false);
+    }
+  };
+
+  const matchBackgroundToSelectedStamp = async () => {
+    if (!selectedStamp) return;
+    setStampUploadError("");
+    try {
+      const color = selectedStamp.assetRef.kind === "builtin" && selectedStamp.assetRef.key === "autumn-trial-cover"
+        ? AUTUMN_COVER_BACKGROUND
+        : await readImageEdgeColor(selectedStamp.dataUrl);
+      if (faceScopedEditing) dispatch({ type: "set-surface-background-color", faceId: state.activeEnvelopeFace, color });
+      else dispatch({ type: "set-background-color", pageId: activePage.id, color });
+    } catch (error) {
+      setStampUploadError(error instanceof Error ? error.message : "画像の色を読み取れませんでした。");
     }
   };
 
@@ -1613,7 +1632,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                 {selectedStamp ? <div className="stamp-adjust-rows">
                   <label className="stamp-adjust-range"><span>大きさ <output>{mm(selectedStamp.widthMm)}</output></span><input aria-label="スタンプの大きさ" type="range" min="2" max="200" step="1" value={selectedStamp.widthMm} onChange={(event) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { widthMm: Number(event.target.value) } })} /></label>
                   <label className="stamp-adjust-range"><span>透明度 <output>{Math.round(selectedStamp.opacity * 100)}%</output></span><input aria-label="スタンプの透明度" type="range" min="0.1" max="1" step="0.05" value={selectedStamp.opacity} onChange={(event) => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { opacity: Number(event.target.value) } })} /></label>
-                  <div className="stamp-layer-actions"><button type="button" onClick={() => dispatch({ type: "move-stamp", id: selectedStamp.id, direction: "backward" })}>↓ 背面</button><button type="button" onClick={() => dispatch({ type: "move-stamp", id: selectedStamp.id, direction: "forward" })}>前面 ↑</button><button type="button" aria-label="スタンプを複製" title="複製" onClick={() => dispatch({ type: "duplicate-stamp", id: selectedStamp.id, newId: crypto.randomUUID() })}><CopyIcon /><b>複製</b></button><button className="danger" type="button" aria-label="スタンプを削除" title="削除" onClick={() => dispatch({ type: "remove-stamp", id: selectedStamp.id })}><TrashIcon /><b>削除</b></button><button type="button" aria-label="スタンプを90度回転" title="90度回転" onClick={() => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { rotationDeg: rotateByDegrees(selectedStamp.rotationDeg) } })}><RotateIcon /><b>回転</b></button></div>
+                  <div className="stamp-layer-actions"><button type="button" onClick={() => dispatch({ type: "move-stamp", id: selectedStamp.id, direction: "backward" })}>↓ 背面</button><button type="button" onClick={() => dispatch({ type: "move-stamp", id: selectedStamp.id, direction: "forward" })}>前面 ↑</button><button type="button" aria-label="スタンプを複製" title="複製" onClick={() => dispatch({ type: "duplicate-stamp", id: selectedStamp.id, newId: crypto.randomUUID() })}><CopyIcon /><b>複製</b></button><button className="danger" type="button" aria-label="スタンプを削除" title="削除" onClick={() => dispatch({ type: "remove-stamp", id: selectedStamp.id })}><TrashIcon /><b>削除</b></button><button type="button" aria-label="スタンプを90度回転" title="90度回転" onClick={() => dispatch({ type: "update-stamp", id: selectedStamp.id, patch: { rotationDeg: rotateByDegrees(selectedStamp.rotationDeg) } })}><RotateIcon /><b>回転</b></button><button className="stamp-match-background-button" type="button" aria-label="背景を画像色に合わせる" title="背景を画像色に合わせる" onClick={() => { void matchBackgroundToSelectedStamp(); }}><span aria-hidden="true">●</span><b>背景色</b></button></div>
                 </div> : <p className="stamp-zone-empty">配置済みスタンプを選択してください。</p>}
               </section>
             </div>

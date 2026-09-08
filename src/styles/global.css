@@ -898,13 +898,14 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .placed-stamp-visibility { position: absolute; right: 2px; bottom: 2px; display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; color: #967a72; background: rgba(255,255,255,.9); font-size: 8px; cursor: pointer; }
 .stamp-zone-empty { display: grid; flex: 1; place-items: center; margin: 4px 0 0; color: #9a8780; font-size: calc(7px * var(--ui-font-scale)); text-align: center; }
 .stamp-adjust-zone { display: flex; flex-direction: column; }
+.stamp-match-background-button span { color: #d9c7b2; }
 .stamp-adjust-rows { display: grid; grid-template-rows: repeat(3, minmax(0, 1fr)); flex: 1; min-height: 0; margin-top: 4px; }
 .stamp-adjust-range { display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 0; border-top: 1px solid #f2e8e4; }
 .stamp-adjust-range:first-child { border-top: 0; }
 .stamp-adjust-range > span { display: flex; justify-content: space-between; gap: 4px; font-size: calc(8px * var(--ui-font-scale)); font-weight: 800; white-space: nowrap; }
 .stamp-adjust-range output { color: var(--pink-dark); }
 .stamp-adjust-range input[type="range"] { width: 100%; min-width: 0; accent-color: var(--pink); }
-.stamp-layer-actions { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center; gap: 4px; min-height: 0; border-top: 1px solid #f2e8e4; }
+.stamp-layer-actions { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); align-items: center; gap: 4px; min-height: 0; border-top: 1px solid #f2e8e4; }
 .stamp-layer-actions button { display: flex; align-items: center; justify-content: center; gap: 3px; min-width: 0; min-height: 32px; padding: 0 3px; border: 1px solid #dfd0ca; border-radius: 8px; color: #715a54; background: white; font-size: calc(7px * var(--ui-font-scale)); font-weight: 800; white-space: nowrap; cursor: pointer; }
 .stamp-layer-actions button svg { flex: none; width: 15px; height: 15px; }
 .stamp-layer-actions button b { font: inherit; }
@@ -2623,7 +2624,7 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .range-control input[type="range"]::-moz-range-thumb, .stamp-adjust-range input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; background: #d9798e; }
 @media (min-width: 768px) {
   .antigravity-design-page .editor-controls:has(.stamp-editor-workspace) { overflow-y: auto; }
-  .antigravity-design-page .stamp-editor-workspace { grid-template-rows: minmax(160px, 1fr) 76px 72px; min-height: 308px; overflow: visible; }
+  .antigravity-design-page .stamp-editor-workspace { grid-template-rows: minmax(160px, 1fr) 76px 84px; min-height: 320px; overflow: visible; }
 }
 @media (max-width: 767px) {
   .letter-set-choice-card .choice-thumbnail-box { height: 128px; }

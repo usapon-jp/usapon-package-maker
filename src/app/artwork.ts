@@ -147,9 +147,12 @@ export function createDotPattern(id: string, number: number, pageId: DielinePage
 export function createStamp(asset: UploadedAsset, geometry: DielineGeometry, name = asset.fileName, pageId: DielinePageId = "main", targetPanel?: Panel): StampItem {
   const center = panelCenter(geometry, targetPanel);
   const runtime = runtimeAsset(asset);
+  const rotatePortraitToFront = geometry.type === "straight-tuck-carton-v1" && asset.aspectRatio < 1;
   // Width is constrained by the panel width and the resulting image height.
   // This keeps portrait stamps clear of the fold line as well as wide stamps.
-  const baseWidth = Math.min(center.panel.width * 0.72, center.panel.height * Math.max(asset.aspectRatio, 0.35) * 0.72);
+  const baseWidth = rotatePortraitToFront
+    ? Math.min(center.panel.width * asset.aspectRatio, center.panel.height)
+    : Math.min(center.panel.width * 0.72, center.panel.height * Math.max(asset.aspectRatio, 0.35) * 0.72);
   return {
     ...runtime.asset,
     id: runtime.id,
@@ -159,8 +162,8 @@ export function createStamp(asset: UploadedAsset, geometry: DielineGeometry, nam
     name,
     xMm: center.x,
     yMm: center.y,
-    widthMm: Math.min(40, Math.max(10, baseWidth)),
-    rotationDeg: 0,
+    widthMm: rotatePortraitToFront ? Math.min(200, Math.max(2, baseWidth)) : Math.min(40, Math.max(10, baseWidth)),
+    rotationDeg: rotatePortraitToFront ? 90 : 0,
     visible: true,
     opacity: 1,
   };
