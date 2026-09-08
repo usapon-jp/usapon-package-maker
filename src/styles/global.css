@@ -893,6 +893,8 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .placed-stamp-card.is-selected { border-color: #e9788c; background: #fff5f7; box-shadow: 0 0 0 2px rgba(239,112,133,.14); }
 .placed-stamp-select { display: grid; place-items: center; width: 100%; height: 100%; padding: 5px; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
 .placed-stamp-select img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.stamp-preset-card, .placed-stamp-select { grid-template-rows: minmax(0, 1fr); }
+.stamp-preset-card img, .placed-stamp-select img { min-width: 0; min-height: 0; }
 .placed-stamp-visibility { position: absolute; right: 2px; bottom: 2px; display: grid; place-items: center; width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; color: #967a72; background: rgba(255,255,255,.9); font-size: 8px; cursor: pointer; }
 .stamp-zone-empty { display: grid; flex: 1; place-items: center; margin: 4px 0 0; color: #9a8780; font-size: calc(7px * var(--ui-font-scale)); text-align: center; }
 .stamp-adjust-zone { display: flex; flex-direction: column; }
