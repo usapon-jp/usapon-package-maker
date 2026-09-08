@@ -62,6 +62,8 @@ import { LetterSetPanel } from "../features/letter-set/LetterSetPanel";
 import { adaptEnvelopeDesignToPage } from "../features/letter-set/design-sharing";
 import { arrangeEnvelopeTemplate, DEFAULT_LETTER_SET_ENVELOPE, ENVELOPE_LAYOUT_TEMPLATES } from "../features/letter-set/envelope-layout-templates";
 import { AUTUMN_THEME_PACK, THEME_PACKS, themePackById, type ThemePackDefinition } from "../features/theme-packs/theme-pack-catalog";
+import { AUTUMN_FREE_TRIAL_STAMP_ID } from "../features/theme-packs/autumn-stamp-catalog";
+import { canUseAutumnStamp, hasFreeTrialReceipt, isFreeTrialPassphrase, saveFreeTrialReceipt } from "../features/theme-packs/free-trial";
 import { LetterSetSelectScreen } from "../features/letter-set/LetterSetSelectScreen";
 import { BottomNavBar, type BottomNavTab } from "../components/navigation/BottomNavBar";
 import { SampleGuideModal } from "../components/modals/SampleGuideModal";
@@ -1024,7 +1026,14 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     ? [...templateStampSets, autumnStampSet]
     : templateStampSets;
   const recommendedKeys = new Set(recommendedStampSets.flatMap((set) => set.stampKeys));
-  const otherStamps = BUILT_IN_STAMPS.filter((preset) => isBuiltInStampPickerVisible(preset) && !recommendedKeys.has(preset.key) && (!preset.themePackId || unlockedThemePackIds.includes(preset.themePackId)));
+  const [freeTrialUnlocked, setFreeTrialUnlocked] = useState(() => {
+    try { return hasFreeTrialReceipt(window.localStorage); } catch { return false; }
+  });
+  const otherStamps = BUILT_IN_STAMPS.filter((preset) => isBuiltInStampPickerVisible(preset) && !recommendedKeys.has(preset.key) && (
+    preset.key === AUTUMN_FREE_TRIAL_STAMP_ID
+      ? canUseAutumnStamp(AUTUMN_FREE_TRIAL_STAMP_ID, freeTrialUnlocked, autumnUnlocked)
+      : !preset.themePackId || unlockedThemePackIds.includes(preset.themePackId)
+  ));
   const stampPresets = [...new Map([
     ...recommendedStampSets.flatMap((set) => set.stampKeys.flatMap((key) => BUILT_IN_STAMPS.filter((preset) => preset.key === key))),
     ...otherStamps,
@@ -1047,6 +1056,8 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const [letterSetShareMessage, setLetterSetShareMessage] = useState("");
   const [applyingThemePack, setApplyingThemePack] = useState(false);
   const [privateStampPreviewUrls, setPrivateStampPreviewUrls] = useState<Record<string, string>>({});
+  const [freeTrialPassphrase, setFreeTrialPassphrase] = useState("");
+  const [freeTrialMessage, setFreeTrialMessage] = useState("");
   const [sampleGuideOpen, setSampleGuideOpen] = useState(false);
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [canvasCenter, setCanvasCenter] = useState({ x: geometry.bounds.widthMm / 2, y: geometry.bounds.heightMm / 2 });
@@ -1188,6 +1199,17 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     } finally {
       setUploadingStamp(false);
     }
+  };
+
+  const receiveFreeTrial = () => {
+    if (!isFreeTrialPassphrase(freeTrialPassphrase)) {
+      setFreeTrialMessage("合言葉が違います。");
+      return;
+    }
+    try { saveFreeTrialReceipt(window.localStorage); } catch { /* この画面を開いている間は利用できます。 */ }
+    setFreeTrialUnlocked(true);
+    setFreeTrialPassphrase("");
+    setFreeTrialMessage("無料お試しスタンプをこの端末で受け取りました。");
   };
 
   const applyAutumnThemePack = async () => {
@@ -1495,6 +1517,11 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                       ))}
                     </div>
                   </div>
+                  {!autumnUnlocked && !freeTrialUnlocked && <form className="free-trial-receipt" onSubmit={(event) => { event.preventDefault(); receiveFreeTrial(); }}>
+                    <label>無料お試しを受け取る（IMG9803のみ）<input aria-label="無料お試しの合言葉" value={freeTrialPassphrase} onChange={(event) => setFreeTrialPassphrase(event.target.value)} /></label>
+                    <button type="submit">受け取る</button>
+                  </form>}
+                  {freeTrialMessage && <small className="free-trial-message" role="status">{freeTrialMessage}</small>}
                   <div className={`stamp-add-menu ${stampAddMenuOpen ? "is-open" : ""}`}>
                     <button className="stamp-add-menu-trigger" type="button" aria-label="スタンプを追加" aria-expanded={stampAddMenuOpen} onClick={() => setStampAddMenuOpen((open) => !open)}>＋</button>
                     {stampAddMenuOpen && <div className="stamp-add-menu-popover">
