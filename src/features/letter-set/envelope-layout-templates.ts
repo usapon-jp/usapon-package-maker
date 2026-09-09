@@ -17,21 +17,21 @@ export const ENVELOPE_LAYOUT_TEMPLATES: Record<EnvelopeTemplateStyle, EnvelopeTe
     label: "かわいい",
     description: "白い宛名枠と3本線、ワンポイント、柄入りフラップ",
     backgroundColor: "#fff8f6",
-    settings: { style: "cute", flapAccentEnabled: true, flapColor: "#f3bdc7", flapPattern: "dots", showAddressField: true, showAddressLines: true, marginMm: 9 },
+    settings: { style: "cute", flapAccentEnabled: true, flapColor: "#f3bdc7", flapPattern: "dots", showAddressField: true, showAddressLines: true, addressLineCount: 3, addressLineWidthPercent: 76, marginMm: 9 },
   },
   adult: {
     id: "adult",
     label: "大人っぽい",
     description: "落ち着いた近似色、細いフレーム、小さなワンポイント",
     backgroundColor: "#f7f3ee",
-    settings: { style: "adult", flapAccentEnabled: true, flapColor: "#c9bdb1", flapPattern: "solid", showAddressField: true, showAddressLines: true, marginMm: 15 },
+    settings: { style: "adult", flapAccentEnabled: true, flapColor: "#c9bdb1", flapPattern: "solid", showAddressField: true, showAddressLines: true, addressLineCount: 3, addressLineWidthPercent: 76, marginMm: 15 },
   },
   simple: {
     id: "simple",
     label: "シンプル",
     description: "白場を多く、宛名が読みやすい最小限の構成",
     backgroundColor: "#ffffff",
-    settings: { style: "simple", flapAccentEnabled: true, flapColor: "#f1efec", flapPattern: "solid", showAddressField: true, showAddressLines: true, marginMm: 14 },
+    settings: { style: "simple", flapAccentEnabled: true, flapColor: "#f1efec", flapPattern: "solid", showAddressField: true, showAddressLines: true, addressLineCount: 3, addressLineWidthPercent: 76, marginMm: 14 },
   },
 };
 

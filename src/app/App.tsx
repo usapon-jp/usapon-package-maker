@@ -73,13 +73,13 @@ import { AUTUMN_THEME_PACK, THEME_PACKS, themePackById, type ThemePackDefinition
 import { AUTUMN_FREE_TRIAL_STAMP_ID } from "../features/theme-packs/autumn-stamp-catalog";
 import { canUseAutumnTrialStamp, hasFreeTrialReceipt, isAutumnTrialStamp, isFreeTrialPassphrase, saveFreeTrialReceipt } from "../features/theme-packs/free-trial";
 import { BottomNavBar, type BottomNavTab } from "../components/navigation/BottomNavBar";
-import { SampleGuideModal } from "../components/modals/SampleGuideModal";
 import { AssemblyGuideModal } from "../components/modals/AssemblyGuideModal";
 import { MobileSettingsSheet } from "../components/modals/MobileSettingsSheet";
 import { NewCreationSheet } from "../components/modals/NewCreationSheet";
 import { SettingsSheetModal } from "../components/modals/SettingsSheetModal";
 import { AssembledEnvelopePreview } from "../components/common/AssembledEnvelopePreview";
 import { FinishedStationeryPreview } from "../components/common/FinishedStationeryPreview";
+import { FinishedStationeryDialog } from "../components/common/FinishedStationeryDialog";
 import { CopyIcon, DuplicatePlusIcon, EyeIcon, EyedropperIcon, LayerBackwardIcon, LayerForwardIcon, MagnifyIcon, RedoIcon, RotateIcon, SaveIcon, TrashIcon, UndoIcon } from "../components/common/UiIcons";
 import { isPackageUIEditorAdmin } from "../ui-editor/repository";
 
@@ -929,8 +929,10 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
                         fit={page.fit}
                         {...design}
                         lineColors={state.lineColors}
-                        showWritingLines={state.showWritingLines}
-                        showWritingFrame={state.showWritingFrame}
+                        showWritingLines={page.geometry.type === "mini-card-v1" ? state.showCardWritingLines : state.showWritingLines}
+                        showWritingFrame={page.geometry.type === "mini-card-v1" ? state.showCardWritingFrame : state.showWritingFrame}
+                        writingLineCount={page.geometry.type === "mini-card-v1" ? state.cardWritingLineCount : state.writingLineCount}
+                        writingLineWidthPercent={page.geometry.type === "mini-card-v1" ? state.cardWritingLineWidthPercent : state.writingLineWidthPercent}
                         envelopeDesign={state.envelopeDesign}
                       />
                     </div>
@@ -1063,8 +1065,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   ].filter((set) => set.presets.length > 0);
   const activeStampTab = (stampTab === "my-images" && uploadedImages.length > 0) || stampTabs.some((set) => set.id === stampTab) ? stampTab : stampTabs[0]?.id;
   const visibleStampPresets = stampTabs.find((set) => set.id === activeStampTab)?.presets ?? [];
-  const [sampleGuideOpen, setSampleGuideOpen] = useState(false);
-  const [finishedBoxOpen, setFinishedBoxOpen] = useState(false);
+  const [finishedPreviewOpen, setFinishedPreviewOpen] = useState(false);
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [canvasCenter, setCanvasCenter] = useState({ x: geometry.bounds.widthMm / 2, y: geometry.bounds.heightMm / 2 });
   const [zoomControlsOpen, setZoomControlsOpen] = useState(false);
@@ -1437,6 +1438,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     </div>
   );
   const isLetterSetDesign = state.box.type === "envelope-v1";
+  const isStationeryPage = geometry.type === "envelope-v1" || geometry.type === "letter-paper-v1" || geometry.type === "mini-card-v1";
   const designActionButtons = (className: string) => (
     <div className={className}>
       <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: isLetterSetDesign ? "letter-set" : template ? "templates" : "size" })}>{isLetterSetDesign ? "セットを選び直す" : template ? "型を選び直す" : "サイズに戻る"}</button>
@@ -1476,8 +1478,10 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
               selectedStampId={state.selectedStampId}
               selectedTextId={state.selectedTextId}
               exportMode={false}
-              showWritingLines={state.showWritingLines}
-              showWritingFrame={state.showWritingFrame}
+              showWritingLines={geometry.type === "mini-card-v1" ? state.showCardWritingLines : state.showWritingLines}
+              showWritingFrame={geometry.type === "mini-card-v1" ? state.showCardWritingFrame : state.showWritingFrame}
+              writingLineCount={geometry.type === "mini-card-v1" ? state.cardWritingLineCount : state.writingLineCount}
+              writingLineWidthPercent={geometry.type === "mini-card-v1" ? state.cardWritingLineWidthPercent : state.writingLineWidthPercent}
               envelopeDesign={state.envelopeDesign}
               zoom={canvasZoom}
               viewportCenter={canvasCenter}
@@ -1510,20 +1514,21 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
               onMoveText={(id, xMm, yMm) => { const item = design.texts.find((candidate) => candidate.id === id); const point = clampToEnvelopeFace(geometry, faceEditing ? item?.surfaceId : undefined, xMm, yMm); dispatch({ type: "update-text", id, patch: point }); }}
               onSelectEnvelopeFace={faceScopedEditing ? (faceId) => dispatch({ type: "set-envelope-face", faceId }) : undefined}
             />
-            {geometry.type === "envelope-v1" && canvasZoomControl}
+            {isStationeryPage && <button className="finished-box-trigger stationery-preview-trigger" type="button" onClick={() => setFinishedPreviewOpen(true)}><EyeIcon /><span>プレビュー</span></button>}
+            {isStationeryPage && canvasZoomControl}
           </div>
-          {geometry.type !== "envelope-v1" && <div className="canvas-view-actions" aria-label="展開図の表示操作">
-            {isPreviewBox(state.box.type) && <button className="finished-box-trigger" type="button" onClick={() => setFinishedBoxOpen(true)}><EyeIcon /><span>プレビュー</span></button>}
+          {!isStationeryPage && <div className="canvas-view-actions" aria-label="展開図の表示操作">
+            {isPreviewBox(state.box.type) && <button className="finished-box-trigger" type="button" onClick={() => setFinishedPreviewOpen(true)}><EyeIcon /><span>プレビュー</span></button>}
             {canvasZoomControl}
           </div>}
-          {geometry.type === "envelope-v1" ? <p className="canvas-caption envelope-canvas-caption"><strong>完成 {mm(geometry.input.widthMm)} × {mm(geometry.input.heightMm)}</strong><span>折り方は「組み立て見本」へ</span></p> : <p className="canvas-caption">画面は拡大表示・PDFは実寸です。</p>}
+          {geometry.type === "envelope-v1" ? <p className="canvas-caption envelope-canvas-caption"><strong>完成 {mm(geometry.input.widthMm)} × {mm(geometry.input.heightMm)}</strong><span>画面は拡大表示・PDFは実寸です。</span></p> : <p className="canvas-caption">画面は拡大表示・PDFは実寸です。</p>}
 
         </section>
 
         {editorCategoryTabs("below-canvas")}
 
         <aside className="editor-controls panel-card" data-ui-id="design.controls">
-          {faceEditing && <div className="edit-scope-bar"><div className="background-scope-picker" role="group" aria-label="編集する範囲"><button type="button" className={backgroundScope === "all" ? "is-selected" : ""} onClick={() => setBackgroundScope("all")}>全体</button><button type="button" className={backgroundScope === "face" ? "is-selected" : ""} onClick={() => setBackgroundScope("face")}>選択面</button></div><button className="scope-guide-button" type="button" aria-label="組み立て見本" onClick={() => setSampleGuideOpen(true)}>?</button></div>}
+          {faceEditing && <div className="edit-scope-bar"><div className="background-scope-picker" role="group" aria-label="編集する範囲"><button type="button" className={backgroundScope === "all" ? "is-selected" : ""} onClick={() => setBackgroundScope("all")}>全体</button><button type="button" className={backgroundScope === "face" ? "is-selected" : ""} onClick={() => setBackgroundScope("face")}>選択面</button></div></div>}
           {state.openEditorSection === "artwork" && (
             <div className="drawer-section background-editor-workspace">
               <DesignColorControl className="background-color-control" label={faceEditing ? backgroundScope === "all" ? "セット全体の背景色" : `${state.activeEnvelopeFace === "envelope-flap" ? "フタ" : state.activeEnvelopeFace === "envelope-front" ? "おもて" : "うら"}の色` : "基本背景色"} favoriteLabel="背景色" value={faceEditing && backgroundScope === "face" ? state.activeEnvelopeFace === "envelope-flap" && state.envelopeDesign.flapAccentEnabled ? state.envelopeDesign.flapColor : state.surfaceBackgroundColors[state.activeEnvelopeFace] ?? design.backgroundColor : design.backgroundColor} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={setScopedBackgroundColor} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
@@ -1675,19 +1680,43 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
 
           {state.openEditorSection === "other" && (
             <div className="drawer-section other-editor-panel">
-              <div className="other-editor-heading"><span aria-hidden="true">✧</span><div><strong>{geometry.type === "envelope-v1" ? "宛名を書く場所" : geometry.type === "letter-paper-v1" ? "書きやすい便箋" : "仕上がりの補助"}</strong><small>必要なものだけ追加できます</small></div></div>
+              <div className="other-editor-heading"><span aria-hidden="true">✧</span><div><strong>{geometry.type === "envelope-v1" ? "宛名を書く場所" : geometry.type === "letter-paper-v1" ? "書きやすい便箋" : geometry.type === "mini-card-v1" ? "書きやすいミニカード" : "仕上がりの補助"}</strong><small>必要なものだけ追加できます</small></div></div>
               <div className="other-option-grid">
                 {geometry.type === "letter-paper-v1" && <>
                   <label className={`other-option-card ${state.showWritingFrame ? "is-selected" : ""}`}><span className="other-option-preview writing-frame-preview" aria-hidden="true"><i /></span><span><strong>白い記入枠</strong><small>柄の上に書く場所をつくる</small></span><input aria-label="便箋に白い記入枠を表示" type="checkbox" checked={state.showWritingFrame} onChange={(event) => dispatch({ type: "set-writing-frame", value: event.target.checked })} /></label>
                   <label className={`other-option-card ${state.showWritingLines ? "is-selected" : ""}`}><span className="other-option-preview writing-lines-preview" aria-hidden="true"><i /><i /><i /></span><span><strong>罫線</strong><small>文字をまっすぐ書ける横線</small></span><input aria-label="便箋に罫線を表示" type="checkbox" checked={state.showWritingLines} onChange={(event) => dispatch({ type: "set-writing-lines", value: event.target.checked })} /></label>
                 </>}
+                {geometry.type === "mini-card-v1" && <>
+                  <label className={`other-option-card ${state.showCardWritingFrame ? "is-selected" : ""}`}><span className="other-option-preview writing-frame-preview" aria-hidden="true"><i /></span><span><strong>白い記入枠</strong><small>柄の上に書く場所をつくる</small></span><input aria-label="ミニカードに白い記入枠を表示" type="checkbox" checked={state.showCardWritingFrame} onChange={(event) => dispatch({ type: "set-card-writing-frame", value: event.target.checked })} /></label>
+                  <label className={`other-option-card ${state.showCardWritingLines ? "is-selected" : ""}`}><span className="other-option-preview writing-lines-preview" aria-hidden="true"><i /><i /><i /></span><span><strong>罫線</strong><small>短いメッセージを書きやすくする</small></span><input aria-label="ミニカードに罫線を表示" type="checkbox" checked={state.showCardWritingLines} onChange={(event) => dispatch({ type: "set-card-writing-lines", value: event.target.checked })} /></label>
+                </>}
                 {geometry.type === "envelope-v1" && <>
                   <label className={`other-option-card ${state.envelopeDesign.showAddressField ? "is-selected" : ""}`}><span className="other-option-preview address-frame-preview" aria-hidden="true"><i /></span><span><strong>宛名用の白い枠</strong><small>模様に重ねて読みやすくする</small></span><input aria-label="封筒に宛名用の白い枠を表示" type="checkbox" checked={state.envelopeDesign.showAddressField} onChange={(event) => dispatch({ type: "update-envelope-design", patch: { showAddressField: event.target.checked } })} /></label>
-                  <label className={`other-option-card ${state.envelopeDesign.showAddressLines ? "is-selected" : ""}`}><span className="other-option-preview writing-lines-preview" aria-hidden="true"><i /><i /><i /></span><span><strong>宛名の罫線</strong><small>住所や名前を書きやすい3本線</small></span><input aria-label="封筒に宛名の罫線を表示" type="checkbox" checked={state.envelopeDesign.showAddressLines} onChange={(event) => dispatch({ type: "update-envelope-design", patch: { showAddressLines: event.target.checked } })} /></label>
+                  <label className={`other-option-card ${state.envelopeDesign.showAddressLines ? "is-selected" : ""}`}><span className="other-option-preview writing-lines-preview" aria-hidden="true"><i /><i /><i /></span><span><strong>宛名の罫線</strong><small>住所や名前を書きやすい{state.envelopeDesign.addressLineCount ?? 3}本線</small></span><input aria-label="封筒に宛名の罫線を表示" type="checkbox" checked={state.envelopeDesign.showAddressLines} onChange={(event) => dispatch({ type: "update-envelope-design", patch: { showAddressLines: event.target.checked } })} /></label>
                 </>}
-                {geometry.type !== "letter-paper-v1" && geometry.type !== "envelope-v1" && <label className={`other-option-card ${state.showGuides ? "is-selected" : ""}`}><span className="other-option-preview guide-preview" aria-hidden="true">＋</span><span><strong>編集ガイド</strong><small>面名と中心線を表示する</small></span><input aria-label="編集ガイドを表示" type="checkbox" checked={state.showGuides} onChange={() => dispatch({ type: "toggle-guides" })} /></label>}
+                {geometry.type !== "letter-paper-v1" && geometry.type !== "envelope-v1" && geometry.type !== "mini-card-v1" && <label className={`other-option-card ${state.showGuides ? "is-selected" : ""}`}><span className="other-option-preview guide-preview" aria-hidden="true">＋</span><span><strong>編集ガイド</strong><small>面名と中心線を表示する</small></span><input aria-label="編集ガイドを表示" type="checkbox" checked={state.showGuides} onChange={() => dispatch({ type: "toggle-guides" })} /></label>}
               </div>
-              {geometry.type === "envelope-v1" && <button className="other-sample-button" type="button" onClick={() => setSampleGuideOpen(true)}><EyeIcon /><span>組み立て見本を見る</span></button>}
+              {geometry.type === "letter-paper-v1" && state.showWritingLines && (
+                <div className="line-tuning-panel" aria-label="便箋の罫線調整">
+                  <div><strong>罫線の調整</strong><button type="button" onClick={() => { dispatch({ type: "set-writing-line-count", value: 18 }); dispatch({ type: "set-writing-line-width", value: 82 }); }}>おすすめ</button></div>
+                  <label><span>行数 <output>{state.writingLineCount}本</output></span><input aria-label="便箋の罫線の行数" type="range" min="6" max="24" step="1" value={state.writingLineCount} onChange={(event) => dispatch({ type: "set-writing-line-count", value: Number(event.target.value) })} /></label>
+                  <label><span>幅 <output>{state.writingLineWidthPercent}%</output></span><input aria-label="便箋の罫線の幅" type="range" min="50" max="94" step="1" value={state.writingLineWidthPercent} onChange={(event) => dispatch({ type: "set-writing-line-width", value: Number(event.target.value) })} /></label>
+                </div>
+              )}
+              {geometry.type === "mini-card-v1" && state.showCardWritingLines && (
+                <div className="line-tuning-panel" aria-label="ミニカードの罫線調整">
+                  <div><strong>罫線の調整</strong><button type="button" onClick={() => { dispatch({ type: "set-card-writing-line-count", value: 3 }); dispatch({ type: "set-card-writing-line-width", value: 76 }); }}>おすすめ</button></div>
+                  <label><span>行数 <output>{state.cardWritingLineCount}本</output></span><input aria-label="ミニカードの罫線の行数" type="range" min="2" max="5" step="1" value={state.cardWritingLineCount} onChange={(event) => dispatch({ type: "set-card-writing-line-count", value: Number(event.target.value) })} /></label>
+                  <label><span>幅 <output>{state.cardWritingLineWidthPercent}%</output></span><input aria-label="ミニカードの罫線の幅" type="range" min="50" max="92" step="1" value={state.cardWritingLineWidthPercent} onChange={(event) => dispatch({ type: "set-card-writing-line-width", value: Number(event.target.value) })} /></label>
+                </div>
+              )}
+              {geometry.type === "envelope-v1" && state.envelopeDesign.showAddressLines && (
+                <div className="line-tuning-panel" aria-label="封筒の罫線調整">
+                  <div><strong>宛名線の調整</strong><button type="button" onClick={() => dispatch({ type: "update-envelope-design", patch: { addressLineCount: 3, addressLineWidthPercent: 76 } })}>おすすめ</button></div>
+                  <label><span>行数 <output>{state.envelopeDesign.addressLineCount ?? 3}本</output></span><input aria-label="封筒の罫線の行数" type="range" min="2" max="5" step="1" value={state.envelopeDesign.addressLineCount ?? 3} onChange={(event) => dispatch({ type: "update-envelope-design", patch: { addressLineCount: Number(event.target.value) } })} /></label>
+                  <label><span>幅 <output>{state.envelopeDesign.addressLineWidthPercent ?? 76}%</output></span><input aria-label="封筒の罫線の幅" type="range" min="50" max="92" step="1" value={state.envelopeDesign.addressLineWidthPercent ?? 76} onChange={(event) => dispatch({ type: "update-envelope-design", patch: { addressLineWidthPercent: Number(event.target.value) } })} /></label>
+                </div>
+              )}
             </div>
           )}
         </aside>
@@ -1753,8 +1782,9 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
         </div>
       </MobileSettingsSheet>
 
-      {sampleGuideOpen && <SampleGuideModal geometry={geometry} state={state} onClose={() => setSampleGuideOpen(false)} />}
-      {finishedBoxOpen && <FinishedBoxDialog state={state} onClose={() => setFinishedBoxOpen(false)} />}
+      {finishedPreviewOpen && (isPreviewBox(state.box.type)
+        ? <FinishedBoxDialog state={state} onClose={() => setFinishedPreviewOpen(false)} />
+        : <FinishedStationeryDialog state={state} pageId={activePage.id} geometry={geometry} onClose={() => setFinishedPreviewOpen(false)} />)}
 
       <div data-ui-id="design.actions">{designActionButtons(`sticky-actions design-bottom-actions${isLetterSetDesign ? " is-letter-set" : ""}`)}</div>
     </main>
@@ -1793,7 +1823,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
   useEffect(() => {
     clearPrintablePdf();
     setExportSuccess("");
-  }, [clearPrintablePdf, state.includeCalibrationPage, state.printFoldoverLines, state.showWritingLines, state.printGuideMode]);
+  }, [clearPrintablePdf, state.cardWritingLineCount, state.cardWritingLineWidthPercent, state.envelopeDesign, state.includeCalibrationPage, state.printFoldoverLines, state.printGuideMode, state.showCardWritingFrame, state.showCardWritingLines, state.showWritingFrame, state.showWritingLines, state.writingLineCount, state.writingLineWidthPercent]);
 
   const handleExport = async () => {
     const exportPages = pages.flatMap((page) => {
@@ -1866,8 +1896,10 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
             {...pageDesign(state, page.id)}
             lineColors={state.lineColors}
             includeFoldoverLines={state.printFoldoverLines}
-            showWritingLines={state.showWritingLines}
-            showWritingFrame={state.showWritingFrame}
+            showWritingLines={page.geometry.type === "mini-card-v1" ? state.showCardWritingLines : state.showWritingLines}
+            showWritingFrame={page.geometry.type === "mini-card-v1" ? state.showCardWritingFrame : state.showWritingFrame}
+            writingLineCount={page.geometry.type === "mini-card-v1" ? state.cardWritingLineCount : state.writingLineCount}
+            writingLineWidthPercent={page.geometry.type === "mini-card-v1" ? state.cardWritingLineWidthPercent : state.writingLineWidthPercent}
             envelopeDesign={state.envelopeDesign}
             printGuideMode={state.printGuideMode}
           />
@@ -1887,8 +1919,10 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
                   {...pageDesign(state, activePage.id)}
                   lineColors={state.lineColors}
                   includeFoldoverLines={state.printFoldoverLines}
-                  showWritingLines={state.showWritingLines}
-                  showWritingFrame={state.showWritingFrame}
+                  showWritingLines={activePage.geometry.type === "mini-card-v1" ? state.showCardWritingLines : state.showWritingLines}
+                  showWritingFrame={activePage.geometry.type === "mini-card-v1" ? state.showCardWritingFrame : state.showWritingFrame}
+                  writingLineCount={activePage.geometry.type === "mini-card-v1" ? state.cardWritingLineCount : state.writingLineCount}
+                  writingLineWidthPercent={activePage.geometry.type === "mini-card-v1" ? state.cardWritingLineWidthPercent : state.writingLineWidthPercent}
                   envelopeDesign={state.envelopeDesign}
                   printGuideMode={state.printGuideMode}
                 />

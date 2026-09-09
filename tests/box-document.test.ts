@@ -140,6 +140,15 @@ describe("BoxDocumentV1", () => {
     expect(restored.showWritingFrame).toBe(true);
   });
 
+  it("ミニカードの白い記入枠と罫線設定を保存して復元できる", async () => {
+    const source = { ...stateFor("mini-card-v1"), showCardWritingFrame: true, showCardWritingLines: true, cardWritingLineCount: 4, cardWritingLineWidthPercent: 84 };
+    const document = serializeBoxDocument(source);
+    const restored = await hydrateBoxDocument(document, async () => ({ dataUrl: "data:image/png;base64,RESTORED" }));
+
+    expect(document.design).toMatchObject({ showCardWritingFrame: true, showCardWritingLines: true, cardWritingLineCount: 4, cardWritingLineWidthPercent: 84 });
+    expect(restored).toMatchObject({ showCardWritingFrame: true, showCardWritingLines: true, cardWritingLineCount: 4, cardWritingLineWidthPercent: 84 });
+  });
+
   it("保存済みのN式ギフト箱は浅型差し込みギフト箱として開く", async () => {
     const legacy = serializeBoxDocument(stateFor("gift-box-v1")) as { box: { type: string } };
     legacy.box.type = "n-style-gift-box-v1";

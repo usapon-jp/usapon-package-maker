@@ -9,6 +9,7 @@ import { generateDielineDocument } from "../src/domain/boxes/registry";
 import { evaluateA4Fit } from "../src/domain/paper/a4";
 import { printImposition } from "../src/domain/paper/imposition";
 import { PACKAGE_TEMPLATES, stampSetsForTemplate, templateById } from "../src/features/templates/template-catalog";
+import { DEFAULT_LETTER_SET_ENVELOPE } from "../src/features/letter-set/envelope-layout-templates";
 
 describe("秋のレターセットテンプレート", () => {
   it("便箋・封筒・ミニカードを同じシリーズとおすすめ素材にまとめる", () => {
@@ -27,12 +28,14 @@ describe("秋のレターセットテンプレート", () => {
     const geometry = generateDielineDocument(template.box).pages[0].geometry;
     const fit = evaluateA4Fit(geometry.bounds.widthMm, geometry.bounds.heightMm);
     const props = { geometry, fit, backgroundColor: "#fffdf9", artworkLayers: [], stamps: [], texts: [], lineColors: initialState.lineColors };
-    const withLines = renderToStaticMarkup(<A4PreviewSvg {...props} showWritingLines />);
+    const withLines = renderToStaticMarkup(<A4PreviewSvg {...props} showWritingLines writingLineCount={12} writingLineWidthPercent={80} />);
     const withoutLines = renderToStaticMarkup(<A4ExportSvg {...props} showWritingLines={false} />);
 
     expect(fit.status).toBe("safe");
     expect(withLines).toContain('data-layer="writing-lines"');
-    expect(withLines).toContain('x1="17"');
+    const writingLayer = withLines.match(/<g data-layer="writing-lines"[\s\S]*?<\/g>/)?.[0] ?? "";
+    expect(writingLayer.match(/<line /g)).toHaveLength(12);
+    expect(writingLayer).toContain('x1="19"');
     expect(withoutLines).not.toContain('data-layer="writing-lines"');
   });
 
@@ -67,6 +70,19 @@ describe("秋のレターセットテンプレート", () => {
     expect(designOnly).toContain('data-layer="cut"');
   });
 
+  it("宛名線を白枠の中央へ揃え、意味のない装飾点を表示しない", () => {
+    const template = templateById("y2-kamasu-envelope")!;
+    const geometry = generateDielineDocument(template.box).pages[0].geometry;
+    const fit = evaluateA4Fit(geometry.bounds.widthMm, geometry.bounds.heightMm);
+    const markup = renderToStaticMarkup(<A4PreviewSvg geometry={geometry} fit={fit} backgroundColor="#fff8f6" artworkLayers={[]} stamps={[]} texts={[]} lineColors={initialState.lineColors} envelopeDesign={DEFAULT_LETTER_SET_ENVELOPE.settings} />);
+    const lines = [...markup.matchAll(/data-envelope-address-line="true" x1="([\d.]+)" x2="([\d.]+)"/g)];
+    const front = geometry.panels.find((panel) => panel.id === "panel-envelope-front")!;
+
+    expect(lines).toHaveLength(3);
+    for (const line of lines) expect((Number(line[1]) + Number(line[2])) / 2).toBeCloseTo(front.x + front.width / 2, 5);
+    expect(markup).not.toContain("<circle");
+  });
+
   it("91×55mmカードをA4縦へ実寸のまま10面付けし、スタンプを複製する", () => {
     const template = templateById("autumn-mini-card")!;
     const geometry = generateDielineDocument(template.box).pages[0].geometry;
@@ -81,6 +97,21 @@ describe("秋のレターセットテンプレート", () => {
     expect(markup.match(/data-imposition-item=/g)).toHaveLength(10);
     expect(markup.match(/data-stamp-id="autumn-stamp"/g)).toHaveLength(10);
     expect(markup).toContain('transform="translate(105 231)"');
+  });
+
+  it("ミニカードの白い記入枠と罫線を中央へ揃えて全カードへ印刷する", () => {
+    const template = templateById("autumn-mini-card")!;
+    const geometry = generateDielineDocument(template.box).pages[0].geometry;
+    const imposition = printImposition(geometry);
+    const fit = evaluateA4Fit(imposition.widthMm, imposition.heightMm);
+    const markup = renderToStaticMarkup(<A4PreviewSvg geometry={geometry} fit={fit} backgroundColor="#fffdf9" artworkLayers={[]} stamps={[]} texts={[]} lineColors={initialState.lineColors} showWritingFrame showWritingLines writingLineCount={3} writingLineWidthPercent={76} />);
+    const writingLayers = [...markup.matchAll(/<g data-layer="writing-lines"[\s\S]*?<\/g>/g)].map((match) => match[0]);
+    const firstLines = [...(writingLayers[0] ?? "").matchAll(/x1="([\d.]+)"[^>]*x2="([\d.]+)"/g)];
+
+    expect(markup.match(/data-card-writing-frame="true"/g)).toHaveLength(10);
+    expect(writingLayers).toHaveLength(10);
+    expect(firstLines).toHaveLength(3);
+    for (const line of firstLines) expect((Number(line[1]) + Number(line[2])) / 2).toBeCloseTo(geometry.bounds.x + geometry.bounds.widthMm / 2, 5);
   });
 
   it("A/B/C面別背景をクリップし、C裏の文字を完成向きへ180度補正できる", () => {

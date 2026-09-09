@@ -3,6 +3,7 @@ import type { AppState } from "../../app/app-types";
 import type { EnvelopeFaceId } from "../../domain/boxes/types";
 import { generateDieline } from "../../domain/boxes/registry";
 import { ArtworkLayer } from "../dieline/layers/ArtworkLayer";
+import { EnvelopeDesignLayer } from "../dieline/layers/EnvelopeDesignLayer";
 import { TextLayer } from "../dieline/layers/TextLayer";
 
 interface Props {
@@ -95,6 +96,20 @@ export function AssembledEnvelopePreview({ state, activeFace = state.activeEnvel
                 selectedArtworkId={null}
                 selectedStampId={null}
                 exportMode={true}
+                showStamps={false}
+              />
+              {state.envelopeDesign && <EnvelopeDesignLayer geometry={geometry} settings={state.envelopeDesign} idPrefix="assembled-front-design" />}
+              <ArtworkLayer
+                geometry={geometry}
+                backgroundColor={frontBg}
+                artworkLayers={frontArtworks}
+                stamps={frontStamps}
+                clipId="assembled-clip-front"
+                idPrefix="assembled-front-stamps"
+                selectedArtworkId={null}
+                selectedStampId={null}
+                exportMode={true}
+                showBaseLayers={false}
               />
               <TextLayer
                 texts={frontTexts}

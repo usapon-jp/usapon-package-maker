@@ -13,6 +13,7 @@ import { GuideLayer } from "./layers/GuideLayer";
 import { ArtworkLayer } from "./layers/ArtworkLayer";
 import { TextLayer } from "./layers/TextLayer";
 import { EnvelopeDesignLayer } from "./layers/EnvelopeDesignLayer";
+import { centeredLineSpan, evenlySpacedLineYs } from "../../features/letter-set/writing-lines";
 
 export type DielineViewportCenter = { x: number; y: number };
 
@@ -54,6 +55,8 @@ type LayersProps = {
   includeFoldoverLines?: boolean;
   showWritingLines?: boolean;
   showWritingFrame?: boolean;
+  writingLineCount?: number;
+  writingLineWidthPercent?: number;
   envelopeDesign?: EnvelopeDesignSettings;
   activeEnvelopeFace?: EnvelopeFaceId;
   printGuideMode?: PrintGuideMode;
@@ -80,6 +83,8 @@ export function DielineLayers({
   includeFoldoverLines = true,
   showWritingLines = false,
   showWritingFrame = false,
+  writingLineCount = 18,
+  writingLineWidthPercent = 82,
   envelopeDesign,
   activeEnvelopeFace,
   printGuideMode = "assembly",
@@ -125,13 +130,14 @@ export function DielineLayers({
         onStampRotate={onStampRotate}
       />
       {envelopeDesign && <EnvelopeDesignLayer geometry={geometry} settings={envelopeDesign} idPrefix={idPrefix} />}
-      {geometry.type === "letter-paper-v1" && showWritingFrame && (
+      {(geometry.type === "letter-paper-v1" || geometry.type === "mini-card-v1") && showWritingFrame && (
         <rect
-          data-letter-writing-frame
-          x={geometry.bounds.x + 14}
-          y={geometry.bounds.y + 20}
-          width={Math.max(1, geometry.bounds.widthMm - 28)}
-          height={Math.max(1, geometry.bounds.heightMm - 40)}
+          data-letter-writing-frame={geometry.type === "letter-paper-v1" || undefined}
+          data-card-writing-frame={geometry.type === "mini-card-v1" || undefined}
+          x={geometry.bounds.x + (geometry.type === "mini-card-v1" ? 7 : 14)}
+          y={geometry.bounds.y + (geometry.type === "mini-card-v1" ? 7 : 20)}
+          width={Math.max(1, geometry.bounds.widthMm - (geometry.type === "mini-card-v1" ? 14 : 28))}
+          height={Math.max(1, geometry.bounds.heightMm - (geometry.type === "mini-card-v1" ? 14 : 40))}
           rx="4"
           fill="#ffffff"
           fillOpacity="0.92"
@@ -158,14 +164,13 @@ export function DielineLayers({
         onStampRotate={onStampRotate}
       />
       <g clipPath={`url(#${clipId})`}>
-        {geometry.type === "letter-paper-v1" && showWritingLines && (
-          <g data-layer="writing-lines" fill="none" stroke="#c9b4a7" strokeWidth="0.22" opacity="0.72" pointerEvents="none">
-            {Array.from({ length: Math.max(0, Math.floor((geometry.bounds.heightMm - 48) / 11)) }, (_, index) => {
-              const y = 34 + index * 11;
-              return <line key={y} x1="17" y1={y} x2={geometry.bounds.widthMm - 17} y2={y} />;
-            })}
-          </g>
-        )}
+        {(geometry.type === "letter-paper-v1" || geometry.type === "mini-card-v1") && showWritingLines && (() => {
+          const span = centeredLineSpan(geometry.bounds.x, geometry.bounds.widthMm, writingLineWidthPercent);
+          const lineYs = evenlySpacedLineYs(geometry.bounds.y, geometry.bounds.heightMm, writingLineCount, geometry.type === "mini-card-v1" ? 0.3 : 0.12, geometry.type === "mini-card-v1" ? 0.76 : 0.88);
+          return <g data-layer="writing-lines" fill="none" stroke="#c9b4a7" strokeWidth="0.22" opacity="0.72" pointerEvents="none">
+            {lineYs.map((lineY) => <line key={lineY} x1={span.x1} y1={lineY} x2={span.x2} y2={lineY} />)}
+          </g>;
+        })()}
         <TextLayer
           texts={texts}
           selectedTextId={selectedTextId}
@@ -218,6 +223,8 @@ export function DielineSvg({
   includeFoldoverLines = true,
   showWritingLines = false,
   showWritingFrame = false,
+  writingLineCount = 18,
+  writingLineWidthPercent = 82,
   envelopeDesign,
   activeEnvelopeFace,
   printGuideMode,
@@ -500,6 +507,8 @@ export function DielineSvg({
         includeFoldoverLines={includeFoldoverLines}
         showWritingLines={showWritingLines}
         showWritingFrame={showWritingFrame}
+        writingLineCount={writingLineCount}
+        writingLineWidthPercent={writingLineWidthPercent}
         envelopeDesign={envelopeDesign}
         activeEnvelopeFace={activeEnvelopeFace}
         printGuideMode={printGuideMode}

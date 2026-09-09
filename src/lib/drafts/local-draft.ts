@@ -1,6 +1,6 @@
 import { openDB } from "idb";
 
-import type { AppState, ArtworkLayer, StampItem } from "../../app/app-types";
+import type { AppState, ArtworkLayer, EnvelopeDesignSettings, StampItem } from "../../app/app-types";
 import type { ProjectWorkspace } from "../../cloud/types";
 import { blobToDataUrl } from "../uploads/read-pattern";
 import { normalizeTextItem } from "../../features/auto-layout/text-layout";
@@ -54,6 +54,7 @@ export async function loadLocalDraft(): Promise<LocalDraft | null> {
   const db = await database();
   const draft = await db.get(STORE_NAME, CURRENT_DRAFT_KEY) as LocalDraft | undefined;
   if (!draft) return null;
+  const storedEnvelopeDesign = draft.state.envelopeDesign as Partial<EnvelopeDesignSettings> | undefined;
   const restoredDraft = {
     ...draft,
     state: {
@@ -61,8 +62,14 @@ export async function loadLocalDraft(): Promise<LocalDraft | null> {
       templateId: draft.state.templateId ?? null,
       showWritingLines: draft.state.showWritingLines ?? false,
       showWritingFrame: draft.state.showWritingFrame ?? false,
+      writingLineCount: draft.state.writingLineCount ?? 18,
+      writingLineWidthPercent: draft.state.writingLineWidthPercent ?? 82,
+      showCardWritingLines: draft.state.showCardWritingLines ?? false,
+      showCardWritingFrame: draft.state.showCardWritingFrame ?? false,
+      cardWritingLineCount: draft.state.cardWritingLineCount ?? 3,
+      cardWritingLineWidthPercent: draft.state.cardWritingLineWidthPercent ?? 76,
       stationerySetSelection: draft.state.stationerySetSelection ?? "envelope-only",
-      envelopeDesign: draft.state.envelopeDesign ?? {
+      envelopeDesign: {
         style: "simple",
         flapAccentEnabled: false,
         flapColor: "#fffdf9",
@@ -70,7 +77,10 @@ export async function loadLocalDraft(): Promise<LocalDraft | null> {
         showAddressField: false,
         showAddressLines: false,
         marginMm: 12,
-      },
+        ...storedEnvelopeDesign,
+        addressLineCount: storedEnvelopeDesign?.addressLineCount ?? 3,
+        addressLineWidthPercent: storedEnvelopeDesign?.addressLineWidthPercent ?? 76,
+      } satisfies EnvelopeDesignSettings,
       activeEnvelopeFace: draft.state.activeEnvelopeFace ?? "envelope-flap",
       surfaceBackgroundColors: draft.state.surfaceBackgroundColors ?? {},
       themePackId: draft.state.themePackId ?? null,

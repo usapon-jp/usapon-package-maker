@@ -15,6 +15,8 @@ export type EnvelopeDesignSettings = {
   flapPattern: EnvelopeFlapPattern;
   showAddressField: boolean;
   showAddressLines: boolean;
+  addressLineCount: number;
+  addressLineWidthPercent: number;
   marginMm: number;
 };
 export type TextAlignment = "start" | "middle" | "end";
@@ -152,6 +154,12 @@ export type AppState = {
   templateId: string | null;
   showWritingLines: boolean;
   showWritingFrame: boolean;
+  writingLineCount: number;
+  writingLineWidthPercent: number;
+  showCardWritingLines: boolean;
+  showCardWritingFrame: boolean;
+  cardWritingLineCount: number;
+  cardWritingLineWidthPercent: number;
   stationerySetSelection: StationerySetSelection;
   envelopeDesign: EnvelopeDesignSettings;
   activeEnvelopeFace: EnvelopeFaceId;
@@ -180,6 +188,12 @@ export type AppAction =
   | { type: "replace-box"; box: BoxInput }
   | { type: "set-writing-lines"; value: boolean }
   | { type: "set-writing-frame"; value: boolean }
+  | { type: "set-writing-line-count"; value: number }
+  | { type: "set-writing-line-width"; value: number }
+  | { type: "set-card-writing-lines"; value: boolean }
+  | { type: "set-card-writing-frame"; value: boolean }
+  | { type: "set-card-writing-line-count"; value: number }
+  | { type: "set-card-writing-line-width"; value: number }
   | { type: "set-stationery-set-selection"; value: StationerySetSelection }
   | { type: "update-envelope-design"; patch: Partial<EnvelopeDesignSettings> }
   | { type: "set-envelope-face"; faceId: EnvelopeFaceId }

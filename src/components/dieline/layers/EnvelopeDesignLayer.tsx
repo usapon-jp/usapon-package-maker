@@ -1,6 +1,7 @@
 import type { EnvelopeDesignSettings } from "../../../app/app-types";
 import type { DielineGeometry } from "../../../domain/boxes/types";
 import { clamp } from "../../../domain/units";
+import { centeredLineSpan, evenlySpacedLineYs } from "../../../features/letter-set/writing-lines";
 import { pointsToString } from "../geometry-utils";
 
 type Props = { geometry: DielineGeometry; settings: EnvelopeDesignSettings; idPrefix: string };
@@ -23,8 +24,8 @@ export function EnvelopeDesignLayer({ geometry, settings, idPrefix }: Props) {
   const fieldY = front.y + Math.min(front.height - margin - fieldHeight, Math.max(margin, front.height * style.fieldY));
   const patternId = `${idPrefix}-envelope-flap-${settings.flapPattern}`;
   const flapFill = settings.flapPattern === "solid" ? settings.flapColor : `url(#${patternId})`;
-  const lineLeft = fieldX + Math.max(7, fieldWidth * 0.14);
-  const lineRight = fieldX + fieldWidth - Math.max(7, fieldWidth * 0.1);
+  const lineSpan = centeredLineSpan(fieldX, fieldWidth, settings.addressLineWidthPercent ?? 76);
+  const lineYs = evenlySpacedLineYs(fieldY, fieldHeight, settings.addressLineCount ?? 3, 0.3, 0.78);
   return (
     <g data-layer="envelope-template" data-envelope-template={settings.style} pointerEvents="none">
       <defs>
@@ -39,8 +40,7 @@ export function EnvelopeDesignLayer({ geometry, settings, idPrefix }: Props) {
       {(settings.showAddressField || settings.showAddressLines) && (
         <g data-envelope-address-field={settings.showAddressField ? "visible" : "lines-only"}>
           {settings.showAddressField && <rect x={fieldX} y={fieldY} width={fieldWidth} height={fieldHeight} rx={style.radius} fill="#ffffff" fillOpacity={style.opacity} stroke={style.border} strokeWidth={settings.style === "cute" ? 0.65 : 0.4} />}
-          {settings.showAddressLines && [0.34, 0.58, 0.82].map((ratio) => <line key={ratio} data-envelope-address-line x1={lineLeft} x2={lineRight} y1={fieldY + fieldHeight * ratio} y2={fieldY + fieldHeight * ratio} stroke={style.line} strokeWidth="0.45" strokeLinecap="round" />)}
-          {settings.style === "cute" && <g fill={style.border} opacity="0.86"><circle cx={fieldX + 7} cy={fieldY + 8} r="1.2" /><circle cx={fieldX + 10.5} cy={fieldY + 5.5} r="0.8" /><circle cx={fieldX + 12.8} cy={fieldY + 9} r="0.65" /></g>}
+          {settings.showAddressLines && lineYs.map((lineY) => <line key={lineY} data-envelope-address-line x1={lineSpan.x1} x2={lineSpan.x2} y1={lineY} y2={lineY} stroke={style.line} strokeWidth="0.45" strokeLinecap="round" />)}
         </g>
       )}
     </g>

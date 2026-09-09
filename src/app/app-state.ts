@@ -1,5 +1,13 @@
 import { resizeBoxArtwork } from "./resize-box-artwork";
 import type { AppAction, AppState } from "./app-types";
+import {
+  RECOMMENDED_ADDRESS_LINE_COUNT,
+  RECOMMENDED_ADDRESS_LINE_WIDTH_PERCENT,
+  RECOMMENDED_CARD_LINE_COUNT,
+  RECOMMENDED_CARD_LINE_WIDTH_PERCENT,
+  RECOMMENDED_LETTER_LINE_COUNT,
+  RECOMMENDED_LETTER_LINE_WIDTH_PERCENT,
+} from "../features/letter-set/writing-lines";
 
 export const DEFAULT_DIELINE_LINE_COLORS = {
   cut: "#a69888",
@@ -38,6 +46,12 @@ export const initialState: AppState = {
   templateId: null,
   showWritingLines: false,
   showWritingFrame: false,
+  writingLineCount: RECOMMENDED_LETTER_LINE_COUNT,
+  writingLineWidthPercent: RECOMMENDED_LETTER_LINE_WIDTH_PERCENT,
+  showCardWritingLines: false,
+  showCardWritingFrame: false,
+  cardWritingLineCount: RECOMMENDED_CARD_LINE_COUNT,
+  cardWritingLineWidthPercent: RECOMMENDED_CARD_LINE_WIDTH_PERCENT,
   stationerySetSelection: "envelope-only",
   envelopeDesign: {
     style: "simple",
@@ -46,6 +60,8 @@ export const initialState: AppState = {
     flapPattern: "solid",
     showAddressField: false,
     showAddressLines: false,
+    addressLineCount: RECOMMENDED_ADDRESS_LINE_COUNT,
+    addressLineWidthPercent: RECOMMENDED_ADDRESS_LINE_WIDTH_PERCENT,
     marginMm: 12,
   },
   activeEnvelopeFace: "envelope-flap",
@@ -102,6 +118,8 @@ function reduceAppState(state: AppState, action: AppAction): AppState {
         templateId: null,
         showWritingLines: false,
         showWritingFrame: false,
+        showCardWritingLines: false,
+        showCardWritingFrame: false,
         stationerySetSelection: "envelope-only",
         activeEnvelopeFace: "envelope-flap",
         surfaceBackgroundColors: {},
@@ -119,6 +137,8 @@ function reduceAppState(state: AppState, action: AppAction): AppState {
         templateId: null,
         showWritingLines: false,
         showWritingFrame: false,
+        showCardWritingLines: false,
+        showCardWritingFrame: false,
         stationerySetSelection: "envelope-only",
         activeEnvelopeFace: "envelope-flap",
         surfaceBackgroundColors: {},
@@ -134,6 +154,18 @@ function reduceAppState(state: AppState, action: AppAction): AppState {
       return { ...state, showWritingLines: action.value };
     case "set-writing-frame":
       return { ...state, showWritingFrame: action.value };
+    case "set-writing-line-count":
+      return { ...state, writingLineCount: Math.max(6, Math.min(24, Math.round(action.value))) };
+    case "set-writing-line-width":
+      return { ...state, writingLineWidthPercent: Math.max(50, Math.min(94, Math.round(action.value))) };
+    case "set-card-writing-lines":
+      return { ...state, showCardWritingLines: action.value };
+    case "set-card-writing-frame":
+      return { ...state, showCardWritingFrame: action.value };
+    case "set-card-writing-line-count":
+      return { ...state, cardWritingLineCount: Math.max(2, Math.min(5, Math.round(action.value))) };
+    case "set-card-writing-line-width":
+      return { ...state, cardWritingLineWidthPercent: Math.max(50, Math.min(92, Math.round(action.value))) };
     case "set-stationery-set-selection":
       return { ...state, stationerySetSelection: action.value, activePageId: "main", selectedArtworkId: null, selectedStampId: null, selectedTextId: null };
     case "update-envelope-design":

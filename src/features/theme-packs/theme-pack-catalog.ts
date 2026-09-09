@@ -38,7 +38,7 @@ export const AUTUMN_THEME_PACK: ThemePackDefinition = {
     pageBackgrounds: { main: "#fff4dc", letter: "#fffaf0", card: "#fff7e8" },
     surfaceBackgrounds: { "envelope-front": "#fff4dc", "envelope-flap": "#d8793f", "envelope-back": "#ead2ad" },
     lineColors: { cut: "#8d674f", fold: "#b99579" },
-    envelopeDesign: { style: "cute", flapAccentEnabled: true, flapColor: "#d8793f", flapPattern: "dots", showAddressField: true, showAddressLines: true, marginMm: 10 },
+    envelopeDesign: { style: "cute", flapAccentEnabled: true, flapColor: "#d8793f", flapPattern: "dots", showAddressField: true, showAddressLines: true, addressLineCount: 3, addressLineWidthPercent: 76, marginMm: 10 },
     textColor: "#5d3d2c",
   },
 };

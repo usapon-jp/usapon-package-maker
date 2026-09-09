@@ -4,10 +4,11 @@ import type { AppState } from "../../app/app-types";
 import type { DielineGeometry, DielinePageId } from "../../domain/boxes/types";
 import { ArtworkLayer } from "../dieline/layers/ArtworkLayer";
 import { TextLayer } from "../dieline/layers/TextLayer";
+import { centeredLineSpan, evenlySpacedLineYs } from "../../features/letter-set/writing-lines";
 
 type Props = {
   state: AppState;
-  pageId: Extract<DielinePageId, "letter" | "card">;
+  pageId: DielinePageId;
   geometry: DielineGeometry;
 };
 
@@ -21,6 +22,10 @@ export function FinishedStationeryPreview({ state, pageId, geometry }: Props) {
   const texts = state.texts.filter((item) => item.pageId === pageId);
   const { x, y, widthMm, heightMm } = geometry.bounds;
   const isLetter = geometry.type === "letter-paper-v1";
+  const showWritingFrame = isLetter ? state.showWritingFrame : state.showCardWritingFrame;
+  const showWritingLines = isLetter ? state.showWritingLines : state.showCardWritingLines;
+  const writingLineCount = isLetter ? state.writingLineCount : state.cardWritingLineCount;
+  const writingLineWidthPercent = isLetter ? state.writingLineWidthPercent : state.cardWritingLineWidthPercent;
 
   return (
     <div className={`finished-stationery-card ${isLetter ? "is-letter" : "is-card"}`}>
@@ -47,13 +52,13 @@ export function FinishedStationeryPreview({ state, pageId, geometry }: Props) {
           selectedStampId={null}
           exportMode
         />
-        {isLetter && state.showWritingFrame && <rect x={x + 14} y={y + 20} width={Math.max(1, widthMm - 28)} height={Math.max(1, heightMm - 40)} rx="4" fill="#ffffff" fillOpacity="0.92" stroke="#ead8d3" strokeWidth="0.55" />}
+        {showWritingFrame && <rect x={x + (isLetter ? 14 : 7)} y={y + (isLetter ? 20 : 7)} width={Math.max(1, widthMm - (isLetter ? 28 : 14))} height={Math.max(1, heightMm - (isLetter ? 40 : 14))} rx="4" fill="#ffffff" fillOpacity="0.92" stroke="#ead8d3" strokeWidth="0.55" />}
         <g clipPath={`url(#${clipId})`}>
-          {isLetter && state.showWritingLines && (
+          {showWritingLines && (
             <g fill="none" stroke="#c9b4a7" strokeWidth="0.22" opacity="0.72">
-              {Array.from({ length: Math.max(0, Math.floor((heightMm - 48) / 11)) }, (_, index) => {
-                const lineY = y + 34 + index * 11;
-                return <line key={lineY} x1={x + 17} y1={lineY} x2={x + widthMm - 17} y2={lineY} />;
+              {evenlySpacedLineYs(y, heightMm, writingLineCount, isLetter ? 0.12 : 0.3, isLetter ? 0.88 : 0.76).map((lineY) => {
+                const span = centeredLineSpan(x, widthMm, writingLineWidthPercent);
+                return <line key={lineY} x1={span.x1} y1={lineY} x2={span.x2} y2={lineY} />;
               })}
             </g>
           )}

@@ -740,6 +740,8 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .canvas-view-actions .canvas-zoom-popover button { width: 44px; min-height: 27px; padding: 3px; border: 1px solid #eadbd6; border-radius: 7px; color: #805d59; background: white; font-size: 8px; font-weight: 800; line-height: 1.15; }
 .editor-stage { position:relative; }
 .editor-stage > .canvas-zoom-controls { position:absolute; z-index:12; right:10px; bottom:10px; display:block; }
+.editor-stage > .stationery-preview-trigger { position:absolute; z-index:12; left:10px; bottom:10px; display:flex; align-items:center; justify-content:center; gap:6px; min-height:38px; margin:0; padding:0 14px; border-color:#e8c7cd; background:rgba(255,246,247,.94); box-shadow:0 4px 12px rgba(117,70,80,.14); backdrop-filter:blur(7px); }
+.editor-stage > .stationery-preview-trigger svg { width:18px; height:18px; }
 .editor-stage > .canvas-zoom-controls .canvas-zoom-toggle { display:flex; align-items:center; justify-content:center; width:38px; height:38px; padding:0; border:1px solid #e8c7cd; border-radius:50%; color:#a4596e; background:rgba(255,246,247,.94); box-shadow:0 4px 12px rgba(117,70,80,.14); cursor:pointer; backdrop-filter:blur(7px); }
 .editor-stage > .canvas-zoom-controls .canvas-zoom-toggle svg { width:20px; height:20px; }
 .editor-stage > .canvas-zoom-controls .canvas-zoom-popover { position:absolute; z-index:15; right:0; bottom:calc(100% + 7px); display:flex; flex-direction:column; align-items:center; gap:4px; min-width:48px; padding:6px; border:1px solid rgba(224,201,194,.96); border-radius:12px; background:rgba(255,253,250,.97); box-shadow:0 8px 20px rgba(83,60,53,.16); backdrop-filter:blur(7px); }
@@ -926,6 +928,16 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .finished-box-dialog header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .finished-box-dialog h2 { margin: 0 0 12px; font-size: 22px; }
 .finished-box-dialog header button { border: 0; background: transparent; color: #715a54; font-size: 28px; cursor: pointer; min-width: 44px; min-height: 44px; }
+.finished-stationery-dialog .single-assembled-envelope-card { display:flex; flex-direction:column; gap:8px; width:min(100%,520px); min-height:0; margin:4px auto 12px; padding:10px; border:1px solid var(--line); border-radius:16px; background:#fff; box-shadow:0 6px 16px rgba(80,55,47,.08); }
+.finished-stationery-dialog .assembled-view-toggle { display:flex; justify-content:center; gap:6px; }
+.finished-stationery-dialog .assembled-view-toggle button { min-width:74px; min-height:34px; padding:5px 12px; border:1px solid #e8d4cd; border-radius:999px; color:#82645d; background:#fffaf8; font-weight:800; cursor:pointer; }
+.finished-stationery-dialog .assembled-view-toggle button.is-active { border-color:#df8da0; color:#fff; background:var(--pink); }
+.finished-stationery-dialog .assembled-envelope-stage { display:flex; align-items:center; justify-content:center; width:100%; min-height:0; aspect-ratio:162/114; padding:8px; overflow:hidden; border:1px solid var(--line); border-radius:12px; background:#fdfaf6; }
+.finished-stationery-dialog .assembled-single-svg { display:block; width:100%; height:100%; max-height:none; }
+.finished-stationery-dialog .finished-stationery-card { width:min(100%,520px); height:auto; margin:4px auto 12px; padding:8px; }
+.finished-stationery-dialog .finished-stationery-card.is-card { aspect-ratio:91/55; }
+.finished-stationery-dialog .finished-stationery-card.is-letter { width:min(100%,390px); aspect-ratio:148/210; }
+.finished-stationery-dialog .finished-stationery-svg { display:block; width:100%; height:100%; }
 .finished-box { width: 100%; min-width: 0; }
 .finished-box-views { display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; }
 .finished-box-views button { padding: 9px 12px; border: 1px solid #e8d4cd; border-radius: 99px; background: white; color: #715a54; cursor: pointer; }
@@ -1004,13 +1016,21 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .other-option-card small { margin-top:4px; color:#9a827b; font-size:9px; line-height:1.35; }
 .other-option-card input { width:20px; height:16px; accent-color:var(--pink); cursor:pointer; }
 .other-option-preview { position:relative; display:grid; place-items:center; width:36px; height:36px; overflow:hidden; border:1px solid #ead9d4; border-radius:9px; background:repeating-linear-gradient(45deg,#f5e4e5 0 4px,#f9f0ed 4px 8px); }
-.other-option-preview.writing-frame-preview i,.other-option-preview.address-frame-preview i { width:25px; height:21px; border:1px solid #ecc4ca; border-radius:4px; background:#fff; box-shadow:0 2px 4px rgba(100,70,65,.08); }
-.other-option-preview.address-frame-preview i::after { content:""; position:absolute; left:9px; right:7px; top:18px; height:1px; background:#d8aaaf; box-shadow:0 4px #d8aaaf; }
-.other-option-preview.writing-lines-preview { align-content:center; gap:5px; padding:10px; background:#fffaf8; }
-.other-option-preview.writing-lines-preview i { width:28px; height:1px; background:#d5aaa9; }
+.other-option-preview.writing-frame-preview i,.other-option-preview.address-frame-preview i { position:relative; width:25px; height:21px; border:1px solid #ecc4ca; border-radius:4px; background:#fff; box-shadow:0 2px 4px rgba(100,70,65,.08); }
+.other-option-preview.address-frame-preview i::after { content:""; position:absolute; left:5px; right:5px; top:7px; height:1px; background:#d8aaaf; box-shadow:0 4px #d8aaaf,0 8px #d8aaaf; }
+.other-option-preview.writing-lines-preview { grid-template-rows:repeat(3,1px); align-content:center; justify-items:center; gap:4px; padding:6px; background:#fffaf8; }
+.other-option-preview.writing-lines-preview i { display:block; width:22px; height:1px; margin:0 auto; background:#d5aaa9; }
 .other-option-preview.guide-preview { color:#dc8797; background:#fff8f8; font-size:22px; }
 .other-sample-button { display:flex; align-items:center; justify-content:center; gap:7px; width:100%; min-height:40px; margin-top:10px; border:1px solid #e5cfd0; border-radius:12px; color:#8f5662; background:#fff8f8; font-size:11px; font-weight:800; cursor:pointer; }
 .other-sample-button svg { width:18px; height:18px; }
+.line-tuning-panel { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:7px 10px; margin-top:9px; padding:9px 10px; border:1px solid #ead9d4; border-radius:12px; background:#fffaf8; }
+.line-tuning-panel > div { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.line-tuning-panel > div strong { color:#765951; font-size:11px; }
+.line-tuning-panel > div button { min-height:27px; padding:3px 9px; border:1px solid #e6bec7; border-radius:999px; color:#a34d60; background:#fff; font-size:10px; font-weight:800; cursor:pointer; }
+.line-tuning-panel label { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:7px; min-width:0; }
+.line-tuning-panel label span { color:#765f58; font-size:10px; font-weight:800; white-space:nowrap; }
+.line-tuning-panel output { color:#df6179; font-weight:900; }
+.line-tuning-panel input[type="range"] { width:100%; min-width:0; accent-color:var(--pink); }
 @media (max-width:1100px) {
   .other-option-card small { display:none; }
   .other-option-card strong { white-space:nowrap; }
@@ -2930,7 +2950,7 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
  .size-page .size-inline-fit .fit-notice small { display:none; }
 }
 /* Keep each stamp library tile inside its own scrollable row. */
-.antigravity-design-page .stamp-editor-workspace { grid-template-rows:minmax(150px,1fr) 76px minmax(100px,auto); min-height:340px; }
+.antigravity-design-page .stamp-editor-workspace { grid-template-rows:minmax(150px,1fr) 96px minmax(100px,auto); min-height:340px; }
 .stamp-library-zone { min-height:0; }
 .stamp-library-body { min-height:0; overflow:hidden; }
 .stamp-preset-scroller { height:100%; overflow:auto; padding:2px; box-sizing:border-box; }
@@ -2938,6 +2958,18 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .stamp-preset-card { width:100%; height:72px; max-height:72px; padding:6px; box-sizing:border-box; }
 .stamp-preset-card img { width:100%; height:100%; object-fit:contain; }
 .placed-stamps-zone { overflow:hidden; }
+.stamp-editor-zone-title { flex:0 0 20px; min-height:20px; height:20px; line-height:20px; overflow:visible; }
+
+@media (min-width:768px) {
+  .antigravity-design-page .stamp-editor-workspace {
+    grid-template-rows:minmax(176px,208px) minmax(96px,auto) minmax(100px,auto);
+    align-content:start;
+  }
+}
+
+@media (max-width:767px) {
+  .stamp-editor-zone-title { flex-basis:18px; min-height:18px; height:18px; line-height:18px; }
+}
 
 /* Keep settings and the paper preview together within one narrow screen. */
 @media (max-width:720px) {
