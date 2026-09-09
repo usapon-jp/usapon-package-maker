@@ -4,6 +4,6 @@ import type { Screen } from './app-types';
 export function previousScreen(screen: Screen, templateId: string | null): Screen | null {
   if (screen === 'home') return null;
   if (screen === 'print') return 'design';
-  if (screen === 'design') return templateId === 'y2-kamasu-envelope' ? 'letter-set' : 'size';
+  if (screen === 'design') return templateId === 'y2-kamasu-envelope' ? 'home' : 'size';
   return 'home';
 }

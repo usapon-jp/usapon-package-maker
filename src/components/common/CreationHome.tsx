@@ -8,10 +8,16 @@ export const HOME_BOXES = [
   ['two-piece-gift-box-v1', 'ふた付き箱'],
 ] as const;
 
-export function CreationHome({ onBox, onLetter, onMore, onResume, resumeLabel }: {
+export const HOME_LETTER_SETS = [
+  { value: 'envelope-letter', label: '封筒＋便箋', letter: true, card: false },
+  { value: 'envelope-card', label: '封筒＋ミニカード', letter: false, card: true },
+  { value: 'envelope-letter-card', label: 'フルセット', letter: true, card: true },
+  { value: 'envelope-only', label: '封筒のみ', letter: false, card: false },
+] as const satisfies ReadonlyArray<{ value: StationerySetSelection; label: string; letter: boolean; card: boolean }>;
+
+export function CreationHome({ onBox, onLetter, onResume, resumeLabel }: {
   onBox: (type: BoxType) => void;
   onLetter: (selection: StationerySetSelection) => void;
-  onMore: () => void;
   onResume: (() => void) | null;
   resumeLabel: string;
 }) {
@@ -27,10 +33,17 @@ export function CreationHome({ onBox, onLetter, onMore, onResume, resumeLabel }:
     </section>
     <section aria-label="レターセットをつくる">
       <h2>レターセット</h2>
-      <div className="creation-home-grid">
-        <button type="button" onClick={()=>onLetter('envelope-letter')}><span className="home-letter-picture"><LetterIcon/><EnvelopeIcon/></span><strong>封筒＋便箋</strong></button>
-        <button type="button" onClick={()=>onLetter('envelope-card')}><span className="home-letter-picture"><CardIcon/><EnvelopeIcon/></span><strong>封筒＋カード</strong></button>
-        <button type="button" onClick={onMore}><span className="home-letter-picture"><LetterIcon/><CardIcon/></span><strong>ほかのセット</strong></button>
+      <div className="creation-home-grid creation-home-letter-grid">
+        {HOME_LETTER_SETS.map((option) => (
+          <button key={option.value} type="button" onClick={() => onLetter(option.value)}>
+            <span className={`home-letter-picture is-${option.value}`} aria-hidden="true">
+              {option.letter && <LetterIcon />}
+              {option.card && <CardIcon />}
+              <EnvelopeIcon />
+            </span>
+            <strong>{option.label}</strong>
+          </button>
+        ))}
       </div>
     </section>
     {onResume && <button className="home-resume" type="button" onClick={onResume}><span aria-hidden="true">↩</span><span><strong>つづきから</strong><small>{resumeLabel}</small></span></button>}

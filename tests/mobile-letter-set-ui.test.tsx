@@ -2,7 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { BottomNavBar } from "../src/components/navigation/BottomNavBar";
-import { LetterSetSelectScreen } from "../src/features/letter-set/LetterSetSelectScreen";
+import { CreationHome } from "../src/components/common/CreationHome";
 import { MobileSettingsSheet } from "../src/components/modals/MobileSettingsSheet";
 import { ArtworkLayer } from "../src/components/dieline/layers/ArtworkLayer";
 import { AssembledEnvelopePreview } from "../src/components/common/AssembledEnvelopePreview";
@@ -11,19 +11,14 @@ import { createStamp } from "../src/app/artwork";
 import type { UploadedAsset } from "../src/app/app-types";
 
 describe("モバイル中心のレターセットUI", () => {
-  it("4つの組み合わせだけをシンプルに表示する", () => {
-    const markup = renderToStaticMarkup(<LetterSetSelectScreen onSelect={() => undefined} />);
-    expect(markup).toContain("レターセットを選ぶ");
+  it("ホームに4つの組み合わせをシンプルに表示する", () => {
+    const markup = renderToStaticMarkup(<CreationHome onBox={() => undefined} onLetter={() => undefined} onResume={null} resumeLabel="" />);
     expect(markup).toContain("封筒＋便箋");
     expect(markup).toContain("封筒＋ミニカード");
     expect(markup).toContain("フルセット");
     expect(markup).toContain("封筒のみ");
-    expect(markup).toContain("洋形2号カマス貼り");
-    expect(markup).toContain('class="mini-envelope-flap"');
-    expect(markup).toContain('class="mini-usapon-stamp"');
-    expect(markup).not.toContain("ふりこみました");
-    expect(markup).toContain('data-ui-id="letter.screen"');
-    expect(markup).toContain('data-ui-id="letter.choice-grid"');
+    expect(markup).not.toContain("ほかのセット");
+    expect(markup).toContain('class="creation-home-grid creation-home-letter-grid"');
   });
 
   it("役割が重ならない3項目の下部ナビを表示する", () => {
@@ -67,10 +62,7 @@ describe("モバイル中心のレターセットUI", () => {
       surfaceBackgroundColors: {},
       backgroundColors: { main: "#ffffff" },
     } as any;
-    const envelopeBackState = {
-      ...envelopeFrontState,
-      activeEnvelopeFace: "envelope-back" as const,
-    };
+    const envelopeBackState = { ...envelopeFrontState, activeEnvelopeFace: "envelope-back" as const };
 
     const frontMarkup = renderToStaticMarkup(<AssembledEnvelopePreview state={envelopeFrontState} showLabels={true} />);
     expect(frontMarkup).toContain("face-front-svg");

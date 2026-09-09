@@ -2767,6 +2767,7 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .creation-home h1 { font-size: clamp(24px, 3vw, 34px); margin: 8px 0 18px; }
 .creation-home h2 { font-size: 15px; margin: 14px 0 8px; color: var(--muted); }
 .creation-home-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
+.creation-home-letter-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
 .creation-home-grid > button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-width: 0; min-height: 132px; padding: 12px 8px; border: 1px solid var(--line); border-radius: 20px; background: #fffdfb; color: var(--ink); cursor: pointer; box-shadow: 0 3px 10px #8c5c4910; }
 .creation-home-grid > button:hover { background: var(--pink-soft); border-color: var(--pink); }
 .creation-home-grid strong { font-size: 15px; }
@@ -2775,6 +2776,9 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .home-letter-picture svg { position: absolute; width: 55px; height: 55px; fill: #fff4e4; }
 .home-letter-picture svg:first-child { left: 3px; top: 0; transform: rotate(-10deg); }
 .home-letter-picture svg:last-child { right: 0; bottom: 0; fill: #fff0f2; }
+.home-letter-picture.is-envelope-letter-card svg:nth-child(2) { right:2px; top:2px; transform:rotate(8deg); }
+.home-letter-picture.is-envelope-letter-card svg:last-child { right:16px; bottom:0; }
+.home-letter-picture.is-envelope-only svg { position:static; width:64px; height:64px; }
 .home-resume { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 20px; padding: 13px 18px; text-align: left; color: var(--ink); border: 1px solid #e8bac7; border-radius: 18px; background: #fff0f4; cursor: pointer; }
 .home-resume small { display: block; color: var(--muted); margin-top: 3px; }
 .mobile-bottom-nav { grid-template-columns: repeat(3,minmax(0,1fr)); }
@@ -2813,6 +2817,7 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
   .creation-home { padding: 2px 12px 84px; }
   .creation-home h1 { font-size:24px; margin:6px 0 12px; }
   .creation-home-grid { gap:7px; }
+  .creation-home-letter-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .creation-home-grid > button { min-height:116px; padding:9px 4px; border-radius:16px; }
   .creation-home-grid strong { font-size:12px; }
   .home-box-picture { height:66px; }

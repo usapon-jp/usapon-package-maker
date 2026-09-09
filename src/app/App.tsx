@@ -72,7 +72,6 @@ import { arrangeEnvelopeTemplate, DEFAULT_LETTER_SET_ENVELOPE, ENVELOPE_LAYOUT_T
 import { AUTUMN_THEME_PACK, THEME_PACKS, themePackById, type ThemePackDefinition } from "../features/theme-packs/theme-pack-catalog";
 import { AUTUMN_FREE_TRIAL_STAMP_ID } from "../features/theme-packs/autumn-stamp-catalog";
 import { canUseAutumnTrialStamp, hasFreeTrialReceipt, isAutumnTrialStamp, isFreeTrialPassphrase, saveFreeTrialReceipt } from "../features/theme-packs/free-trial";
-import { LetterSetSelectScreen } from "../features/letter-set/LetterSetSelectScreen";
 import { BottomNavBar, type BottomNavTab } from "../components/navigation/BottomNavBar";
 import { SampleGuideModal } from "../components/modals/SampleGuideModal";
 import { AssemblyGuideModal } from "../components/modals/AssemblyGuideModal";
@@ -2446,7 +2445,7 @@ export function App() {
   return (
     <div className={`app-shell ${state.screen === "size" || state.screen === "design" || state.screen === "print" ? "is-fixed-workspace" : ""}`} data-ui-id="global.app-shell">
       <AppHeader
-        screen={state.screen}
+        screen={state.screen === "letter-set" ? "home" : state.screen}
         templateId={state.templateId}
         user={user}
         saveState={saveState}
@@ -2462,8 +2461,7 @@ export function App() {
         onDeleteAccount={() => { void deleteAccount(); }}
       />
       {clientContext.isInstagramInAppBrowser && <InstagramBrowserNotice hasBrowserOnlyWork={saveState === "dirty" || saveState === "error" || saveState === "conflict"} onOpenGuide={() => setInstallGuideOpen(true)} />}
-      {state.screen === "home" && <CreationHome onBox={startNew} onLetter={startLetterSet} onMore={() => dispatch({ type: "go", screen: "letter-set" })} onResume={shouldPersistLocalDraft ? () => dispatch({ type: "go", screen: "design" }) : null} resumeLabel={state.box.type === "envelope-v1" ? "レターセット" : BOX_TYPE_COPY[state.box.type].name} />}
-      {state.screen === "letter-set" && <LetterSetSelectScreen onSelect={startLetterSet} />}
+      {(state.screen === "home" || state.screen === "letter-set") && <CreationHome onBox={startNew} onLetter={startLetterSet} onResume={shouldPersistLocalDraft ? () => dispatch({ type: "go", screen: "design" }) : null} resumeLabel={state.box.type === "envelope-v1" ? "レターセット" : BOX_TYPE_COPY[state.box.type].name} />}
       {state.screen === "templates" && <TemplateScreen onBack={() => dispatch({ type: "go", screen: "home" })} onSelect={startTemplate} unlockedThemePackIds={unlockedThemePackIds} />}
       {state.screen === "size" && <SizeScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
       {state.screen === "design" && <DesignScreen key={user?.id ?? "device"} imageOwner={user?.id ?? "device"} state={state} dispatch={dispatch} pages={pages} activePage={activePage} unlockedThemePackIds={unlockedThemePackIds} hasFreeTrialEntitlement={hasFreeTrialEntitlement} onUnlockThemePack={requestThemeUnlock} />}
@@ -2478,7 +2476,7 @@ export function App() {
           onWorkspaceChange={(updated) => { if (workspace?.id === updated.id) setWorkspace(updated); }}
         />
       )}
-      {state.screen !== "home" && state.screen !== "size" && state.screen !== "design" && state.screen !== "print" && (
+      {state.screen !== "home" && state.screen !== "letter-set" && state.screen !== "size" && state.screen !== "design" && state.screen !== "print" && (
         <footer className="app-footer"><strong>うさぽん パッケージメーカー</strong><span>未保存は端末内／保存作品は非公開クラウド</span>{installContext.isStandalone ? <span>ホーム画面版で起動中</span> : <button type="button" onClick={() => setInstallGuideOpen(true)}>ホーム画面に追加する</button>}<a href={`${import.meta.env.BASE_URL}privacy.html`}>プライバシーポリシー</a></footer>
       )}
       <BottomNavBar activeTab={bottomNavActiveTab} onChange={handleBottomNavChange} />
@@ -2489,11 +2487,8 @@ export function App() {
             startNew();
           }}
           onSelectLetterSet={() => {
-            if (isBoxType) {
-              if (confirmDiscard()) dispatch({ type: "go", screen: "letter-set" });
-            } else {
-              dispatch({ type: "go", screen: "letter-set" });
-            }
+            if (!isBoxType || confirmDiscard()) dispatch({ type: "go", screen: "home" });
+            setNewCreationSheetOpen(false);
           }}
           onClose={() => setNewCreationSheetOpen(false)}
         />
