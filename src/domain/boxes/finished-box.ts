@@ -72,9 +72,6 @@ export function visibleBoxFaces(faces: Face[], view: BoxView) {
 }
 
 export function faceMatrix(face: Face, view: BoxView) {
-  // The face-on view keeps the lid's exact net orientation and coordinates,
-  // so users can compare stamp positions directly without a camera rotation.
-  if (view === 'top') return [1,0,0,1,0,0];
   const p = projectBoxPoint(face.origin, view);
   const u = projectBoxPoint(face.u, view), v = projectBoxPoint(face.v, view);
   return [u[0]/face.panel.width,u[1]/face.panel.width,v[0]/face.panel.height,v[1]/face.panel.height,p[0],p[1]];

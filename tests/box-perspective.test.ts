@@ -27,5 +27,5 @@ it('真上では元画像の座標と縮尺を維持する',()=>{
   const faces=finishedBoxFaces({...initialState.box,type:'two-piece-gift-box-v1'});
   const p=boxPerspective(faces,'top');
   const lid=faces.find(f=>f.name==='top')!;
-  expect(p(lid,23,47)).toEqual([23,47]);
+  expect(p(lid,23,47)).toEqual([23,47-lid.panel.height]);
 });

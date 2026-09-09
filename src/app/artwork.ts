@@ -10,7 +10,6 @@ import type {
   UploadedAsset,
 } from "./app-types";
 import type { DielineGeometry, DielinePageId, Panel } from "../domain/boxes/types";
-import { generateStraightTuckCarton } from "../domain/boxes/straight-tuck-carton";
 import { AUTUMN_FREE_TRIAL_STAMP_ID, AUTUMN_STAMP_FILES, AUTUMN_STAMP_IDS, AUTUMN_TRIAL_STAMP_FILES, LEGACY_AUTUMN_STAMP_FILES } from "../features/theme-packs/autumn-stamp-catalog";
 
 export const POFUMOFU_STAMP_FILE = "pofumofu-friends.png";
@@ -73,25 +72,25 @@ function panelCenter(geometry: DielineGeometry, targetPanel?: Panel) {
   return { x: panel.x + panel.width / 2, y: panel.y + panel.height / 2, panel };
 }
 
-function shouldFitPortraitCover(asset: UploadedAsset, geometry: DielineGeometry, fitBackgroundToPanel = false) {
-  return geometry.type === "straight-tuck-carton-v1"
-    && asset.aspectRatio < 1
-    && (fitBackgroundToPanel || (asset.assetRef?.kind === "builtin" && asset.assetRef.key === "autumn-trial-cover"));
+/** The shallow box lid runs sideways in the net; the upright carton does not. */
+function recommendedRotation(geometry: DielineGeometry, panel: Panel): QuarterTurn {
+  if (geometry.type === "gift-box-v1") {
+    if (["panel-lid", "panel-front-wall"].includes(panel.id)) return 90;
+    if (panel.id === "panel-rear-wall") return 270;
+    if (panel.id === "panel-side-right") return 180;
+  }
+  return 0;
 }
 
-function portraitCoverWidth(asset: UploadedAsset, panel: Panel) {
-  // After a quarter turn, the image's original height becomes its horizontal span.
-  return Math.min(panel.width * asset.aspectRatio, panel.height);
+function panelFitWidth(asset: UploadedAsset, panel: Panel, rotation: QuarterTurn) {
+  return rotation === 90 || rotation === 270
+    ? Math.min(panel.width * asset.aspectRatio, panel.height)
+    : Math.min(panel.width, panel.height * asset.aspectRatio);
 }
 
 function defaultStampWidth(asset: UploadedAsset, panel: Panel) {
   const fitted = Math.min(panel.width * 0.72, panel.height * Math.max(asset.aspectRatio, 0.35) * 0.72);
   return Math.min(40, Math.max(10, fitted));
-}
-
-function portraitStampWidth(asset: UploadedAsset, panel: Panel) {
-  // Keep the usual stamp size; only reduce it when the rotated image would overflow.
-  return Math.min(defaultStampWidth(asset, panel), portraitCoverWidth(asset, panel));
 }
 
 export function rotateQuarterTurn(rotation: QuarterTurn): QuarterTurn {
@@ -125,14 +124,10 @@ export function createUploadedArtwork(asset: UploadedAsset, geometry: DielineGeo
 export function createFullPanelArtwork(asset: UploadedAsset, geometry: DielineGeometry, pageId: DielinePageId = "main", targetPanel?: Panel): UploadedArtworkLayer {
   const item = createUploadedArtwork(asset, geometry, pageId);
   const panel = targetPanel ?? geometry.panels[0];
-  const fitPortraitCover = shouldFitPortraitCover(asset, geometry);
-  item.widthMm = fitPortraitCover
-    ? portraitCoverWidth(asset, panel)
-    : Math.min(panel.width, panel.height * asset.aspectRatio);
+  item.rotationDeg = recommendedRotation(geometry, panel);
+  item.widthMm = panelFitWidth(asset, panel, item.rotationDeg);
   item.offsetXmm = panel.x + panel.width / 2;
   item.offsetYmm = panel.y + panel.height / 2;
-  item.rotationDeg = fitPortraitCover ? 90 : 0;
-  if (fitPortraitCover) item.coverFitVersion = 1;
   return item;
 }
 
@@ -172,15 +167,12 @@ export function createDotPattern(id: string, number: number, pageId: DielinePage
   };
 }
 
-export function createStamp(asset: UploadedAsset, geometry: DielineGeometry, name = asset.fileName, pageId: DielinePageId = "main", targetPanel?: Panel, fitBackgroundToPanel = false): StampItem {
+export function createStamp(asset: UploadedAsset, geometry: DielineGeometry, name = asset.fileName, pageId: DielinePageId = "main", targetPanel?: Panel, _fitBackgroundToPanel = false): StampItem {
   const center = panelCenter(geometry, targetPanel);
   const runtime = runtimeAsset(asset);
-  const fitCoverToFront = shouldFitPortraitCover(asset, geometry, fitBackgroundToPanel);
-  // Width is constrained by the panel width and the resulting image height.
-  // This keeps portrait stamps clear of the fold line as well as wide stamps.
-  const baseWidth = fitCoverToFront
-    ? portraitStampWidth(asset, center.panel)
-    : defaultStampWidth(asset, center.panel);
+  const rotation = recommendedRotation(geometry, center.panel);
+  // Keep normal stamp size, shrinking only as needed with a little breathing room.
+  const baseWidth = Math.min(defaultStampWidth(asset, center.panel), panelFitWidth(asset, center.panel, rotation) * 0.9);
   return {
     ...runtime.asset,
     id: runtime.id,
@@ -190,34 +182,17 @@ export function createStamp(asset: UploadedAsset, geometry: DielineGeometry, nam
     name,
     xMm: center.x,
     yMm: center.y,
-    widthMm: fitCoverToFront ? Math.max(2, baseWidth) : baseWidth,
-    rotationDeg: fitCoverToFront ? 90 : 0,
-    ...(fitCoverToFront ? { coverFitVersion: 1 as const } : {}),
+    widthMm: baseWidth,
+    rotationDeg: rotation,
     visible: true,
     opacity: 1,
   };
 }
 
 export function normalizeLegacyPortraitCoverPlacements(state: AppState): AppState {
-  if (state.box.type !== "straight-tuck-carton-v1") return state;
-  const panel = generateStraightTuckCarton(state.box).panels[0];
-  let changed = false;
-  const normalize = <T extends UploadedArtworkLayer | StampItem>(item: T): T => {
-    const isLegacyPortraitCover = item.pageId === "main"
-      && !item.surfaceId
-      && item.coverFitVersion !== 1
-      && item.rotationDeg === 0
-      && item.aspectRatio < 1
-      && item.assetRef.kind === "builtin"
-      && item.assetRef.key === "autumn-trial-cover";
-    if (!isLegacyPortraitCover) return item;
-    changed = true;
-    const widthMm = item.kind === "stamp" ? portraitStampWidth(item, panel) : portraitCoverWidth(item, panel);
-    return { ...item, widthMm, rotationDeg: 90, coverFitVersion: 1 };
-  };
-  const artworkLayers = state.artworkLayers.map((item) => item.kind === "uploaded-artwork" ? normalize(item) : item);
-  const stamps = state.stamps.map(normalize);
-  return changed ? { ...state, artworkLayers, stamps } : state;
+  // Preserve saved/manual placement. The previous migration rotated upright
+  // carton artwork sideways; orientation recommendations now apply on insertion.
+  return state;
 }
 
 export function rotateByDegrees(rotation: number, amount = 90) {

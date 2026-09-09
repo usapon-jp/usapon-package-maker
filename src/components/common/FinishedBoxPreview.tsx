@@ -7,7 +7,7 @@ import { TextLayer } from '../dieline/layers/TextLayer';
 
 const views: [BoxView,string][] = [['top','真上から'],['front-angle','斜め前'],['back-angle','斜め後ろ'],['front','正面']];
 export function FinishedBoxPreview({ state }: { state: AppState }) {
-  const [view, setView] = useState<BoxView>(state.box.type === 'straight-tuck-carton-v1' ? 'front-angle' : 'top');
+  const [view, setView] = useState<BoxView>('front-angle');
   const id = useId().replaceAll(':','');
   const allFaces = finishedBoxFaces(state.box);
   const faces = visibleBoxFaces(allFaces, view);
@@ -46,7 +46,7 @@ export function FinishedBoxPreview({ state }: { state: AppState }) {
         </g>;
       })}
     </svg>
-    <p className="finished-box-caption">{view==='top'?'天面を展開図と同じ向きで表示':'↑ 箱の上'} · 入力寸法の比率で表示</p>
+    <p className="finished-box-caption">{view==='top'?'天面を完成時の向きで表示':'↑ 箱の上'} · 入力寸法の比率で表示</p>
     <p className="finished-box-caption">入力寸法：W {state.box.widthMm} × D {state.box.depthMm} × H {state.box.heightMm} mm</p>
     <p className="finished-box-note">模様・スタンプ・文字の向きを確認できます。紙の膨らみや接着によるわずかなずれは省略しています。</p>
   </div>;

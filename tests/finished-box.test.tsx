@@ -15,12 +15,14 @@ describe('箱の完成プレビュー', () => {
     expect(end[0]-z[0]).toBeCloseTo(x[0]);
     expect(end[1]-z[1]).toBeCloseTo(x[1]);
   });
-  it.each(['gift-box-v1','two-piece-gift-box-v1'] as const)('%s の真上表示は展開図の天面と位置・縮尺・向きが一致する',type=>{
+  it.each(['gift-box-v1','two-piece-gift-box-v1'] as const)('%s の真上表示も組み立て後の天面の軸を使う',type=>{
     const face=finishedBoxFaces({...initialState.box,type}).find(f=>f.name==='top')!;
-    expect(faceMatrix(face,'top')).toEqual([1,0,0,1,0,0]);
+    const [a,b,c,d] = faceMatrix(face,'top');
+    expect(a * d - b * c).toBeCloseTo(1);
+    expect([a,b]).toEqual([face.u[0]/face.panel.width, -face.u[2]/face.panel.width]);
     const html=renderToStaticMarkup(<FinishedBoxPreview state={{...initialState,box:{...initialState.box,type}}}/>);
     expect(html).toContain(`translate(${-face.panel.x} ${-face.panel.y})`);
-    expect(html).toContain('完成イメージ・真上から');
+    expect(html).toContain('完成イメージ・斜め前');
   });
   it.each(['straight-tuck-carton-v1','gift-box-v1','two-piece-gift-box-v1'] as const)('%s の面を4方向に投影できる', type => {
     const faces = finishedBoxFaces({...initialState.box,type});

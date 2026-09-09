@@ -74,15 +74,15 @@ describe("背景・柄・スタンプの状態管理", () => {
     expect(stamp.widthMm / asset.aspectRatio).toBeLessThanOrEqual(firstPanel.height * 0.72);
   });
 
-  it("差し込み箱の縦長表紙スタンプは回転し、前面内に余白を保つ", () => {
+  it("キャラメル箱の表紙スタンプは立てた正面で正立する", () => {
     const portrait = { ...asset, id: "portrait", aspectRatio: 0.5, assetRef: { kind: "builtin" as const, key: "autumn-trial-cover" as const } };
     const stamp = createStamp(portrait, geometry, "縦長の表紙");
     const ordinaryStamp = createStamp({ ...portrait, assetRef: undefined }, geometry, "通常の縦長画像");
     const front = geometry.panels[0];
 
-    expect(stamp.rotationDeg).toBe(90);
+    expect(stamp.rotationDeg).toBe(0);
     expect(stamp.widthMm).toBeLessThanOrEqual(ordinaryStamp.widthMm);
-    expect(stamp.widthMm / portrait.aspectRatio).toBeLessThanOrEqual(front.width);
+    expect(stamp.widthMm / portrait.aspectRatio).toBeLessThanOrEqual(front.height);
     expect(stamp).toMatchObject({ xMm: front.x + front.width / 2, yMm: front.y + front.height / 2 });
   });
 
@@ -94,32 +94,32 @@ describe("背景・柄・スタンプの状態管理", () => {
     expect(stamp.widthMm).toBeLessThan(geometry.panels[0].width);
   });
 
-  it("背景付きと判定された縦長スタンプは余白を保って蓋から見切れない", () => {
+  it("背景付きスタンプもキャラメル箱の正面で正立する", () => {
     const portrait = { ...asset, id: "future-cover", aspectRatio: 0.5 };
     const stamp = createStamp(portrait, geometry, "追加の表紙", "main", undefined, true);
 
-    expect(stamp.rotationDeg).toBe(90);
-    expect(stamp.widthMm / portrait.aspectRatio).toBeLessThanOrEqual(geometry.panels[0].width);
+    expect(stamp.rotationDeg).toBe(0);
+    expect(stamp.widthMm / portrait.aspectRatio).toBeLessThanOrEqual(geometry.panels[0].height);
   });
 
-  it("差し込み箱の縦長表紙を背景に追加しても90度回転して蓋幅へ合わせる", () => {
+  it("キャラメル箱の表紙背景は正立して正面に収まる", () => {
     const portrait = { ...asset, id: "portrait-background", aspectRatio: 0.5, assetRef: { kind: "builtin" as const, key: "autumn-trial-cover" as const } };
     const artwork = createFullPanelArtwork(portrait, geometry);
     const front = geometry.panels[0];
 
-    expect(artwork.rotationDeg).toBe(90);
-    expect(artwork.widthMm / portrait.aspectRatio).toBe(front.width);
+    expect(artwork.rotationDeg).toBe(0);
+    expect(artwork.widthMm).toBe(Math.min(front.width, front.height * portrait.aspectRatio));
     expect(artwork).toMatchObject({ offsetXmm: front.x + front.width / 2, offsetYmm: front.y + front.height / 2 });
   });
 
-  it("保存済みの未回転表紙も一度だけ90度へ補正する", () => {
+  it("保存済みの表紙や手動回転を読み込み時に変更しない", () => {
     const portrait = { ...asset, id: "legacy-cover", aspectRatio: 0.5, assetRef: { kind: "builtin" as const, key: "autumn-trial-cover" as const } };
     const legacyArtwork = { ...createFullPanelArtwork(portrait, geometry), rotationDeg: 0 as const, coverFitVersion: undefined };
     const legacyStamp = { ...createStamp({ ...portrait, id: "legacy-stamp" }, geometry), rotationDeg: 0, coverFitVersion: undefined };
     const normalized = normalizeLegacyPortraitCoverPlacements({ ...initialState, artworkLayers: [legacyArtwork], stamps: [legacyStamp] });
 
-    expect(normalized.artworkLayers[0]).toMatchObject({ rotationDeg: 90, coverFitVersion: 1 });
-    expect(normalized.stamps[0]).toMatchObject({ rotationDeg: 90, coverFitVersion: 1 });
+    expect(normalized.artworkLayers[0]).toEqual(legacyArtwork);
+    expect(normalized.stamps[0]).toEqual(legacyStamp);
 
     const manuallyRotated = { ...normalized, stamps: [{ ...normalized.stamps[0], rotationDeg: 0 }] };
     expect(normalizeLegacyPortraitCoverPlacements(manuallyRotated).stamps[0].rotationDeg).toBe(0);
