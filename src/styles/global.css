@@ -738,6 +738,15 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .canvas-view-actions .canvas-zoom-slider { position: relative; width: 14px; height: 68px; border-radius: 999px; background: linear-gradient(to top,#f3ddd8,#e88a9b); box-shadow: inset 0 0 0 1px rgba(165,97,105,.16); cursor: ns-resize; touch-action: none; }
 .canvas-view-actions .canvas-zoom-slider i { position: absolute; left: 50%; width: 20px; height: 20px; border: 2px solid white; border-radius: 50%; background: var(--pink); box-shadow: 0 2px 5px rgba(117,62,68,.25); transform: translate(-50%,50%); }
 .canvas-view-actions .canvas-zoom-popover button { width: 44px; min-height: 27px; padding: 3px; border: 1px solid #eadbd6; border-radius: 7px; color: #805d59; background: white; font-size: 8px; font-weight: 800; line-height: 1.15; }
+.editor-stage { position:relative; }
+.editor-stage > .canvas-zoom-controls { position:absolute; z-index:12; right:10px; bottom:10px; display:block; }
+.editor-stage > .canvas-zoom-controls .canvas-zoom-toggle { display:flex; align-items:center; justify-content:center; width:38px; height:38px; padding:0; border:1px solid #e8c7cd; border-radius:50%; color:#a4596e; background:rgba(255,246,247,.94); box-shadow:0 4px 12px rgba(117,70,80,.14); cursor:pointer; backdrop-filter:blur(7px); }
+.editor-stage > .canvas-zoom-controls .canvas-zoom-toggle svg { width:20px; height:20px; }
+.editor-stage > .canvas-zoom-controls .canvas-zoom-popover { position:absolute; z-index:15; right:0; bottom:calc(100% + 7px); display:flex; flex-direction:column; align-items:center; gap:4px; min-width:48px; padding:6px; border:1px solid rgba(224,201,194,.96); border-radius:12px; background:rgba(255,253,250,.97); box-shadow:0 8px 20px rgba(83,60,53,.16); backdrop-filter:blur(7px); }
+.editor-stage > .canvas-zoom-controls .canvas-zoom-popover output { color:#805d59; font-size:9px; font-weight:800; white-space:nowrap; }
+.editor-stage > .canvas-zoom-controls .canvas-zoom-slider { position:relative; width:14px; height:68px; border-radius:999px; background:linear-gradient(to top,#f3ddd8,#e88a9b); box-shadow:inset 0 0 0 1px rgba(165,97,105,.16); cursor:ns-resize; touch-action:none; }
+.editor-stage > .canvas-zoom-controls .canvas-zoom-slider i { position:absolute; left:50%; width:20px; height:20px; border:2px solid white; border-radius:50%; background:var(--pink); box-shadow:0 2px 5px rgba(117,62,68,.25); transform:translate(-50%,50%); }
+.editor-stage > .canvas-zoom-controls .canvas-zoom-popover button { width:44px; min-height:27px; padding:3px; border:1px solid #eadbd6; border-radius:7px; color:#805d59; background:white; font-size:8px; font-weight:800; line-height:1.15; }
 .compact-stage { height: 355px; margin-top: 18px; padding: 18px; }
 .size-paper-stage { display: grid; place-items: center; height: 430px; margin-top: 18px; padding: 16px; overflow: hidden; border: 1px solid #e9ddd8; border-radius: 17px; background: linear-gradient(135deg, #f8f3ef, #f2ebe6); }
 .size-paper-preview { position: relative; overflow: hidden; border: 1px solid #d9cfcb; background: white; box-shadow: 0 15px 35px rgba(74, 56, 50, .15); }
@@ -980,6 +989,32 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .text-list button { max-width: 100%; overflow: hidden; padding: 6px 9px; border: 1px solid #e7d7d2; border-radius: 999px; background: #fff; text-overflow: ellipsis; white-space: nowrap; font-size: calc(8px * var(--ui-font-scale)); cursor: pointer; }
 .text-list button.is-selected { color: #9f4353; border-color: #efa6b1; background: var(--pink-soft); }
 .selected-text-controls { margin-top: 15px; padding-top: 14px; border-top: 1px solid #f0e3df; }
+.other-editor-panel { padding:14px; }
+.other-editor-heading { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+.other-editor-heading > span { display:grid; place-items:center; width:34px; height:34px; flex:none; border-radius:12px; color:#b15c70; background:#fff0f3; font-size:18px; }
+.other-editor-heading strong,.other-editor-heading small { display:block; }
+.other-editor-heading strong { color:#644e49; font-size:13px; }
+.other-editor-heading small { margin-top:2px; color:#927e78; font-size:10px; }
+.other-option-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; }
+.other-option-card { position:relative; display:grid; grid-template-columns:36px minmax(0,1fr) 20px; align-items:center; gap:5px; min-height:66px; padding:7px; border:1px solid #eadbd6; border-radius:14px; background:#fffdfb; cursor:pointer; transition:border-color .16s ease,background .16s ease,box-shadow .16s ease; }
+.other-option-card.is-selected { border-color:#e998a9; background:#fff5f7; box-shadow:0 5px 14px rgba(129,77,84,.08); }
+.other-option-card > span:nth-child(2) { min-width:0; }
+.other-option-card strong,.other-option-card small { display:block; }
+.other-option-card strong { color:#6c514d; font-size:11px; line-height:1.3; }
+.other-option-card small { margin-top:4px; color:#9a827b; font-size:9px; line-height:1.35; }
+.other-option-card input { width:20px; height:16px; accent-color:var(--pink); cursor:pointer; }
+.other-option-preview { position:relative; display:grid; place-items:center; width:36px; height:36px; overflow:hidden; border:1px solid #ead9d4; border-radius:9px; background:repeating-linear-gradient(45deg,#f5e4e5 0 4px,#f9f0ed 4px 8px); }
+.other-option-preview.writing-frame-preview i,.other-option-preview.address-frame-preview i { width:25px; height:21px; border:1px solid #ecc4ca; border-radius:4px; background:#fff; box-shadow:0 2px 4px rgba(100,70,65,.08); }
+.other-option-preview.address-frame-preview i::after { content:""; position:absolute; left:9px; right:7px; top:18px; height:1px; background:#d8aaaf; box-shadow:0 4px #d8aaaf; }
+.other-option-preview.writing-lines-preview { align-content:center; gap:5px; padding:10px; background:#fffaf8; }
+.other-option-preview.writing-lines-preview i { width:28px; height:1px; background:#d5aaa9; }
+.other-option-preview.guide-preview { color:#dc8797; background:#fff8f8; font-size:22px; }
+.other-sample-button { display:flex; align-items:center; justify-content:center; gap:7px; width:100%; min-height:40px; margin-top:10px; border:1px solid #e5cfd0; border-radius:12px; color:#8f5662; background:#fff8f8; font-size:11px; font-weight:800; cursor:pointer; }
+.other-sample-button svg { width:18px; height:18px; }
+@media (max-width:1100px) {
+  .other-option-card small { display:none; }
+  .other-option-card strong { white-space:nowrap; }
+}
 .text-input-label { display: block; font-size: calc(9px * var(--ui-font-scale)); font-weight: 700; }
 .text-input-label input, .text-input-label textarea { width: 100%; min-height: 39px; margin-top: 6px; padding: 9px 10px; border: 1px solid #e7d7d2; border-radius: 10px; font: inherit; line-height: 1.5; resize: vertical; }
 .color-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 13px; font-size: calc(9px * var(--ui-font-scale)); font-weight: 700; }
@@ -1169,6 +1204,8 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .cloud-save-button { color: white; border-color: var(--pink); background: var(--pink); }
 .cloud-save-button.is-saved { border-color: var(--green); background: var(--green); }
 .cloud-save-button.is-error, .cloud-save-button.is-conflict { border-color: var(--red); background: var(--red); }
+.header-details-button { display:grid; place-items:center; width:38px; min-width:38px; height:38px; padding:0 0 6px; border:1px solid #ead8d3; border-radius:12px; color:#8d6d68; background:#fffaf8; font-size:19px; font-weight:900; line-height:1; letter-spacing:1px; cursor:pointer; }
+.header-details-button:hover { color:var(--pink-dark); border-color:#e8bdc6; background:#fff4f6; }
 .google-login-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; color: #4d4542; }
 .google-login-button b { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; color: #4285f4; background: white; box-shadow: 0 0 0 1px #ddd; font-family: Arial, sans-serif; font-size: calc(12px * var(--ui-font-scale)); }
 .account-menu { position: relative; }

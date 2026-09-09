@@ -7,6 +7,7 @@ import type { TextItem, UploadedAsset } from "../src/app/app-types";
 import { A4ExportSvg, A4PreviewSvg } from "../src/components/dieline/A4ExportSvg";
 import { generateStraightTuckCarton } from "../src/domain/boxes/straight-tuck-carton";
 import { generateTwoPieceGiftBox } from "../src/domain/boxes/two-piece-gift-box";
+import { generateStationerySetDocument } from "../src/domain/boxes/stationery";
 import { evaluateA4Fit } from "../src/domain/paper/a4";
 import { createTextItem } from "../src/features/auto-layout/text-layout";
 
@@ -80,6 +81,13 @@ describe("A4 Web/PDF SVG source", () => {
     expect(markup).toMatch(/data-stamp-id="shared-stamp"[\s\S]*?<image href="data:image\/svg\+xml/);
     expect(markup).toMatch(/data-text-id="shared-text"[^>]*x="50" y="60"/);
     expect(markup).toContain('font-size="6"');
+  });
+
+  it("便箋の白い記入枠をWebプレビューとPDF元SVGへ出す", () => {
+    const page = generateStationerySetDocument({ ...initialState.box, type: "envelope-v1" }, "envelope-letter").pages.find((item) => item.id === "letter")!;
+    const pageFit = evaluateA4Fit(page.geometry.bounds.widthMm, page.geometry.bounds.heightMm);
+    const markup = renderToStaticMarkup(<A4ExportSvg {...props} pageId="letter" geometry={page.geometry} fit={pageFit} artworkLayers={[]} stamps={[]} texts={[]} showWritingFrame />);
+    expect(markup).toContain("data-letter-writing-frame");
   });
 
   it("折り返し補助線だけをレビューとPDF元SVGから外せる", () => {

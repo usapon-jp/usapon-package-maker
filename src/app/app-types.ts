@@ -144,13 +144,14 @@ export type DielineLineColors = {
   fold: string;
 };
 
-export type EditorSection = "auto-layout" | "artwork" | "stamps" | "text" | "display" | "lines";
+export type EditorSection = "auto-layout" | "artwork" | "stamps" | "text" | "other" | "display" | "lines";
 
 export type AppState = {
   screen: Screen;
   box: BoxInput;
   templateId: string | null;
   showWritingLines: boolean;
+  showWritingFrame: boolean;
   stationerySetSelection: StationerySetSelection;
   envelopeDesign: EnvelopeDesignSettings;
   activeEnvelopeFace: EnvelopeFaceId;
@@ -178,6 +179,7 @@ export type AppAction =
   | { type: "set-box-type"; boxType: BoxType }
   | { type: "replace-box"; box: BoxInput }
   | { type: "set-writing-lines"; value: boolean }
+  | { type: "set-writing-frame"; value: boolean }
   | { type: "set-stationery-set-selection"; value: StationerySetSelection }
   | { type: "update-envelope-design"; patch: Partial<EnvelopeDesignSettings> }
   | { type: "set-envelope-face"; faceId: EnvelopeFaceId }

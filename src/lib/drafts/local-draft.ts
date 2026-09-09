@@ -60,6 +60,7 @@ export async function loadLocalDraft(): Promise<LocalDraft | null> {
       ...draft.state,
       templateId: draft.state.templateId ?? null,
       showWritingLines: draft.state.showWritingLines ?? false,
+      showWritingFrame: draft.state.showWritingFrame ?? false,
       stationerySetSelection: draft.state.stationerySetSelection ?? "envelope-only",
       envelopeDesign: draft.state.envelopeDesign ?? {
         style: "simple",

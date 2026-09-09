@@ -47,6 +47,7 @@ export function FinishedStationeryPreview({ state, pageId, geometry }: Props) {
           selectedStampId={null}
           exportMode
         />
+        {isLetter && state.showWritingFrame && <rect x={x + 14} y={y + 20} width={Math.max(1, widthMm - 28)} height={Math.max(1, heightMm - 40)} rx="4" fill="#ffffff" fillOpacity="0.92" stroke="#ead8d3" strokeWidth="0.55" />}
         <g clipPath={`url(#${clipId})`}>
           {isLetter && state.showWritingLines && (
             <g fill="none" stroke="#c9b4a7" strokeWidth="0.22" opacity="0.72">

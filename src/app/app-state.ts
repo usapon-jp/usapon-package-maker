@@ -37,6 +37,7 @@ export const initialState: AppState = {
   },
   templateId: null,
   showWritingLines: false,
+  showWritingFrame: false,
   stationerySetSelection: "envelope-only",
   envelopeDesign: {
     style: "simple",
@@ -100,6 +101,7 @@ function reduceAppState(state: AppState, action: AppAction): AppState {
         activePageId: action.boxType === "two-piece-gift-box-v1" ? "lid" : "main",
         templateId: null,
         showWritingLines: false,
+        showWritingFrame: false,
         stationerySetSelection: "envelope-only",
         activeEnvelopeFace: "envelope-flap",
         surfaceBackgroundColors: {},
@@ -116,6 +118,7 @@ function reduceAppState(state: AppState, action: AppAction): AppState {
         activePageId: action.box.type === "two-piece-gift-box-v1" ? "lid" : "main",
         templateId: null,
         showWritingLines: false,
+        showWritingFrame: false,
         stationerySetSelection: "envelope-only",
         activeEnvelopeFace: "envelope-flap",
         surfaceBackgroundColors: {},
@@ -129,6 +132,8 @@ function reduceAppState(state: AppState, action: AppAction): AppState {
       return { ...state, activePageId: action.pageId, selectedArtworkId: null, selectedStampId: null, selectedTextId: null };
     case "set-writing-lines":
       return { ...state, showWritingLines: action.value };
+    case "set-writing-frame":
+      return { ...state, showWritingFrame: action.value };
     case "set-stationery-set-selection":
       return { ...state, stationerySetSelection: action.value, activePageId: "main", selectedArtworkId: null, selectedStampId: null, selectedTextId: null };
     case "update-envelope-design":

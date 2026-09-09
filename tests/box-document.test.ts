@@ -127,8 +127,17 @@ describe("BoxDocumentV1", () => {
     expect(restored.texts).toEqual(source.texts);
     expect(restored.lineColors).toEqual(source.lineColors);
     expect(restored.includeCalibrationPage).toBe(false);
+    expect(restored.showWritingFrame).toBe(source.showWritingFrame);
     expect(restored.activePageId).toBe(type === "two-piece-gift-box-v1" ? "lid" : "main");
     expect(resolveAsset).toHaveBeenCalledTimes(2);
+  });
+
+  it("便箋の白い記入枠を保存して復元できる", async () => {
+    const source = { ...stateFor("letter-paper-v1"), showWritingFrame: true };
+    const document = serializeBoxDocument(source);
+    expect(document.design.showWritingFrame).toBe(true);
+    const restored = await hydrateBoxDocument(document, async () => ({ dataUrl: "data:image/png;base64,RESTORED" }));
+    expect(restored.showWritingFrame).toBe(true);
   });
 
   it("保存済みのN式ギフト箱は浅型差し込みギフト箱として開く", async () => {

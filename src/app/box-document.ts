@@ -136,6 +136,7 @@ export const boxDocumentV1Schema = z.object({
     printFoldoverLines: z.boolean().default(true),
     templateId: z.string().max(120).nullable().default(null),
     showWritingLines: z.boolean().default(false),
+    showWritingFrame: z.boolean().default(false),
     stationerySetSelection: z.enum(["envelope-only", "envelope-letter", "envelope-card", "envelope-letter-card"]).default("envelope-only"),
     envelopeDesign: z.object({
       style: z.enum(["cute", "adult", "simple"]),
@@ -198,6 +199,7 @@ export function serializeBoxDocument(state: AppState): BoxDocumentV1 {
       printFoldoverLines: state.printFoldoverLines,
       templateId: state.templateId ?? null,
       showWritingLines: state.showWritingLines ?? false,
+      showWritingFrame: state.showWritingFrame ?? false,
       stationerySetSelection: state.stationerySetSelection ?? "envelope-only",
       envelopeDesign: { ...state.envelopeDesign },
       surfaceBackgroundColors: { ...state.surfaceBackgroundColors },
@@ -244,6 +246,7 @@ export async function hydrateBoxDocument(value: unknown, resolveAsset: AssetReso
     printFoldoverLines: document.design.printFoldoverLines,
     templateId: document.design.templateId,
     showWritingLines: document.design.showWritingLines,
+    showWritingFrame: document.design.showWritingFrame,
     stationerySetSelection: document.design.stationerySetSelection,
     envelopeDesign: { ...document.design.envelopeDesign },
     activeEnvelopeFace: "envelope-flap",

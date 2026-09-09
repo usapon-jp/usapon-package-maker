@@ -53,6 +53,7 @@ type LayersProps = {
   exportMode: boolean;
   includeFoldoverLines?: boolean;
   showWritingLines?: boolean;
+  showWritingFrame?: boolean;
   envelopeDesign?: EnvelopeDesignSettings;
   activeEnvelopeFace?: EnvelopeFaceId;
   printGuideMode?: PrintGuideMode;
@@ -78,6 +79,7 @@ export function DielineLayers({
   exportMode,
   includeFoldoverLines = true,
   showWritingLines = false,
+  showWritingFrame = false,
   envelopeDesign,
   activeEnvelopeFace,
   printGuideMode = "assembly",
@@ -123,6 +125,21 @@ export function DielineLayers({
         onStampRotate={onStampRotate}
       />
       {envelopeDesign && <EnvelopeDesignLayer geometry={geometry} settings={envelopeDesign} idPrefix={idPrefix} />}
+      {geometry.type === "letter-paper-v1" && showWritingFrame && (
+        <rect
+          data-letter-writing-frame
+          x={geometry.bounds.x + 14}
+          y={geometry.bounds.y + 20}
+          width={Math.max(1, geometry.bounds.widthMm - 28)}
+          height={Math.max(1, geometry.bounds.heightMm - 40)}
+          rx="4"
+          fill="#ffffff"
+          fillOpacity="0.92"
+          stroke="#ead8d3"
+          strokeWidth="0.55"
+          pointerEvents="none"
+        />
+      )}
       <ArtworkLayer
         geometry={geometry}
         backgroundColor={backgroundColor}
@@ -171,6 +188,7 @@ export function DielineLayers({
 type Props = Omit<LayersProps, "idPrefix" | "onArtworkPointerDown" | "onStampPointerDown" | "onStampRotate" | "onTextPointerDown"> & {
   onSelectArtwork: (id: string | null) => void;
   onMoveArtwork: (id: string, xMm: number, yMm: number) => void;
+  onResizeArtwork?: (id: string, sizeMm: number) => void;
   onSelectStamp: (id: string | null) => void;
   onMoveStamp: (id: string, xMm: number, yMm: number) => void;
   onRotateStamp: (id: string) => void;
@@ -199,11 +217,13 @@ export function DielineSvg({
   exportMode,
   includeFoldoverLines = true,
   showWritingLines = false,
+  showWritingFrame = false,
   envelopeDesign,
   activeEnvelopeFace,
   printGuideMode,
   onSelectArtwork,
   onMoveArtwork,
+  onResizeArtwork,
   onSelectStamp,
   onMoveStamp,
   onRotateStamp,
@@ -219,7 +239,8 @@ export function DielineSvg({
   const rawId = useId();
   const idPrefix = `preview-${rawId.replaceAll(":", "")}`;
   const svgRef = useRef<SVGSVGElement>(null);
-  const pinch = useRef(new StampPinch());
+  const stampPinch = useRef(new StampPinch());
+  const artworkPinch = useRef(new StampPinch());
   const drag = useRef<{ kind: "artwork" | "stamp" | "text"; id: string; dx: number; dy: number } | null>(null);
   const pan = useRef<{ pointerId: number; point: DielineViewportCenter; center: DielineViewportCenter } | null>(null);
   const autoPan = useRef<{ pointerId: number; clientX: number; clientY: number; time: number } | null>(null);
@@ -377,9 +398,11 @@ export function DielineSvg({
   };
 
   const handlePointerMove = (event: PointerEvent<SVGSVGElement>) => {
-    const resized = pinch.current.move(event.pointerId, { x: event.clientX, y: event.clientY });
-    if (resized) onResizeStamp?.(resized.id, resized.widthMm);
-    if (pinch.current.suppressDrag) return;
+    const resizedStamp = stampPinch.current.move(event.pointerId, { x: event.clientX, y: event.clientY });
+    const resizedArtwork = artworkPinch.current.move(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (resizedStamp) onResizeStamp?.(resizedStamp.id, resizedStamp.widthMm);
+    if (resizedArtwork) onResizeArtwork?.(resizedArtwork.id, resizedArtwork.widthMm);
+    if (stampPinch.current.suppressDrag || artworkPinch.current.suppressDrag) return;
     if (pan.current) {
       const point = pointFromEvent(event);
       setViewportCenter({ x: pan.current.center.x + pan.current.point.x - point.x, y: pan.current.center.y + pan.current.point.y - point.y });
@@ -410,10 +433,17 @@ export function DielineSvg({
       aria-label="箱の実寸展開図プレビュー"
       style={{ touchAction: "none" }}
       onPointerDownCapture={(event) => {
-        if (event.pointerType === "touch" && onResizeStamp) {
-          const id = (event.target as Element).closest("[data-stamp-id]")?.getAttribute("data-stamp-id");
-          const stamp = stamps.find((item) => item.id === id);
-          if (pinch.current.down(event.pointerId, { x: event.clientX, y: event.clientY }, stamp ? { id: stamp.id, width: stamp.widthMm } : undefined)) {
+        if (event.pointerType === "touch") {
+          const target = event.target as Element;
+          const stampId = target.closest("[data-stamp-id]")?.getAttribute("data-stamp-id");
+          const artworkId = target.closest("[data-artwork-id]")?.getAttribute("data-artwork-id");
+          const stamp = onResizeStamp ? stamps.find((item) => item.id === stampId) : undefined;
+          const artwork = onResizeArtwork ? artworkLayers.find((item) => item.id === artworkId) : undefined;
+          const artworkSize = artwork?.kind === "uploaded-artwork" ? artwork.widthMm : artwork?.kind === "dot-pattern" ? artwork.dotDiameterMm : artwork?.stripeWidthMm;
+          if (artwork) onSelectArtwork(artwork.id);
+          const stampStarted = stampPinch.current.down(event.pointerId, { x: event.clientX, y: event.clientY }, stamp ? { id: stamp.id, width: stamp.widthMm } : undefined);
+          const artworkStarted = artworkPinch.current.down(event.pointerId, { x: event.clientX, y: event.clientY }, artwork && artworkSize ? { id: artwork.id, width: artworkSize } : undefined);
+          if (stampStarted || artworkStarted) {
             drag.current = null; pan.current = null; stopAutoPan();
             event.currentTarget.setPointerCapture(event.pointerId);
             event.stopPropagation();
@@ -431,13 +461,15 @@ export function DielineSvg({
       }}
       onPointerMove={handlePointerMove}
       onPointerUp={(event) => {
-        pinch.current.up(event.pointerId);
+        stampPinch.current.up(event.pointerId);
+        artworkPinch.current.up(event.pointerId);
         drag.current = null;
         pan.current = null;
         stopAutoPan();
       }}
       onPointerCancel={() => {
-        pinch.current.cancel();
+        stampPinch.current.cancel();
+        artworkPinch.current.cancel();
         drag.current = null;
         pan.current = null;
         stopAutoPan();
@@ -467,6 +499,7 @@ export function DielineSvg({
         exportMode={exportMode}
         includeFoldoverLines={includeFoldoverLines}
         showWritingLines={showWritingLines}
+        showWritingFrame={showWritingFrame}
         envelopeDesign={envelopeDesign}
         activeEnvelopeFace={activeEnvelopeFace}
         printGuideMode={printGuideMode}

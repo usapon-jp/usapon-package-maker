@@ -18,12 +18,13 @@ export type A4PageSvgProps = {
   lineColors: DielineLineColors;
   includeFoldoverLines?: boolean;
   showWritingLines?: boolean;
+  showWritingFrame?: boolean;
   envelopeDesign?: EnvelopeDesignSettings;
   printGuideMode?: PrintGuideMode;
 };
 
 export const A4PageSvg = forwardRef<SVGSVGElement, A4PageSvgProps>(function A4PageSvg(
-  { pageId = "main", geometry, fit, backgroundColor, surfaceBackgroundColors, artworkLayers, stamps, texts, lineColors, includeFoldoverLines = true, showWritingLines = false, envelopeDesign, printGuideMode = "assembly" },
+  { pageId = "main", geometry, fit, backgroundColor, surfaceBackgroundColors, artworkLayers, stamps, texts, lineColors, includeFoldoverLines = true, showWritingLines = false, showWritingFrame = false, envelopeDesign, printGuideMode = "assembly" },
   ref,
 ) {
   const imposition = printImposition(geometry);
@@ -62,6 +63,7 @@ export const A4PageSvg = forwardRef<SVGSVGElement, A4PageSvgProps>(function A4Pa
               exportMode
               includeFoldoverLines={includeFoldoverLines}
               showWritingLines={showWritingLines}
+              showWritingFrame={showWritingFrame}
               envelopeDesign={envelopeDesign}
               printGuideMode={printGuideMode}
               idPrefix={`export-dieline-${pageId}${imposition.count > 1 ? `-${index}` : ""}`}

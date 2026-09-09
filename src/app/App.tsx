@@ -232,6 +232,7 @@ function AppHeader({
   onUndo,
   onRedo,
   onSave,
+  onOpenDetails,
   onLogin,
   onLogout,
   onDeleteAccount,
@@ -247,6 +248,7 @@ function AppHeader({
   onUndo: () => void;
   onRedo: () => void;
   onSave: () => void;
+  onOpenDetails: () => void;
   onLogin: () => void;
   onLogout: () => void;
   onDeleteAccount: () => void;
@@ -316,6 +318,7 @@ function AppHeader({
         {screen !== "home" && screen !== "my-boxes" && screen !== "templates" && screen !== "letter-set" && (
           <button className={`cloud-save-button is-${saveState}`} type="button" disabled={saveState === "saving"} onClick={onSave}>☁ {saveLabel}</button>
         )}
+        {screen === "design" && <button className="header-details-button" type="button" aria-label="詳細メニューを開く" title="詳細" onClick={onOpenDetails}><span aria-hidden="true">•••</span></button>}
         {user ? (
           <details className="account-menu">
             <summary aria-label="アカウントメニュー">
@@ -926,6 +929,8 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
                         fit={page.fit}
                         {...design}
                         lineColors={state.lineColors}
+                        showWritingLines={state.showWritingLines}
+                        showWritingFrame={state.showWritingFrame}
                         envelopeDesign={state.envelopeDesign}
                       />
                     </div>
@@ -982,7 +987,7 @@ function AccordionSection({
   );
 }
 
-function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds, hasFreeTrialEntitlement, onUnlockThemePack, imageOwner }: ScreenProps & { imageOwner: string; unlockedThemePackIds: string[]; hasFreeTrialEntitlement: boolean; onUnlockThemePack: (themePackId: string) => void }) {
+function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds, hasFreeTrialEntitlement, onUnlockThemePack, imageOwner, detailsOpen, onDetailsClose }: ScreenProps & { imageOwner: string; unlockedThemePackIds: string[]; hasFreeTrialEntitlement: boolean; onUnlockThemePack: (themePackId: string) => void; detailsOpen: boolean; onDetailsClose: () => void }) {
   const geometry = activePage.geometry;
   const fit = activePage.fit;
   const design = pageDesign(state, activePage.id);
@@ -1114,6 +1119,17 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     setCanvasZoom(1);
     setCanvasCenter({ x: geometry.bounds.widthMm / 2, y: geometry.bounds.heightMm / 2 });
   };
+
+  const canvasZoomControl = (
+    <div className={`canvas-zoom-controls ${zoomControlsOpen ? "is-open" : ""}`} aria-label="展開図のズーム操作">
+      {zoomControlsOpen && <div className="canvas-zoom-popover">
+        <output aria-live="polite">{canvasZoom.toFixed(1)}倍</output>
+        <CanvasZoomSlider value={canvasZoom} onChange={setCanvasZoom} />
+        <button type="button" onClick={resetCanvasZoom}>全体に戻す</button>
+      </div>}
+      <button className="canvas-zoom-toggle" type="button" aria-label={zoomControlsOpen ? "拡大表示を閉じる" : "拡大表示"} title="拡大表示" aria-expanded={zoomControlsOpen} onClick={() => setZoomControlsOpen((open) => !open)}><MagnifyIcon /></button>
+    </div>
+  );
 
   const addFavorite = (color: string) => setFavoriteColors((colors) => addFavoriteColor(colors, color));
   const removeFavorite = (color: string) => setFavoriteColors((colors) => removeFavoriteColor(colors, color));
@@ -1409,11 +1425,9 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     setLetterSetShareMessage(`「${templateDefinition.label}」で${arrangedLabels.join("・")}を整えました。ここから手動で調整できます。`);
   };
 
-  const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
   const editorCategoryTabs = (placement: "top" | "below-canvas") => (
     <div className={`editor-category-tabs is-${placement}`} data-ui-id={placement === "top" ? "design.editor-tabs-top" : "design.editor-tabs-mobile"} role="tablist" aria-label="編集内容">
-      {([['artwork','背景'],['stamps','スタンプ'],['text','文字']] as Array<[EditorSection,string]>).map(([section,label]) => <button key={section} type="button" role="tab" aria-selected={state.openEditorSection === section} className={state.openEditorSection === section ? "is-selected" : ""} onClick={() => dispatch({ type: "set-open-editor-section", section })}>{label}</button>)}
-      <button type="button" role="tab" aria-selected={mobileSettingsOpen} className={mobileSettingsOpen ? "is-selected" : ""} onClick={() => setMobileSettingsOpen(true)}>⚙ 詳細</button>
+      {([['artwork','背景'],['stamps','スタンプ'],['text','文字'],['other','その他']] as Array<[EditorSection,string]>).map(([section,label]) => <button key={section} type="button" role="tab" aria-selected={state.openEditorSection === section} className={state.openEditorSection === section ? "is-selected" : ""} onClick={() => dispatch({ type: "set-open-editor-section", section })}>{label}</button>)}
     </div>
   );
   const canvasToolbar = (className: string, showDimensions = true) => (
@@ -1463,6 +1477,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
               selectedTextId={state.selectedTextId}
               exportMode={false}
               showWritingLines={state.showWritingLines}
+              showWritingFrame={state.showWritingFrame}
               envelopeDesign={state.envelopeDesign}
               zoom={canvasZoom}
               viewportCenter={canvasCenter}
@@ -1470,28 +1485,37 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
               activeEnvelopeFace={faceScopedEditing ? state.activeEnvelopeFace : undefined}
               onSelectArtwork={(id) => { const item = design.artworkLayers.find((candidate) => candidate.id === id); if (faceEditing && item?.surfaceId) dispatch({ type: "set-envelope-face", faceId: item.surfaceId }); dispatch({ type: "select-artwork", id }); if (id) dispatch({ type: "set-open-editor-section", section: "artwork" }); }}
               onMoveArtwork={(id, xMm, yMm) => { const item = design.artworkLayers.find((candidate) => candidate.id === id); const point = clampToEnvelopeFace(geometry, faceEditing ? item?.surfaceId : undefined, xMm, yMm); dispatch({ type: "update-artwork", id, patch: { offsetXmm: point.xMm, offsetYmm: point.yMm } }); }}
+              onResizeArtwork={(id, sizeMm) => {
+                const item = design.artworkLayers.find((candidate) => candidate.id === id);
+                if (!item) return;
+                if (item.kind === "uploaded-artwork") {
+                  const ratio = sizeMm / Math.max(2, item.widthMm);
+                  dispatch({ type: "update-artwork", id, patch: { widthMm: sizeMm, repeatGapMm: Math.max(0, Math.min(200, item.repeatGapMm * ratio)) } });
+                } else if (item.kind === "dot-pattern") {
+                  const ratio = sizeMm / Math.max(1, item.dotDiameterMm);
+                  dispatch({ type: "update-artwork", id, patch: { dotDiameterMm: Math.max(1, Math.min(60, sizeMm)), spacingMm: Math.max(2, Math.min(100, item.spacingMm * ratio)) } });
+                } else {
+                  const ratio = sizeMm / Math.max(1, item.stripeWidthMm);
+                  dispatch({ type: "update-artwork", id, patch: { stripeWidthMm: Math.max(1, Math.min(50, sizeMm)), gapMm: Math.max(1, Math.min(50, item.gapMm * ratio)) } });
+                }
+              }}
               onSelectStamp={(id) => { const item = design.stamps.find((candidate) => candidate.id === id); if (faceEditing && item?.surfaceId) dispatch({ type: "set-envelope-face", faceId: item.surfaceId }); dispatch({ type: "select-stamp", id }); if (id) dispatch({ type: "set-open-editor-section", section: "stamps" }); }}
               onMoveStamp={(id, xMm, yMm) => { const item = design.stamps.find((candidate) => candidate.id === id); const point = clampToEnvelopeFace(geometry, faceEditing ? item?.surfaceId : undefined, xMm, yMm); dispatch({ type: "update-stamp", id, patch: point }); }}
               onRotateStamp={(id) => {
                 const stamp = pageStamps.find((item) => item.id === id);
                 if (stamp) dispatch({ type: "update-stamp", id, patch: { rotationDeg: rotateByDegrees(stamp.rotationDeg) } });
               }}
+              onResizeStamp={(id, widthMm) => dispatch({ type: "update-stamp", id, patch: { widthMm } })}
               onSelectText={(id) => { const item = design.texts.find((candidate) => candidate.id === id); if (faceEditing && item?.surfaceId) dispatch({ type: "set-envelope-face", faceId: item.surfaceId }); dispatch({ type: "select-text", id }); if (id) dispatch({ type: "set-open-editor-section", section: "text" }); }}
               onMoveText={(id, xMm, yMm) => { const item = design.texts.find((candidate) => candidate.id === id); const point = clampToEnvelopeFace(geometry, faceEditing ? item?.surfaceId : undefined, xMm, yMm); dispatch({ type: "update-text", id, patch: point }); }}
               onSelectEnvelopeFace={faceScopedEditing ? (faceId) => dispatch({ type: "set-envelope-face", faceId }) : undefined}
             />
+            {geometry.type === "envelope-v1" && canvasZoomControl}
           </div>
-          <div className="canvas-view-actions" aria-label="展開図の表示操作">
+          {geometry.type !== "envelope-v1" && <div className="canvas-view-actions" aria-label="展開図の表示操作">
             {isPreviewBox(state.box.type) && <button className="finished-box-trigger" type="button" onClick={() => setFinishedBoxOpen(true)}><EyeIcon /><span>プレビュー</span></button>}
-            <div className={`canvas-zoom-controls ${zoomControlsOpen ? "is-open" : ""}`} aria-label="展開図のズーム操作">
-              {zoomControlsOpen && <div className="canvas-zoom-popover">
-                <output aria-live="polite">{canvasZoom.toFixed(1)}倍</output>
-                <CanvasZoomSlider value={canvasZoom} onChange={setCanvasZoom} />
-                <button type="button" onClick={resetCanvasZoom}>全体に戻す</button>
-              </div>}
-              <button className="canvas-zoom-toggle" type="button" aria-label={zoomControlsOpen ? "拡大表示を閉じる" : "拡大表示"} title="拡大表示" aria-expanded={zoomControlsOpen} onClick={() => setZoomControlsOpen((open) => !open)}><MagnifyIcon /></button>
-            </div>
-          </div>
+            {canvasZoomControl}
+          </div>}
           {geometry.type === "envelope-v1" ? <p className="canvas-caption envelope-canvas-caption"><strong>完成 {mm(geometry.input.widthMm)} × {mm(geometry.input.heightMm)}</strong><span>折り方は「組み立て見本」へ</span></p> : <p className="canvas-caption">画面は拡大表示・PDFは実寸です。</p>}
 
         </section>
@@ -1648,10 +1672,28 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
               )}
             </div>
           )}
+
+          {state.openEditorSection === "other" && (
+            <div className="drawer-section other-editor-panel">
+              <div className="other-editor-heading"><span aria-hidden="true">✧</span><div><strong>{geometry.type === "envelope-v1" ? "宛名を書く場所" : geometry.type === "letter-paper-v1" ? "書きやすい便箋" : "仕上がりの補助"}</strong><small>必要なものだけ追加できます</small></div></div>
+              <div className="other-option-grid">
+                {geometry.type === "letter-paper-v1" && <>
+                  <label className={`other-option-card ${state.showWritingFrame ? "is-selected" : ""}`}><span className="other-option-preview writing-frame-preview" aria-hidden="true"><i /></span><span><strong>白い記入枠</strong><small>柄の上に書く場所をつくる</small></span><input aria-label="便箋に白い記入枠を表示" type="checkbox" checked={state.showWritingFrame} onChange={(event) => dispatch({ type: "set-writing-frame", value: event.target.checked })} /></label>
+                  <label className={`other-option-card ${state.showWritingLines ? "is-selected" : ""}`}><span className="other-option-preview writing-lines-preview" aria-hidden="true"><i /><i /><i /></span><span><strong>罫線</strong><small>文字をまっすぐ書ける横線</small></span><input aria-label="便箋に罫線を表示" type="checkbox" checked={state.showWritingLines} onChange={(event) => dispatch({ type: "set-writing-lines", value: event.target.checked })} /></label>
+                </>}
+                {geometry.type === "envelope-v1" && <>
+                  <label className={`other-option-card ${state.envelopeDesign.showAddressField ? "is-selected" : ""}`}><span className="other-option-preview address-frame-preview" aria-hidden="true"><i /></span><span><strong>宛名用の白い枠</strong><small>模様に重ねて読みやすくする</small></span><input aria-label="封筒に宛名用の白い枠を表示" type="checkbox" checked={state.envelopeDesign.showAddressField} onChange={(event) => dispatch({ type: "update-envelope-design", patch: { showAddressField: event.target.checked } })} /></label>
+                  <label className={`other-option-card ${state.envelopeDesign.showAddressLines ? "is-selected" : ""}`}><span className="other-option-preview writing-lines-preview" aria-hidden="true"><i /><i /><i /></span><span><strong>宛名の罫線</strong><small>住所や名前を書きやすい3本線</small></span><input aria-label="封筒に宛名の罫線を表示" type="checkbox" checked={state.envelopeDesign.showAddressLines} onChange={(event) => dispatch({ type: "update-envelope-design", patch: { showAddressLines: event.target.checked } })} /></label>
+                </>}
+                {geometry.type !== "letter-paper-v1" && geometry.type !== "envelope-v1" && <label className={`other-option-card ${state.showGuides ? "is-selected" : ""}`}><span className="other-option-preview guide-preview" aria-hidden="true">＋</span><span><strong>編集ガイド</strong><small>面名と中心線を表示する</small></span><input aria-label="編集ガイドを表示" type="checkbox" checked={state.showGuides} onChange={() => dispatch({ type: "toggle-guides" })} /></label>}
+              </div>
+              {geometry.type === "envelope-v1" && <button className="other-sample-button" type="button" onClick={() => setSampleGuideOpen(true)}><EyeIcon /><span>組み立て見本を見る</span></button>}
+            </div>
+          )}
         </aside>
       </div>
 
-      <MobileSettingsSheet open={mobileSettingsOpen} onClose={() => setMobileSettingsOpen(false)} title="詳細設定・ツール">
+      <MobileSettingsSheet open={detailsOpen} onClose={onDetailsClose} title="詳細設定・ツール">
         <div className="mobile-settings-stack">
           {LETTER_SET_DETAIL_TOOLS_ENABLED && state.box.type === "envelope-v1" && (
             <div className="settings-panel-block">
@@ -1680,7 +1722,6 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
           )}
           <div className="settings-panel-block">
             <h3>表示設定</h3>
-            {geometry.type === "letter-paper-v1" && <label className="toggle-row"><span><strong>便箋の罫線</strong><small>印刷される横罫線をON/OFF</small></span><input type="checkbox" checked={state.showWritingLines} onChange={(event) => dispatch({ type: "set-writing-lines", value: event.target.checked })} /></label>}
             <label className="toggle-row"><span><strong>ガイド表示</strong><small>面名と中心線。PDFには印刷しません</small></span><input type="checkbox" checked={state.showGuides} onChange={() => dispatch({ type: "toggle-guides" })} /></label>
           </div>
           <div className="settings-panel-block">
@@ -1826,6 +1867,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
             lineColors={state.lineColors}
             includeFoldoverLines={state.printFoldoverLines}
             showWritingLines={state.showWritingLines}
+            showWritingFrame={state.showWritingFrame}
             envelopeDesign={state.envelopeDesign}
             printGuideMode={state.printGuideMode}
           />
@@ -1846,6 +1888,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
                   lineColors={state.lineColors}
                   includeFoldoverLines={state.printFoldoverLines}
                   showWritingLines={state.showWritingLines}
+                  showWritingFrame={state.showWritingFrame}
                   envelopeDesign={state.envelopeDesign}
                   printGuideMode={state.printGuideMode}
                 />
@@ -2431,6 +2474,7 @@ export function App() {
 
   const [newCreationSheetOpen, setNewCreationSheetOpen] = useState(false);
   const [settingsSheetOpen, setSettingsSheetOpen] = useState(false);
+  const [designDetailsOpen, setDesignDetailsOpen] = useState(false);
 
   const isBoxType = state.box.type !== "envelope-v1";
   const bottomNavActiveTab: BottomNavTab = state.screen === "my-boxes" ? "my-designs" : "home";
@@ -2450,12 +2494,13 @@ export function App() {
         user={user}
         saveState={saveState}
         saveMessage={saveMessage}
-        onGo={(screen) => dispatch({ type: "go", screen })}
+        onGo={(screen) => { setDesignDetailsOpen(false); dispatch({ type: "go", screen }); }}
         canUndo={canUndo}
         canRedo={canRedo}
         onUndo={undo}
         onRedo={redo}
         onSave={() => { void save(); }}
+        onOpenDetails={() => setDesignDetailsOpen(true)}
         onLogin={() => { void login(); }}
         onLogout={() => { void logout(); }}
         onDeleteAccount={() => { void deleteAccount(); }}
@@ -2464,7 +2509,7 @@ export function App() {
       {(state.screen === "home" || state.screen === "letter-set") && <CreationHome onBox={startNew} onLetter={startLetterSet} onResume={shouldPersistLocalDraft ? () => dispatch({ type: "go", screen: "design" }) : null} resumeLabel={state.box.type === "envelope-v1" ? "レターセット" : BOX_TYPE_COPY[state.box.type].name} />}
       {state.screen === "templates" && <TemplateScreen onBack={() => dispatch({ type: "go", screen: "home" })} onSelect={startTemplate} unlockedThemePackIds={unlockedThemePackIds} />}
       {state.screen === "size" && <SizeScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
-      {state.screen === "design" && <DesignScreen key={user?.id ?? "device"} imageOwner={user?.id ?? "device"} state={state} dispatch={dispatch} pages={pages} activePage={activePage} unlockedThemePackIds={unlockedThemePackIds} hasFreeTrialEntitlement={hasFreeTrialEntitlement} onUnlockThemePack={requestThemeUnlock} />}
+      {state.screen === "design" && <DesignScreen key={user?.id ?? "device"} imageOwner={user?.id ?? "device"} state={state} dispatch={dispatch} pages={pages} activePage={activePage} unlockedThemePackIds={unlockedThemePackIds} hasFreeTrialEntitlement={hasFreeTrialEntitlement} onUnlockThemePack={requestThemeUnlock} detailsOpen={designDetailsOpen} onDetailsClose={() => setDesignDetailsOpen(false)} />}
       {state.screen === "print" && <PrintScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} clientContext={clientContext} onSuccessfulExport={offerInstallAfterSuccess} />}
       {CLOUD_SYNC_UI_ENABLED && state.screen === "my-boxes" && (
         <MyBoxesScreen
