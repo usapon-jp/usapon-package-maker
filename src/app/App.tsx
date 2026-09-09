@@ -4,6 +4,8 @@ import type { User } from "@supabase/supabase-js";
 import { A4ExportSvg, A4PreviewSvg, CalibrationSvg } from "../components/dieline/A4ExportSvg";
 import { DielineSvg } from "../components/dieline/DielineSvg";
 import { BoxTypeIcon } from "../components/icons/BoxTypeIcon";
+import { FinishedBoxPreview, FinishedBoxDialog } from "../components/common/FinishedBoxPreview";
+import { isPreviewBox } from "../domain/boxes/finished-box";
 import { MyBoxesScreen } from "../components/cloud/MyBoxesScreen";
 import { InstallGuide } from "../components/pwa/InstallGuide";
 import { generateDielineDocument } from "../domain/boxes/registry";
@@ -1096,6 +1098,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const activeStampTab = (stampTab === "my-images" && uploadedImages.length > 0) || stampTabs.some((set) => set.id === stampTab) ? stampTab : stampTabs[0]?.id;
   const visibleStampPresets = stampTabs.find((set) => set.id === activeStampTab)?.presets ?? [];
   const [sampleGuideOpen, setSampleGuideOpen] = useState(false);
+  const [finishedBoxOpen, setFinishedBoxOpen] = useState(false);
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [canvasCenter, setCanvasCenter] = useState({ x: geometry.bounds.widthMm / 2, y: geometry.bounds.heightMm / 2 });
   const [zoomControlsOpen, setZoomControlsOpen] = useState(false);
@@ -1481,6 +1484,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
 
       <div className="editor-layout" data-ui-id="design.workspace">
         <section className="editor-canvas-panel panel-card" data-ui-id="design.canvas">
+          {isPreviewBox(state.box.type) && <button className="finished-box-trigger" type="button" onClick={() => setFinishedBoxOpen(true)}>▧ 完成イメージ</button>}
           {isLetterSetDesign && (
             <div className="letter-set-mobile-page-row" data-ui-id="design.item-tabs-mobile">
               <PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} uiId="design.item-tabs-mobile-tabs" compactLabels />
@@ -1740,6 +1744,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
       </MobileSettingsSheet>
 
       {sampleGuideOpen && <SampleGuideModal geometry={geometry} state={state} onClose={() => setSampleGuideOpen(false)} />}
+      {finishedBoxOpen && <FinishedBoxDialog state={state} onClose={() => setFinishedBoxOpen(false)} />}
 
       <div data-ui-id="design.actions">{designActionButtons(`sticky-actions design-bottom-actions${isLetterSetDesign ? " is-letter-set" : ""}`)}</div>
     </main>
@@ -1880,7 +1885,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
           </div>
         ) : (
           <div className="finished-preview-stage" data-ui-id="print.preview">
-            {activePage.id === "main" ? (
+            {isPreviewBox(state.box.type) ? <FinishedBoxPreview state={state} /> : activePage.id === "main" ? (
               envelopePage ? (
                 <AssembledEnvelopePreview state={state} />
               ) : (
