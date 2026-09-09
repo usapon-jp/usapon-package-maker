@@ -18,3 +18,10 @@ export function SaveIcon(props: IconProps) { return <Icon {...props}><path d="M5
 export function CopyIcon(props: IconProps) { return <Icon {...props}><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></Icon>; }
 export function TrashIcon(props: IconProps) { return <Icon {...props}><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/></Icon>; }
 export function RotateIcon(props: IconProps) { return <Icon {...props}><path d="M20 7v5h-5"/><path d="M19 12a7 7 0 1 0-2 5"/></Icon>; }
+export function EyedropperIcon(props: IconProps) { return <Icon {...props}><path d="m19 3 2 2-9.5 9.5-3-3L18 2a1.4 1.4 0 0 1 1 1Z"/><path d="m8.5 11.5-4 4v3h3l4-4M4.5 18.5 3 20"/></Icon>; }
+export function LayerForwardIcon(props: IconProps) { return <Icon {...props}><path d="m2.5 13 6-3 6 3-6 3-6-3Z"/><path d="M19 15V4m-3 3 3-3 3 3"/></Icon>; }
+export function LayerBackwardIcon(props: IconProps) { return <Icon {...props}><path d="m2.5 11 6-3 6 3-6 3-6-3Z"/><path d="M19 5v11m-3-3 3 3 3-3"/></Icon>; }
+export function DuplicatePlusIcon(props: IconProps) { return <Icon {...props}><rect x="3" y="7" width="11" height="11" rx="2"/><path d="M7 7V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v7M18 15v6M15 18h6"/></Icon>; }
+export function MagnifyIcon(props: IconProps) { return <Icon {...props}><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></Icon>; }
+export function UndoIcon(props: IconProps) { return <Icon strokeWidth={2.2} {...props}><path d="M4 8h7.5a8 8 0 1 1-6.2 13"/><path d="M7.5 4.5 4 8l3.5 3.5"/></Icon>; }
+export function RedoIcon(props: IconProps) { return <Icon strokeWidth={2.2} {...props}><path d="M20 8h-7.5a8 8 0 1 0 6.2 13"/><path d="M16.5 4.5 20 8l-3.5 3.5"/></Icon>; }

@@ -79,7 +79,7 @@ import { NewCreationSheet } from "../components/modals/NewCreationSheet";
 import { SettingsSheetModal } from "../components/modals/SettingsSheetModal";
 import { AssembledEnvelopePreview } from "../components/common/AssembledEnvelopePreview";
 import { FinishedStationeryPreview } from "../components/common/FinishedStationeryPreview";
-import { CopyIcon, RotateIcon, SaveIcon, TrashIcon } from "../components/common/UiIcons";
+import { CopyIcon, DuplicatePlusIcon, EyeIcon, EyedropperIcon, LayerBackwardIcon, LayerForwardIcon, MagnifyIcon, RedoIcon, RotateIcon, SaveIcon, TrashIcon, UndoIcon } from "../components/common/UiIcons";
 import { isPackageUIEditorAdmin } from "../ui-editor/repository";
 
 const STAMP_SHOP_URL = "https://usapon-digital-shop.vercel.app/";
@@ -298,8 +298,8 @@ function AppHeader({
       </div>}
 
       {isMobileDesign && <div className="mobile-history-actions" aria-label="編集の履歴">
-        <button type="button" disabled={!canUndo} onClick={onUndo} aria-label="ひとつ前の操作に戻す" title="戻す">↶</button>
-        <button type="button" disabled={!canRedo} onClick={onRedo} aria-label="戻した操作をやり直す" title="やり直す">↷</button>
+        <button type="button" disabled={!canUndo} onClick={onUndo} aria-label="ひとつ前の操作に戻す" title="戻す"><UndoIcon /></button>
+        <button type="button" disabled={!canRedo} onClick={onRedo} aria-label="戻した操作をやり直す" title="やり直す"><RedoIcon /></button>
       </div>}
 
       {screen !== "home" && screen !== "my-boxes" && screen !== "templates" && screen !== "letter-set" && (
@@ -616,7 +616,7 @@ function hsvToHex({ h, s, v }: HsvColor) {
   return `#${byte(red)}${byte(green)}${byte(blue)}`;
 }
 
-function CircularColorPicker({ label, value, onChange }: { label: string; value: string; onChange: (color: string) => void }) {
+function CircularColorPicker({ label, value, favoriteLabel, favoriteColors, onChange, onAddFavorite }: { label: string; value: string; favoriteLabel: string; favoriteColors: string[]; onChange: (color: string) => void; onAddFavorite: (color: string) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pointerMode = useRef<"hue" | "saturation" | null>(null);
   const [open, setOpen] = useState(false);
@@ -685,14 +685,27 @@ function CircularColorPicker({ label, value, onChange }: { label: string; value:
 
   const hueRadians = (hsv.h - 90) * Math.PI / 180;
   const saturationRadians = hueRadians;
+  const EyeDropperApi = typeof window === "undefined" ? undefined : (window as Window & {
+    EyeDropper?: new () => { open: () => Promise<{ sRGBHex: string }> };
+  }).EyeDropper;
+  const pickScreenColor = async () => {
+    if (!EyeDropperApi) return;
+    try {
+      const result = await new EyeDropperApi().open();
+      onChange(result.sRGBHex.toLowerCase());
+    } catch {
+      // Closing the browser eyedropper is a normal cancellation.
+    }
+  };
+  const isFavorite = favoriteColors.some((color) => color.toLowerCase() === value.toLowerCase());
   return (
     <div className="circular-color-picker">
-      <button type="button" className="circular-color-toggle" aria-expanded={open} onClick={() => setOpen((current) => !current)}>
-        <span className="circular-current-color-label">現在の色</span>
+      <button type="button" className="circular-color-toggle" aria-label={open ? "色作成を閉じる" : `${label}を自分で作る`} title={open ? "閉じる" : "色を作る"} aria-expanded={open} onClick={() => setOpen((current) => !current)}>
         <span className="circular-color-swatch" style={{ backgroundColor: value }} />
         <code>{value.toUpperCase()}</code>
-        <b>{open ? "閉じる" : "色を選ぶ"}</b>
+        <span className="color-create-icon" aria-hidden="true"><i /></span>
       </button>
+      {EyeDropperApi && <button type="button" className="eyedropper-button" aria-label="画面から色を取る" title="スポイト" onClick={() => { void pickScreenColor(); }}><EyedropperIcon /></button>}
       {open && (
         <div className="circular-color-panel">
           <div className="circular-color-wheel-wrap">
@@ -721,6 +734,8 @@ function CircularColorPicker({ label, value, onChange }: { label: string; value:
           </div>
           <label className="circular-brightness-row"><span>明るさ <output>{Math.round(hsv.v * 100)}%</output></span><input aria-label={`${label}の明るさ`} type="range" min="0" max="1" step="0.01" value={hsv.v} onChange={(event) => applyHsv({ ...hsv, v: Number(event.target.value) })} /></label>
           <label className="circular-hex-row"><span>HEX</span><input aria-label={`${label}のHEX値`} value={hexDraft} maxLength={7} onChange={(event) => { const next = event.target.value.toUpperCase(); setHexDraft(next); if (/^#[0-9A-F]{6}$/.test(next)) onChange(next.toLowerCase()); }} onBlur={() => setHexDraft(value.toUpperCase())} /></label>
+          {favoriteColors.length > 0 && <div className="circular-favorite-colors"><small>お気に入り</small><div>{favoriteColors.map((color) => <button key={color} type="button" className={value.toLowerCase() === color.toLowerCase() ? "is-selected" : ""} style={{ "--favorite-color": color } as CSSProperties} aria-label={`お気に入り ${color}`} title={color} onClick={() => onChange(color)} />)}</div></div>}
+          <div className="circular-color-actions"><button type="button" className={`circular-color-favorite ${isFavorite ? "is-registered" : ""}`} onClick={() => onAddFavorite(value)} disabled={isFavorite} aria-label={`${favoriteLabel}をお気に入りに登録`}><span>{isFavorite ? "★ 登録済み" : "☆ 登録"}</span></button><button type="button" className="circular-color-confirm" onClick={() => setOpen(false)}>✓ この色に決定</button></div>
         </div>
       )}
     </div>
@@ -731,6 +746,8 @@ function DesignColorControl({
   label,
   value,
   favoriteColors,
+  favoriteLabel = label,
+  compact = false,
   className = "",
   onChange,
   onAddFavorite,
@@ -740,6 +757,8 @@ function DesignColorControl({
   label: string;
   value: string;
   favoriteColors: string[];
+  favoriteLabel?: string;
+  compact?: boolean;
   className?: string;
   onChange: (color: string) => void;
   onAddFavorite: (color: string) => void;
@@ -751,9 +770,10 @@ function DesignColorControl({
     { label: "参考画像・おすすめ", colors: RECOMMENDED_DESIGN_COLORS },
     ...extraPalettes,
   ];
+  const colorPicker = <CircularColorPicker label={label} value={value} favoriteLabel={favoriteLabel} favoriteColors={favoriteColors} onChange={onChange} onAddFavorite={onAddFavorite} />;
   return (
     <div className={`design-color-control ${className}`}>
-      <div className="color-row"><strong>{label}</strong><CircularColorPicker label={label} value={value} onChange={onChange} /></div>
+      <div className="color-row"><strong>{label}</strong>{compact && colorPicker}</div>
       {palettes.map((palette) => (
         <div className="design-color-palette" key={palette.label}>
           <small>{palette.label}</small>
@@ -773,7 +793,7 @@ function DesignColorControl({
         </div>
       ))}
       <div className="favorite-color-section">
-        <div><small>お気に入り</small><button type="button" onClick={() => onAddFavorite(value)}>☆ 今の色を登録</button></div>
+        <div><small>お気に入り</small>{!compact && colorPicker}</div>
         {favoriteColors.length > 0 ? (
           <div className="favorite-color-swatches">
             {favoriteColors.map((color) => (
@@ -783,7 +803,7 @@ function DesignColorControl({
               </span>
             ))}
           </div>
-        ) : <p>カラーピッカーで色を作り、「今の色を登録」を押してください。</p>}
+        ) : null}
       </div>
     </div>
   );
@@ -1484,7 +1504,6 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
 
       <div className="editor-layout" data-ui-id="design.workspace">
         <section className="editor-canvas-panel panel-card" data-ui-id="design.canvas">
-          {isPreviewBox(state.box.type) && <button className="finished-box-trigger" type="button" onClick={() => setFinishedBoxOpen(true)}>▧ 完成イメージ</button>}
           {isLetterSetDesign && (
             <div className="letter-set-mobile-page-row" data-ui-id="design.item-tabs-mobile">
               <PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} uiId="design.item-tabs-mobile-tabs" compactLabels />
@@ -1520,16 +1539,19 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
               onMoveText={(id, xMm, yMm) => { const item = design.texts.find((candidate) => candidate.id === id); const point = clampToEnvelopeFace(geometry, faceEditing ? item?.surfaceId : undefined, xMm, yMm); dispatch({ type: "update-text", id, patch: point }); }}
               onSelectEnvelopeFace={faceScopedEditing ? (faceId) => dispatch({ type: "set-envelope-face", faceId }) : undefined}
             />
+          </div>
+          <div className="canvas-view-actions" aria-label="展開図の表示操作">
+            {isPreviewBox(state.box.type) && <button className="finished-box-trigger" type="button" onClick={() => setFinishedBoxOpen(true)}><EyeIcon /><span>プレビュー</span></button>}
             <div className={`canvas-zoom-controls ${zoomControlsOpen ? "is-open" : ""}`} aria-label="展開図のズーム操作">
               {zoomControlsOpen && <div className="canvas-zoom-popover">
                 <output aria-live="polite">{canvasZoom.toFixed(1)}倍</output>
                 <CanvasZoomSlider value={canvasZoom} onChange={setCanvasZoom} />
                 <button type="button" onClick={resetCanvasZoom}>全体に戻す</button>
               </div>}
-              <button className="canvas-zoom-toggle" type="button" aria-label={zoomControlsOpen ? "ズーム操作を閉じる" : "展開図をズーム"} aria-expanded={zoomControlsOpen} onClick={() => setZoomControlsOpen((open) => !open)}>⌕</button>
+              <button className="canvas-zoom-toggle" type="button" aria-label={zoomControlsOpen ? "拡大表示を閉じる" : "拡大表示"} title="拡大表示" aria-expanded={zoomControlsOpen} onClick={() => setZoomControlsOpen((open) => !open)}><MagnifyIcon /></button>
             </div>
           </div>
-          {geometry.type === "envelope-v1" ? <p className="canvas-caption envelope-canvas-caption"><strong>完成品：横 {mm(geometry.input.widthMm)} × 縦 {mm(geometry.input.heightMm)}{geometry.input.widthMm === 162 && geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong>{geometry.envelope?.construction === "kamasu" ? <><span>カマス貼り ／ A フタ {mm(geometry.envelope.topFlapMm)} ／ 左右のりしろ 各{mm(geometry.envelope.glueWidthMm)}</span><span>Cの左右を内側へ折り、Bを重ねて貼ります。AとCは完成時の向きで配置されます。</span></> : <><span>上 {mm(geometry.envelope?.topFlapMm ?? 0)} ／ 下 {mm(geometry.envelope?.bottomFlapMm ?? 0)} ／ 左右 各{mm(geometry.envelope?.sideFlapMm ?? 0)}</span><span>左右 → 下の順に折り、貼って袋状にします。</span></>}</p> : <p className="canvas-caption">画面では見やすい大きさに拡大表示しています。印刷寸法は下のmm値とPDFの実寸座標が基準です。</p>}
+          {geometry.type === "envelope-v1" ? <p className="canvas-caption envelope-canvas-caption"><strong>完成品：横 {mm(geometry.input.widthMm)} × 縦 {mm(geometry.input.heightMm)}{geometry.input.widthMm === 162 && geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong>{geometry.envelope?.construction === "kamasu" ? <><span>カマス貼り ／ A フタ {mm(geometry.envelope.topFlapMm)} ／ 左右のりしろ 各{mm(geometry.envelope.glueWidthMm)}</span><span>Cの左右を内側へ折り、Bを重ねて貼ります。AとCは完成時の向きで配置されます。</span></> : <><span>上 {mm(geometry.envelope?.topFlapMm ?? 0)} ／ 下 {mm(geometry.envelope?.bottomFlapMm ?? 0)} ／ 左右 各{mm(geometry.envelope?.sideFlapMm ?? 0)}</span><span>左右 → 下の順に折り、貼って袋状にします。</span></>}</p> : <p className="canvas-caption">画面では見やすい大きさに拡大表示しています。<br />印刷寸法は下のmm値とPDFの実寸座標が基準です。</p>}
         </section>
 
         {editorCategoryTabs("below-canvas")}
@@ -1538,7 +1560,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
           {faceEditing && <div className="edit-scope-bar"><div className="background-scope-picker" role="group" aria-label="編集する範囲"><button type="button" className={backgroundScope === "all" ? "is-selected" : ""} onClick={() => setBackgroundScope("all")}>全体</button><button type="button" className={backgroundScope === "face" ? "is-selected" : ""} onClick={() => setBackgroundScope("face")}>選択面</button></div><button className="scope-guide-button" type="button" aria-label="組み立て見本" onClick={() => setSampleGuideOpen(true)}>?</button></div>}
           {state.openEditorSection === "artwork" && (
             <div className="drawer-section background-editor-workspace">
-              <DesignColorControl className="background-color-control" label={faceEditing ? backgroundScope === "all" ? "セット全体の背景色" : `${envelopeFaceLetter(state.activeEnvelopeFace)}の背景色` : "基本背景色"} value={faceEditing && backgroundScope === "face" ? state.activeEnvelopeFace === "envelope-flap" && state.envelopeDesign.flapAccentEnabled ? state.envelopeDesign.flapColor : state.surfaceBackgroundColors[state.activeEnvelopeFace] ?? design.backgroundColor : design.backgroundColor} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={setScopedBackgroundColor} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
+              <DesignColorControl className="background-color-control" label={faceEditing ? backgroundScope === "all" ? "セット全体の背景色" : `${envelopeFaceLetter(state.activeEnvelopeFace)}の背景色` : "基本背景色"} favoriteLabel="背景色" value={faceEditing && backgroundScope === "face" ? state.activeEnvelopeFace === "envelope-flap" && state.envelopeDesign.flapAccentEnabled ? state.envelopeDesign.flapColor : state.surfaceBackgroundColors[state.activeEnvelopeFace] ?? design.backgroundColor : design.backgroundColor} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={setScopedBackgroundColor} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
               {state.box.type === "two-piece-gift-box-v1" && activePage.id === "lid" && (
                 <div className="background-copy-control">
                   <button className="outline-button full-button" type="button" onClick={copyLidBackgroundToBase}>背景を本体にもコピー</button>
@@ -1559,29 +1581,32 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
               </section>
 
               <section className="background-editor-zone placed-artwork-zone">
-                <strong className="background-editor-zone-title">配置済みの背景・模様</strong>
+                <strong className="background-editor-zone-title">配置済み</strong>
                 {pageArtworkLayers.length > 0 ? <div className="placed-artwork-grid" aria-label="配置済みの背景・模様">{pageArtworkLayers.map((item) => <div key={item.id} className={`placed-artwork-card ${state.selectedArtworkId === item.id ? "is-selected" : ""}`}><button className="placed-artwork-select" type="button" aria-label={`${item.name}を選択`} title={item.name} onClick={() => dispatch({ type: "select-artwork", id: item.id })}><ArtworkThumbnail item={item} /></button><button className="placed-artwork-visibility" type="button" aria-label={`${item.name}を${item.visible ? "非表示" : "表示"}`} onClick={() => dispatch({ type: "update-artwork", id: item.id, patch: { visible: !item.visible } })}>{item.visible ? "●" : "○"}</button></div>)}</div> : <p className="artwork-zone-empty">上の一覧から模様を追加してください。</p>}
               </section>
 
               <section className="background-editor-zone artwork-adjust-zone">
-                <strong className="background-editor-zone-title">背景・模様の調整{selectedArtwork ? <span>{selectedArtwork.name}</span> : null}</strong>
+                <strong className="background-editor-zone-title">調整</strong>
                 {selectedArtwork ? (
                 <div className={`selected-layer-controls background-adjust-controls is-${selectedArtwork.kind}`}>
                   <strong className="selected-layer-title">{selectedArtwork.name}</strong>
-                  <label className="range-control"><span>透明度 <output>{Math.round(selectedArtwork.opacity * 100)}%</output></span><input type="range" min="0.1" max="1" step="0.05" value={selectedArtwork.opacity} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { opacity: Number(event.target.value) } })} /></label>
-                  <div className="layer-action-row"><button type="button" onClick={() => dispatch({ type: "move-artwork", id: selectedArtwork.id, direction: "backward" })}>← 背面</button><button type="button" onClick={() => dispatch({ type: "move-artwork", id: selectedArtwork.id, direction: "forward" })}>前面 →</button><button type="button" onClick={() => dispatch({ type: "duplicate-artwork", id: selectedArtwork.id, newId: crypto.randomUUID() })}>複製</button><button className="danger" type="button" onClick={() => dispatch({ type: "remove-artwork", id: selectedArtwork.id })}>削除</button></div>
+                  <div className="layer-action-row"><button type="button" aria-label="背面へ移動" title="背面へ移動" onClick={() => dispatch({ type: "move-artwork", id: selectedArtwork.id, direction: "backward" })}><LayerBackwardIcon /><span>背面</span></button><button type="button" aria-label="前面へ移動" title="前面へ移動" onClick={() => dispatch({ type: "move-artwork", id: selectedArtwork.id, direction: "forward" })}><LayerForwardIcon /><span>前面</span></button><button type="button" aria-label="複製" title="複製" onClick={() => dispatch({ type: "duplicate-artwork", id: selectedArtwork.id, newId: crypto.randomUUID() })}><DuplicatePlusIcon /><span>複製</span></button><button className="danger" type="button" aria-label="削除" title="削除" onClick={() => dispatch({ type: "remove-artwork", id: selectedArtwork.id })}><TrashIcon /><span>削除</span></button></div>
+                  <div className={`background-opacity-color-row ${selectedArtwork.kind === "uploaded-artwork" ? "is-opacity-only" : ""}`}>
+                    <label className="range-control background-opacity-control"><span><i className="background-opacity-icon" aria-hidden="true" /><output>{Math.round(selectedArtwork.opacity * 100)}%</output></span><input aria-label="透明度" type="range" min="0.1" max="1" step="0.05" value={selectedArtwork.opacity} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { opacity: Number(event.target.value) } })} /></label>
+                    {selectedArtwork.kind !== "uploaded-artwork" && <DesignColorControl compact label="色" favoriteLabel={selectedArtwork.kind === "dot-pattern" ? "水玉色" : "模様色"} value={selectedArtwork.color} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={(color) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />}
+                  </div>
                   {selectedArtwork.kind === "stripe-pattern" && (
                     <>
-                      <DesignColorControl label="ストライプ色" value={selectedArtwork.color} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={(color) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
                       <div className="mini-number-grid"><NumberField label="線幅" value={selectedArtwork.stripeWidthMm} min={1} max={50} step={1} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { stripeWidthMm: value } })} /><NumberField label="間隔" value={selectedArtwork.gapMm} min={1} max={50} step={1} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { gapMm: value } })} /></div>
                       <label className="select-row">向き<select value={selectedArtwork.angleDeg} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { angleDeg: Number(event.target.value) as 0 | 45 | 90 | 135 } })}><option value="0">縦</option><option value="45">斜め 45°</option><option value="90">横</option><option value="135">斜め 135°</option></select></label>
                     </>
                   )}
                   {selectedArtwork.kind === "dot-pattern" && (
                     <>
-                      <DesignColorControl label="水玉色" value={selectedArtwork.color} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={(color) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
-                      <label className="range-control"><span>水玉の大きさ <output>{mm(selectedArtwork.dotDiameterMm)}</output></span><input aria-label="水玉の大きさ" type="range" min="1" max="60" step="1" value={selectedArtwork.dotDiameterMm} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { dotDiameterMm: Number(event.target.value) } })} /></label>
-                      <label className="range-control"><span>水玉の間隔 <output>{mm(selectedArtwork.spacingMm)}</output></span><input aria-label="水玉の間隔" type="range" min="2" max="100" step="1" value={selectedArtwork.spacingMm} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { spacingMm: Number(event.target.value) } })} /></label>
+                      <div className="background-pair-ranges">
+                        <label title="水玉の大きさ"><span aria-hidden="true">●</span><input aria-label="水玉の大きさ" type="range" min="1" max="60" step="1" value={selectedArtwork.dotDiameterMm} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { dotDiameterMm: Number(event.target.value) } })} /><output>{mm(selectedArtwork.dotDiameterMm)}</output></label>
+                        <label title="水玉の間隔"><span className="spacing-symbol" aria-hidden="true">● · ●</span><input aria-label="水玉の間隔" type="range" min="2" max="100" step="1" value={selectedArtwork.spacingMm} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { spacingMm: Number(event.target.value) } })} /><output>{mm(selectedArtwork.spacingMm)}</output></label>
+                      </div>
                     </>
                   )}
                   {selectedArtwork.kind === "uploaded-artwork" && (
@@ -1591,9 +1616,11 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                       <button className="rotate-button" type="button" onClick={() => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { rotationDeg: rotateQuarterTurn(selectedArtwork.rotationDeg) } })}>↻ 90°回転 <span>{selectedArtwork.rotationDeg}°</span></button>
                     </>
                   )}
-                  <div className="background-position-controls">
-                    <FineTuneControl label="横位置 X" value={roundMm(selectedArtwork.offsetXmm, 1)} min={-geometry.bounds.widthMm} max={geometry.bounds.widthMm} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { offsetXmm: value } })} />
-                    <FineTuneControl label="縦位置 Y" value={roundMm(selectedArtwork.offsetYmm, 1)} min={-geometry.bounds.heightMm} max={geometry.bounds.heightMm} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { offsetYmm: value } })} />
+                  <div className="background-position-controls" role="group" aria-label="背景・模様の位置">
+                    <button type="button" aria-label="左へ1mm" title="左へ" onClick={() => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { offsetXmm: roundMm(clamp(selectedArtwork.offsetXmm - 1, -geometry.bounds.widthMm, geometry.bounds.widthMm), 1) } })}>←</button>
+                    <button type="button" aria-label="右へ1mm" title="右へ" onClick={() => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { offsetXmm: roundMm(clamp(selectedArtwork.offsetXmm + 1, -geometry.bounds.widthMm, geometry.bounds.widthMm), 1) } })}>→</button>
+                    <button type="button" aria-label="上へ1mm" title="上へ" onClick={() => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { offsetYmm: roundMm(clamp(selectedArtwork.offsetYmm - 1, -geometry.bounds.heightMm, geometry.bounds.heightMm), 1) } })}>↑</button>
+                    <button type="button" aria-label="下へ1mm" title="下へ" onClick={() => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { offsetYmm: roundMm(clamp(selectedArtwork.offsetYmm + 1, -geometry.bounds.heightMm, geometry.bounds.heightMm), 1) } })}>↓</button>
                   </div>
                 </div>
                 ) : <p className="artwork-zone-empty">配置済みの背景・模様を選択してください。</p>}
@@ -1668,7 +1695,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                 <div className="selected-text-controls">
                   <label className="text-input-label">文字<textarea rows={2} maxLength={80} value={selectedText.text} onChange={(event) => dispatch({ type: "update-text", id: selectedText.id, patch: { text: event.target.value } })} /></label>
                   <label className="range-control"><span>文字サイズ <output>{mm(selectedText.fontSizeMm)}</output></span><input type="range" min="2" max="18" step="0.5" value={selectedText.fontSizeMm} onChange={(event) => dispatch({ type: "update-text", id: selectedText.id, patch: { fontSizeMm: Number(event.target.value) } })} /></label>
-                  <DesignColorControl label="文字色" value={selectedText.color} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={(color) => dispatch({ type: "update-text", id: selectedText.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
+                  <DesignColorControl label="文字色" favoriteLabel="文字色" value={selectedText.color} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={(color) => dispatch({ type: "update-text", id: selectedText.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
                   <div className="mini-number-grid">
                     <NumberField label="横位置 X" value={roundMm(selectedText.xMm, 1)} min={0} max={geometry.bounds.widthMm} step={1} onChange={(value) => dispatch({ type: "update-text", id: selectedText.id, patch: { xMm: value } })} />
                     <NumberField label="縦位置 Y" value={roundMm(selectedText.yMm, 1)} min={0} max={geometry.bounds.heightMm} step={1} onChange={(value) => dispatch({ type: "update-text", id: selectedText.id, patch: { yMm: value } })} />
