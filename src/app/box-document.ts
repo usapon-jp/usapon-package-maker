@@ -12,6 +12,7 @@ import type {
 } from "./app-types";
 import { BUILT_IN_STAMP_KEYS } from "./app-types";
 import { initialState } from "./app-state";
+import { normalizeLegacyPortraitCoverPlacements } from "./artwork";
 
 const pageIdSchema = z.enum(["main", "lid", "base", "letter", "card"]);
 const quarterTurnSchema = z.union([z.literal(0), z.literal(90), z.literal(180), z.literal(270)]);
@@ -44,6 +45,7 @@ const uploadedArtworkSchema = artworkBaseSchema.extend({
   repeat: z.boolean(),
   repeatGapMm: z.number().nonnegative().finite().default(0),
   rotationDeg: quarterTurnSchema,
+  coverFitVersion: z.literal(1).optional(),
 }).merge(runtimeAssetSchema);
 const stripeSchema = artworkBaseSchema.extend({
   kind: z.literal("stripe-pattern"),
@@ -69,6 +71,7 @@ const stampSchema = runtimeAssetSchema.extend({
   yMm: z.number().finite(),
   widthMm: z.number().positive().finite(),
   rotationDeg: z.number().finite(),
+  coverFitVersion: z.literal(1).optional(),
   visible: z.boolean(),
   opacity: z.number().min(0).max(1),
   surfaceId: envelopeFaceSchema.optional(),
@@ -227,7 +230,7 @@ export async function hydrateBoxDocument(value: unknown, resolveAsset: AssetReso
     Promise.all(document.design.artworkLayers.map((item) => hydrateArtwork(item, resolveAsset))),
     Promise.all(document.design.stamps.map((item) => hydrateStamp(item, resolveAsset))),
   ]);
-  return {
+  return normalizeLegacyPortraitCoverPlacements({
     ...initialState,
     screen: "design",
     box: { ...document.box },
@@ -247,7 +250,7 @@ export async function hydrateBoxDocument(value: unknown, resolveAsset: AssetReso
     surfaceBackgroundColors: { ...document.design.surfaceBackgroundColors },
     themePackId: document.design.themePackId,
     printGuideMode: document.design.printGuideMode,
-  };
+  });
 }
 
 export function collectUserAssetIds(document: BoxDocumentV1): string[] {

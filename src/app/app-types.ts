@@ -77,6 +77,7 @@ export type UploadedArtworkLayer = ArtworkBase & RuntimeAsset & {
   repeat: boolean;
   repeatGapMm: number;
   rotationDeg: QuarterTurn;
+  coverFitVersion?: 1;
 };
 
 export type StripePatternLayer = ArtworkBase & {
@@ -107,6 +108,7 @@ export type StampItem = RuntimeAsset & {
   yMm: number;
   widthMm: number;
   rotationDeg: number;
+  coverFitVersion?: 1;
   visible: boolean;
   opacity: number;
   surfaceId?: EnvelopeFaceId;

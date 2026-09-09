@@ -4,6 +4,7 @@ import type { AppState, ArtworkLayer, StampItem } from "../../app/app-types";
 import type { ProjectWorkspace } from "../../cloud/types";
 import { blobToDataUrl } from "../uploads/read-pattern";
 import { normalizeTextItem } from "../../features/auto-layout/text-layout";
+import { normalizeLegacyPortraitCoverPlacements } from "../../app/artwork";
 
 const DATABASE_NAME = "usapon-package-maker";
 const STORE_NAME = "drafts";
@@ -53,7 +54,7 @@ export async function loadLocalDraft(): Promise<LocalDraft | null> {
   const db = await database();
   const draft = await db.get(STORE_NAME, CURRENT_DRAFT_KEY) as LocalDraft | undefined;
   if (!draft) return null;
-  return {
+  const restoredDraft = {
     ...draft,
     state: {
       ...draft.state,
@@ -88,6 +89,7 @@ export async function loadLocalDraft(): Promise<LocalDraft | null> {
       texts: draft.state.texts.map(normalizeTextItem),
     },
   };
+  return { ...restoredDraft, state: normalizeLegacyPortraitCoverPlacements(restoredDraft.state) };
 }
 
 export async function clearLocalDraft(): Promise<void> {
