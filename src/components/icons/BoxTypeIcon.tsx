@@ -19,7 +19,7 @@ export function BoxTypeIcon({ type, className }: { type: BoxType; className?: st
       aria-hidden="true"
       className={className}
       focusable="false"
-      preserveAspectRatio="none"
+      preserveAspectRatio="xMidYMid meet"
       viewBox={illustration.viewBox}
       xmlns="http://www.w3.org/2000/svg"
     >

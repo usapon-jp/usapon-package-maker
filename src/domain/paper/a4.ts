@@ -15,6 +15,12 @@ export type A4FitResult = {
   excessHeightMm: number;
 };
 
+export function summarizeA4FitStatus(fits: readonly Pick<A4FitResult, "status">[]): FitStatus {
+  if (fits.some((fit) => fit.status === "overflow")) return "overflow";
+  if (fits.some((fit) => fit.status === "paper-only")) return "paper-only";
+  return "safe";
+}
+
 type Candidate = A4FitResult & { score: number };
 
 function evaluateOrientation(

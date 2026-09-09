@@ -14,7 +14,7 @@ describe("箱形式アイコン", () => {
   it.each(BOX_TYPES)("%s を指定イラストの表示枠として描画する", (type) => {
     const markup = renderToStaticMarkup(<BoxTypeIcon type={type} />);
 
-    expect(markup).toContain('preserveAspectRatio="none"');
+    expect(markup).toContain('preserveAspectRatio="xMidYMid meet"');
     expect(markup).toContain('<image');
     expect(markup).toContain('width="2048"');
     expect(markup).toContain('height="2048"');

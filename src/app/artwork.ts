@@ -173,6 +173,10 @@ export function createStamp(asset: UploadedAsset, geometry: DielineGeometry, nam
   const rotation = recommendedRotation(geometry, center.panel);
   // Keep normal stamp size, shrinking only as needed with a little breathing room.
   const baseWidth = Math.min(defaultStampWidth(asset, center.panel), panelFitWidth(asset, center.panel, rotation) * 0.9);
+  // User-reviewed shallow-box position: slightly toward the opening, centered across the lid.
+  const lidInset = geometry.type === "gift-box-v1" && center.panel.id === "panel-lid";
+  const horizontalHalf = (rotation === 90 || rotation === 270 ? baseWidth / asset.aspectRatio : baseWidth) / 2;
+  const initialX = lidInset ? center.panel.x + Math.max(center.panel.width * 0.35, horizontalHalf) : center.x;
   return {
     ...runtime.asset,
     id: runtime.id,
@@ -180,7 +184,7 @@ export function createStamp(asset: UploadedAsset, geometry: DielineGeometry, nam
     role: "stamp",
     pageId,
     name,
-    xMm: center.x,
+    xMm: initialX,
     yMm: center.y,
     widthMm: baseWidth,
     rotationDeg: rotation,

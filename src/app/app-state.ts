@@ -1,3 +1,4 @@
+import { resizeBoxArtwork } from "./resize-box-artwork";
 import type { AppAction, AppState } from "./app-types";
 
 export const DEFAULT_DIELINE_LINE_COLORS = {
@@ -22,7 +23,7 @@ function isSharedStationeryItem(item: { id: string }) {
 }
 
 export const initialState: AppState = {
-  screen: "letter-set",
+  screen: "home",
   box: {
     type: "straight-tuck-carton-v1",
     widthMm: 40,
@@ -66,6 +67,14 @@ export const initialState: AppState = {
 };
 
 export function appReducer(state: AppState, action: AppAction): AppState {
+  const next = reduceAppState(state, action);
+  if (["set-box-type", "update-box", "replace-box"].includes(action.type) && JSON.stringify(state.box) !== JSON.stringify(next.box)) {
+    return resizeBoxArtwork(state, next);
+  }
+  return next;
+}
+
+function reduceAppState(state: AppState, action: AppAction): AppState {
   switch (action.type) {
     case "replace-state":
       return action.state;

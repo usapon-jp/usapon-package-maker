@@ -26,9 +26,9 @@ describe("モバイル中心のレターセットUI", () => {
     expect(markup).toContain('data-ui-id="letter.choice-grid"');
   });
 
-  it("主要5項目の下部ナビを表示する", () => {
-    const markup = renderToStaticMarkup(<BottomNavBar activeTab="letter-set" onChange={() => undefined} />);
-    for (const label of ["BOX", "レターセット", "新規", "マイデザイン", "設定"]) expect(markup).toContain(label);
+  it("役割が重ならない3項目の下部ナビを表示する", () => {
+    const markup = renderToStaticMarkup(<BottomNavBar activeTab="home" onChange={() => undefined} />);
+    for (const label of ["ホーム", "マイデザイン", "設定"]) expect(markup).toContain(label);
     expect(markup).not.toContain("購入");
     expect(markup).toContain('data-ui-id="global.bottom-nav"');
   });

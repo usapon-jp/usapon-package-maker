@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { evaluateA4Fit } from "../src/domain/paper/a4";
+import { evaluateA4Fit, summarizeA4FitStatus } from "../src/domain/paper/a4";
 
 describe("A4 fit", () => {
+  it("複数ページは最も厳しい判定へ集約する", () => {
+    expect(summarizeA4FitStatus([{ status: "safe" }, { status: "safe" }])).toBe("safe");
+    expect(summarizeA4FitStatus([{ status: "safe" }, { status: "paper-only" }])).toBe("paper-only");
+    expect(summarizeA4FitStatus([{ status: "safe" }, { status: "overflow" }])).toBe("overflow");
+  });
+
   it("安全余白込みで縦置きに収める", () => {
     const result = evaluateA4Fit(130, 142);
     expect(result.status).toBe("safe");

@@ -25,3 +25,5 @@ export function DuplicatePlusIcon(props: IconProps) { return <Icon {...props}><r
 export function MagnifyIcon(props: IconProps) { return <Icon {...props}><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></Icon>; }
 export function UndoIcon(props: IconProps) { return <Icon strokeWidth={2.2} {...props}><path d="M4 8h7.5a8 8 0 1 1-6.2 13"/><path d="M7.5 4.5 4 8l3.5 3.5"/></Icon>; }
 export function RedoIcon(props: IconProps) { return <Icon strokeWidth={2.2} {...props}><path d="M20 8h-7.5a8 8 0 1 0 6.2 13"/><path d="M16.5 4.5 20 8l-3.5 3.5"/></Icon>; }
+
+export function HomeIcon(props: IconProps) { return <Icon {...props}><path d="m3 11 9-8 9 8M5 10v11h14V10M9 21v-7h6v7"/></Icon>; }

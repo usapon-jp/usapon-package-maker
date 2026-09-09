@@ -11,10 +11,10 @@ import { generateFlatStationery } from "../src/domain/boxes/stationery";
 
 describe("Mobile Workspace Refactorings & Components", () => {
   it("BottomNavBar renders active tab and icons correctly", () => {
-    const markup = renderToStaticMarkup(<BottomNavBar activeTab="letter-set" onChange={() => undefined} />);
+    const markup = renderToStaticMarkup(<BottomNavBar activeTab="home" onChange={() => undefined} />);
     expect(markup).toContain("is-active");
-    expect(markup).toContain("レターセット");
-    expect(markup).toContain("BOX");
+    expect(markup).toContain("ホーム");
+    expect(markup).toContain("マイデザイン");
   });
 
   it("AssemblyGuideModal renders guide steps and usapon header icon", () => {

@@ -1,3 +1,5 @@
+import { previousScreen } from "./navigation";
+import { CreationHome } from "../components/common/CreationHome";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ChangeEvent, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 
@@ -11,7 +13,7 @@ import { InstallGuide } from "../components/pwa/InstallGuide";
 import { generateDielineDocument } from "../domain/boxes/registry";
 import type { BoxType, DielineGeometry, DielinePage, DielinePageId, EnvelopeFaceId, Panel, StationerySetSelection } from "../domain/boxes/types";
 import { generateStationerySetDocument, shouldShowAssemblyGuide } from "../domain/boxes/stationery";
-import { evaluateA4Fit, type A4FitResult, type FitStatus } from "../domain/paper/a4";
+import { evaluateA4Fit, summarizeA4FitStatus, type A4FitResult, type FitStatus } from "../domain/paper/a4";
 import { printImposition } from "../domain/paper/imposition";
 import { clamp, roundMm } from "../domain/units";
 import { downloadPdfBlob } from "../lib/pdf/download-pdf";
@@ -253,15 +255,8 @@ function AppHeader({
   const saveLabel = saveState === "saving" ? "保存中…" : saveState === "saved" ? "保存済み" : saveState === "error" ? "保存失敗" : saveState === "conflict" ? "更新あり" : "保存";
   const isEnvelope = templateId === "y2-kamasu-envelope";
   const isMobileDesign = screen === "design";
-  const designBackTarget: Screen = isEnvelope ? "letter-set" : templateId ? "templates" : "size";
-  const backTarget: Screen | null =
-    screen === "design" ? (isEnvelope ? "letter-set" : templateId ? "templates" : "size") :
-    screen === "print" ? "design" :
-    screen === "my-boxes" ? (isEnvelope ? "letter-set" : "home") :
-    screen === "templates" ? "home" :
-    screen === "size" ? "templates" :
-    screen === "letter-set" ? "home" :
-    null;
+  const designBackTarget = previousScreen("design", templateId)!;
+  const backTarget = previousScreen(screen, templateId);
 
   const screenTitle =
     screen === "size" ? "BOXサイズ" :
@@ -269,11 +264,11 @@ function AppHeader({
     screen === "print" ? "印刷前確認" :
     screen === "my-boxes" ? "マイデザイン" :
     screen === "templates" ? "型を選ぶ" :
-    "セット選択";
+    screen === "home" ? "ホーム" : "セット選択";
 
   return (
-    <header className={`app-header ${screen === "design" || screen === "print" || screen === "size" ? "is-editor-header" : ""}`} data-ui-id="global.header">
-      {isMobileDesign && <button className="mobile-header-design-back" type="button" onClick={() => onGo(designBackTarget)} aria-label="セット選択へ戻る" title="戻る">←</button>}
+    <header className={`app-header screen-${screen} ${screen === "design" || screen === "print" || screen === "size" ? "is-editor-header" : ""}`} data-ui-id="global.header">
+      {isMobileDesign && <button className="mobile-header-design-back" type="button" onClick={() => onGo(designBackTarget)} aria-label={isEnvelope ? "セットを選び直す" : "サイズに戻る"} title="戻る">←</button>}
       <div className="brand-button-group">
         {backTarget && (
           <button className="mobile-header-back-button" type="button" onClick={() => onGo(backTarget)} aria-label="戻る">
@@ -294,7 +289,7 @@ function AppHeader({
       </div>
 
       {isMobileDesign && <div className="mobile-design-actions" aria-label={`${screenTitle}の操作`}>
-        <button type="button" onClick={() => onGo("print")}>PDFを確認</button>
+        <button type="button" onClick={() => onGo("print")}>印刷へ →</button>
       </div>}
 
       {isMobileDesign && <div className="mobile-history-actions" aria-label="編集の履歴">
@@ -367,16 +362,39 @@ function HeroIllustration() {
 
 function FitNotice({ geometry, fit, compact = false, label }: { geometry: DielineGeometry; fit: A4FitResult; compact?: boolean; label?: string }) {
   const copy = FIT_COPY[fit.status];
+  const compactTitle = fit.status === "safe"
+    ? "A4に収まります"
+    : fit.status === "paper-only"
+      ? "A4に収まります（余白に注意）"
+      : copy.title;
   return (
     <div className={`fit-notice fit-${fit.status} ${compact ? "is-compact" : ""}`} role="status">
       <span className="fit-icon" aria-hidden="true">{fit.status === "safe" ? "✓" : fit.status === "paper-only" ? "!" : "×"}</span>
       <div>
-        <strong>{label ? `${label}：${copy.title}` : copy.title}</strong>
+        <strong>{label ? `${label}：${copy.title}` : compact ? compactTitle : copy.title}</strong>
         {!compact && <p>{copy.description}</p>}
         <small>
           展開図 {mm(geometry.bounds.widthMm)} × {mm(geometry.bounds.heightMm)} ／ A4 {fit.orientation === "portrait" ? "縦" : "横"}
           {fit.status === "overflow" && ` ／ 超過 ${mm(fit.excessWidthMm)} × ${mm(fit.excessHeightMm)}`}
         </small>
+      </div>
+    </div>
+  );
+}
+
+function FitSummaryNotice({ pages }: { pages: DielinePageView[] }) {
+  if (pages.length === 1) {
+    const page = pages[0];
+    return <FitNotice geometry={page.geometry} fit={page.fit} compact />;
+  }
+  const status = summarizeA4FitStatus(pages.map((page) => page.fit));
+  const title = status === "safe" ? "A4に収まります" : status === "paper-only" ? "A4に収まります（余白に注意）" : "A4に収まりません";
+  return (
+    <div className={`fit-notice fit-${status} is-compact`} role="status">
+      <span className="fit-icon" aria-hidden="true">{status === "safe" ? "✓" : status === "paper-only" ? "!" : "×"}</span>
+      <div>
+        <strong>{title}</strong>
+        <small>{status === "overflow" ? "ふた・本体のどちらかが用紙を超えています" : "ふた・本体を別々のA4用紙に印刷"}</small>
       </div>
     </div>
   );
@@ -433,72 +451,6 @@ function CanvasZoomSlider({ value, onChange }: { value: number; onChange: (value
     >
       <i style={{ bottom: `${((value - 1) / 2) * 100}%` }} aria-hidden="true" />
     </div>
-  );
-}
-
-function HomeScreen({ onStart, onTemplates, onResume, onMyBoxes }: { onStart: () => void; onTemplates: () => void; onResume: (() => void) | null; onMyBoxes: () => void }) {
-  return (
-    <main className="home-screen">
-      <section className="home-hero">
-        <div className="hero-sparkles" aria-hidden="true">✦　·　✧</div>
-        <HeroIllustration />
-        <div className="hero-card">
-          <p className="eyebrow">HANDMADE PACKAGE TOOL</p>
-          <h1>うさぽん<br /><span>パッケージメーカー</span></h1>
-          <p>箱のサイズを入力するだけで、実寸の展開図を作れます。柄と文字をのせて、A4 PDFで印刷しましょう。</p>
-          <div className="hero-points">
-            <span>実寸mm設計</span><span>A4自動判定</span><span>クラウド保存対応</span>
-          </div>
-        </div>
-      </section>
-
-      <section className="choice-section" aria-labelledby="choice-title">
-        <div className="section-heading">
-          <p className="eyebrow">LET'S MAKE</p>
-          <h2 id="choice-title">つくりかたを選んでください</h2>
-        </div>
-        <div className="choice-grid">
-          {onResume && <button className="choice-card is-active resume-choice-card" type="button" onClick={onResume}>
-            <span className="choice-icon" aria-hidden="true">↩</span>
-            <strong>前回の作品を続ける</strong>
-            <p>この端末に復元した、未保存の編集内容を開きます</p>
-            <b>編集を再開する　→</b>
-          </button>}
-          <button className="choice-card is-active" type="button" onClick={onStart}>
-            <span className="choice-icon" aria-hidden="true">⌑</span>
-            <strong>サイズから作る</strong>
-            <p>W・D・Hをmmで入力して、ぴったりの展開図を作成</p>
-            <b>この方法ではじめる　→</b>
-          </button>
-          <button className="choice-card is-active template-choice-card" type="button" onClick={onTemplates}>
-            <span className="choice-icon" aria-hidden="true">▦</span>
-            <strong>テンプレートから作る</strong>
-            <p>便箋・封筒・ミニカードなど、作りたい型から選んで自由にデザイン</p>
-            <b>テンプレートを見る　→</b>
-          </button>
-          {CLOUD_SYNC_UI_ENABLED && <button className="choice-card cloud-choice-card" type="button" onClick={onMyBoxes}>
-            <span className="choice-icon" aria-hidden="true">☁</span>
-            <strong>保存した作品を開く</strong>
-            <p>Googleログインして、別の端末で作った作品を続きから編集</p>
-            <b>マイデザインを見る　→</b>
-          </button>}
-        </div>
-      </section>
-
-      {CLOUD_SYNC_UI_ENABLED && <section className="cloud-data-notice">
-        <strong>Googleログインとデータ保存について</strong>
-        <p>ログインにはGoogleの氏名・メールアドレス・プロフィール画像だけを使用します。未保存の作品は端末内、保存した作品JSONとアップロード画像は非公開のSupabaseへ保存します。Google DriveやGmailにはアクセスしません。</p>
-        <a href={`${import.meta.env.BASE_URL}privacy.html`}>プライバシーポリシー</a>
-      </section>}
-
-      <section className="flow-strip" aria-label="完成までの流れ">
-        <div><span>1</span><strong>サイズを指定</strong><small>mmで正確に入力</small></div>
-        <i>→</i>
-        <div><span>2</span><strong>デザイン</strong><small>柄と文字を配置</small></div>
-        <i>→</i>
-        <div><span>3</span><strong>印刷</strong><small>A4実寸PDF</small></div>
-      </section>
-    </main>
   );
 }
 
@@ -810,7 +762,6 @@ function DesignColorControl({
 }
 
 function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
-  const boxCopy = BOX_TYPE_COPY[state.box.type];
   const shallowBox = isShallowBox(state.box.type);
   const twoPiece = state.box.type === "two-piece-gift-box-v1";
   const [favoriteSizes, setFavoriteSizes] = useState(() => {
@@ -822,7 +773,6 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
   });
   const [favoriteSizeName, setFavoriteSizeName] = useState("");
   const [favoriteSizeMessage, setFavoriteSizeMessage] = useState("");
-  const [sizeMobileTab, setSizeMobileTab] = useState<"dimensions" | "box-type" | "paper-structure" | "favorites">("dimensions");
 
   useEffect(() => {
     try {
@@ -848,21 +798,36 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
       <div className="page-heading">
         <button className="back-button" type="button" onClick={() => dispatch({ type: "go", screen: "home" })}>← トップ</button>
         <p className="eyebrow">STEP 1</p>
-        <h1>箱のサイズを設定</h1>
+        <h1>サイズを決める</h1>
         <p>入力値は完成箱の罫線間寸法です。商品が入る余裕を含めて入力してください。</p>
       </div>
 
-      <div className="size-mobile-tabs" data-ui-id="size.tabs" role="tablist" aria-label="サイズ設定項目">
-        <button type="button" role="tab" aria-selected={sizeMobileTab === "dimensions"} className={sizeMobileTab === "dimensions" ? "is-selected" : ""} onClick={() => setSizeMobileTab("dimensions")}>寸法</button>
-        <button type="button" role="tab" aria-selected={sizeMobileTab === "box-type"} className={sizeMobileTab === "box-type" ? "is-selected" : ""} onClick={() => setSizeMobileTab("box-type")}>箱形式</button>
-        <button type="button" role="tab" aria-selected={sizeMobileTab === "paper-structure"} className={sizeMobileTab === "paper-structure" ? "is-selected" : ""} onClick={() => setSizeMobileTab("paper-structure")}>用紙・構造</button>
-        <button type="button" role="tab" aria-selected={sizeMobileTab === "favorites"} className={sizeMobileTab === "favorites" ? "is-selected" : ""} onClick={() => setSizeMobileTab("favorites")}>お気に入り</button>
-      </div>
-
-      <div className={`size-layout is-${sizeMobileTab}`} data-ui-id="size.layout">
+      <div className="size-layout" data-ui-id="size.layout">
         <section className="panel-card form-card" data-ui-id="size.form">
-          <div className={`size-section size-section-dimensions ${sizeMobileTab === "dimensions" ? "is-mobile-active" : ""}`}>
-            <div className="form-section-heading"><h3>仕上がり寸法</h3><p>{twoPiece ? "幅 W／奥行 D／高さ H を指定" : shallowBox ? "表面を W × H、箱の深さを D で指定" : "幅 W／奥行 D／高さ H を指定"}</p></div>
+          <div className="size-section size-section-box-type">
+            <div className="box-type-grid" role="group" aria-label="箱形式を選択">
+              {SIZE_BOX_TYPES.map((type) => {
+                const copy = BOX_TYPE_COPY[type];
+                return (
+                <button
+                  key={type}
+                  className={`box-type-button ${state.box.type === type ? "is-selected" : ""}`}
+                  type="button"
+                  aria-pressed={state.box.type === type}
+                  onClick={() => dispatch({ type: "set-box-type", boxType: type })}
+                >
+                  <div className="box-type-copy">
+                    <strong>{type === "gift-box-v1" ? "浅型の箱" : type === "two-piece-gift-box-v1" ? "ふた付き箱" : copy.name}</strong>
+
+                  </div>
+                  <span aria-hidden="true"><BoxTypeIcon className="box-type-icon" type={type} /></span>
+                </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="size-section size-section-dimensions">
             <div className="dimension-grid">
               <NumberField label="幅" shortLabel="W" value={state.box.widthMm} min={10} max={400} onChange={(value) => dispatch({ type: "update-box", field: "widthMm", value })} />
               {twoPiece ? (
@@ -884,31 +849,8 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
             </div>
           </div>
 
-          <div className={`size-section size-section-box-type ${sizeMobileTab === "box-type" ? "is-mobile-active" : ""}`}>
-            <div className="card-title"><span>1</span><div><h2>箱形式</h2><p>{boxCopy.structure}</p></div></div>
-            <div className="box-type-grid" role="group" aria-label="箱形式を選択">
-              {SIZE_BOX_TYPES.map((type) => {
-                const copy = BOX_TYPE_COPY[type];
-                return (
-                <button
-                  key={type}
-                  className={`box-type-button ${state.box.type === type ? "is-selected" : ""}`}
-                  type="button"
-                  aria-pressed={state.box.type === type}
-                  onClick={() => dispatch({ type: "set-box-type", boxType: type })}
-                >
-                  <div className="box-type-copy">
-                    <strong>{copy.name}</strong>
-                    <small>{copy.description}</small>
-                  </div>
-                  <span aria-hidden="true"><BoxTypeIcon className="box-type-icon" type={type} /></span>
-                </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className={`size-section size-section-paper-structure ${sizeMobileTab === "paper-structure" ? "is-mobile-active" : ""}`}>
+          <div className="size-options-row">
+          <details className="size-section size-section-paper-structure size-extra"><summary>⚙ 詳細設定</summary>
             <div className="form-section-heading"><h3>用紙・構造オプション</h3><p>紙厚やのりしろ幅を調整</p></div>
             <div className="option-grid">
               <NumberField label="紙の厚み" value={state.box.paperThicknessMm} min={0.1} max={2} step={0.01} onChange={(value) => dispatch({ type: "update-box", field: "paperThicknessMm", value })} hint={twoPiece ? "300gsm厚紙目安：0.4mm" : "コピー用紙：0.09mm／厚紙：0.2〜0.4mm"} />
@@ -937,9 +879,9 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
                   ? "底面・4側面・ヒンジフタはすべてつながっています。4つののりしろで浅いトレーを作り、左右フラップを内側へ折ってフタの舌を前面へ差し込みます。"
                   : "紙厚は差し込み部の逃げに反映します。"}</p>
             </div>
-          </div>
+          </details>
 
-          <div className={`size-section size-section-favorites ${sizeMobileTab === "favorites" ? "is-mobile-active" : ""}`}>
+          <details className="size-section size-section-favorites size-extra"><summary>☆ お気に入り寸法</summary>
             <section className="favorite-size-section" aria-labelledby="favorite-size-title">
               <div className="form-section-heading"><h3 id="favorite-size-title">お気に入り寸法</h3><p>現在の箱形式と寸法一式を、名前を付けて端末内へ登録</p></div>
               <div className="favorite-size-register">
@@ -961,6 +903,11 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
                 </div>
               ) : <p className="favorite-size-empty">よく使う寸法を登録すると、次回からワンタップで呼び出せます。</p>}
             </section>
+          </details>
+          </div>
+          <div className="size-primary-row">
+            <button className="primary-button size-design-button" type="button" onClick={() => dispatch({ type: "go", screen: "design" })}>デザインする →</button>
+            <div className="size-inline-fit"><FitSummaryNotice pages={pages} /></div>
           </div>
         </section>
 
@@ -991,14 +938,9 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
           </div>
           <p className="size-paper-caption">A4用紙との比率で表示。画面表示のみ縮小し、PDFの展開図は100%実寸です。</p>
           <LineLegend geometry={activePage.geometry} lineColors={state.lineColors} />
-          <div className="fit-notice-stack">{pages.map((page) => <FitNotice key={page.id} geometry={page.geometry} fit={page.fit} label={page.label} />)}</div>
         </section>
       </div>
 
-      <div className="sticky-actions" data-ui-id="size.actions">
-        <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: "home" })}>戻る</button>
-        <button className="primary-button" type="button" onClick={() => dispatch({ type: "go", screen: "design" })}>デザインに進む <span>→</span></button>
-      </div>
     </main>
   );
 }
@@ -1485,7 +1427,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const designActionButtons = (className: string) => (
     <div className={className}>
       <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: isLetterSetDesign ? "letter-set" : template ? "templates" : "size" })}>{isLetterSetDesign ? "セットを選び直す" : template ? "型を選び直す" : "サイズに戻る"}</button>
-      <button className="primary-button" type="button" onClick={() => dispatch({ type: "go", screen: "print" })}>PDFを確認 <span>▣</span></button>
+      <button className="primary-button" type="button" onClick={() => dispatch({ type: "go", screen: "print" })}>印刷へ <span>→</span></button>
     </div>
   );
 
@@ -1551,7 +1493,8 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
               <button className="canvas-zoom-toggle" type="button" aria-label={zoomControlsOpen ? "拡大表示を閉じる" : "拡大表示"} title="拡大表示" aria-expanded={zoomControlsOpen} onClick={() => setZoomControlsOpen((open) => !open)}><MagnifyIcon /></button>
             </div>
           </div>
-          {geometry.type === "envelope-v1" ? <p className="canvas-caption envelope-canvas-caption"><strong>完成品：横 {mm(geometry.input.widthMm)} × 縦 {mm(geometry.input.heightMm)}{geometry.input.widthMm === 162 && geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong>{geometry.envelope?.construction === "kamasu" ? <><span>カマス貼り ／ A フタ {mm(geometry.envelope.topFlapMm)} ／ 左右のりしろ 各{mm(geometry.envelope.glueWidthMm)}</span><span>Cの左右を内側へ折り、Bを重ねて貼ります。AとCは完成時の向きで配置されます。</span></> : <><span>上 {mm(geometry.envelope?.topFlapMm ?? 0)} ／ 下 {mm(geometry.envelope?.bottomFlapMm ?? 0)} ／ 左右 各{mm(geometry.envelope?.sideFlapMm ?? 0)}</span><span>左右 → 下の順に折り、貼って袋状にします。</span></>}</p> : <p className="canvas-caption">画面では見やすい大きさに拡大表示しています。<br />印刷寸法は下のmm値とPDFの実寸座標が基準です。</p>}
+          {geometry.type === "envelope-v1" ? <p className="canvas-caption envelope-canvas-caption"><strong>完成 {mm(geometry.input.widthMm)} × {mm(geometry.input.heightMm)}</strong><span>折り方は「組み立て見本」へ</span></p> : <p className="canvas-caption">画面は拡大表示・PDFは実寸です。</p>}
+
         </section>
 
         {editorCategoryTabs("below-canvas")}
@@ -1560,7 +1503,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
           {faceEditing && <div className="edit-scope-bar"><div className="background-scope-picker" role="group" aria-label="編集する範囲"><button type="button" className={backgroundScope === "all" ? "is-selected" : ""} onClick={() => setBackgroundScope("all")}>全体</button><button type="button" className={backgroundScope === "face" ? "is-selected" : ""} onClick={() => setBackgroundScope("face")}>選択面</button></div><button className="scope-guide-button" type="button" aria-label="組み立て見本" onClick={() => setSampleGuideOpen(true)}>?</button></div>}
           {state.openEditorSection === "artwork" && (
             <div className="drawer-section background-editor-workspace">
-              <DesignColorControl className="background-color-control" label={faceEditing ? backgroundScope === "all" ? "セット全体の背景色" : `${envelopeFaceLetter(state.activeEnvelopeFace)}の背景色` : "基本背景色"} favoriteLabel="背景色" value={faceEditing && backgroundScope === "face" ? state.activeEnvelopeFace === "envelope-flap" && state.envelopeDesign.flapAccentEnabled ? state.envelopeDesign.flapColor : state.surfaceBackgroundColors[state.activeEnvelopeFace] ?? design.backgroundColor : design.backgroundColor} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={setScopedBackgroundColor} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
+              <DesignColorControl className="background-color-control" label={faceEditing ? backgroundScope === "all" ? "セット全体の背景色" : `${state.activeEnvelopeFace === "envelope-flap" ? "フタ" : state.activeEnvelopeFace === "envelope-front" ? "おもて" : "うら"}の色` : "基本背景色"} favoriteLabel="背景色" value={faceEditing && backgroundScope === "face" ? state.activeEnvelopeFace === "envelope-flap" && state.envelopeDesign.flapAccentEnabled ? state.envelopeDesign.flapColor : state.surfaceBackgroundColors[state.activeEnvelopeFace] ?? design.backgroundColor : design.backgroundColor} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={setScopedBackgroundColor} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
               {state.box.type === "two-piece-gift-box-v1" && activePage.id === "lid" && (
                 <div className="background-copy-control">
                   <button className="outline-button full-button" type="button" onClick={copyLidBackgroundToBase}>背景を本体にもコピー</button>
@@ -1582,7 +1525,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
 
               <section className="background-editor-zone placed-artwork-zone">
                 <strong className="background-editor-zone-title">配置済み</strong>
-                {pageArtworkLayers.length > 0 ? <div className="placed-artwork-grid" aria-label="配置済みの背景・模様">{pageArtworkLayers.map((item) => <div key={item.id} className={`placed-artwork-card ${state.selectedArtworkId === item.id ? "is-selected" : ""}`}><button className="placed-artwork-select" type="button" aria-label={`${item.name}を選択`} title={item.name} onClick={() => dispatch({ type: "select-artwork", id: item.id })}><ArtworkThumbnail item={item} /></button><button className="placed-artwork-visibility" type="button" aria-label={`${item.name}を${item.visible ? "非表示" : "表示"}`} onClick={() => dispatch({ type: "update-artwork", id: item.id, patch: { visible: !item.visible } })}>{item.visible ? "●" : "○"}</button></div>)}</div> : <p className="artwork-zone-empty">上の一覧から模様を追加してください。</p>}
+                {pageArtworkLayers.length > 0 ? <div className="placed-artwork-grid" aria-label="配置済みの背景・模様">{pageArtworkLayers.map((item) => <div key={item.id} className={`placed-artwork-card ${state.selectedArtworkId === item.id ? "is-selected" : ""}`}><button className="placed-artwork-select" type="button" aria-label={`${item.name}を選択`} title={item.name} onClick={() => dispatch({ type: "select-artwork", id: item.id })}><ArtworkThumbnail item={item} /></button><button className="placed-artwork-visibility" type="button" aria-label={`${item.name}を${item.visible ? "非表示" : "表示"}`} onClick={() => dispatch({ type: "update-artwork", id: item.id, patch: { visible: !item.visible } })}>{item.visible ? "●" : "○"}</button></div>)}</div> : <p className="artwork-zone-empty">模様をタップして追加</p>}
               </section>
 
               <section className="background-editor-zone artwork-adjust-zone">
@@ -1623,7 +1566,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                     <button type="button" aria-label="下へ1mm" title="下へ" onClick={() => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { offsetYmm: roundMm(clamp(selectedArtwork.offsetYmm + 1, -geometry.bounds.heightMm, geometry.bounds.heightMm), 1) } })}>↓</button>
                   </div>
                 </div>
-                ) : <p className="artwork-zone-empty">配置済みの背景・模様を選択してください。</p>}
+                ) : <p className="artwork-zone-empty">調整する模様をタップ</p>}
               </section>
             </div>
           )}
@@ -1997,7 +1940,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
             )}
             {!clientContext.isIPhone && !clientContext.isAndroid && printablePdf?.canShare && <small className="pdf-share-help">共有画面が開いたら「プリント」または「“ファイル”に保存」を選んでください。</small>}
           </div>
-          <p className="privacy-copy">PDFはこの端末内で作成します。作品をクラウド保存した場合だけ、作品JSONと追加画像を非公開のSupabaseへ送信します。</p>
+          <p className="privacy-copy">PDFは端末に保存されます。</p>
           {hasOverflow && <p className="blocked-copy">{state.box.type === "envelope-v1" ? "封筒の展開図がA4に収まらないため出力を停止しています。デザイン画面の詳細設定で完成サイズを小さくしてください。" : "蓋または本体がA4に収まらないため出力を停止しています。サイズ設定へ戻って寸法を小さくしてください。"}</p>}
         </aside>
       </div>
@@ -2193,7 +2136,7 @@ export function App() {
         if (!mounted || !draft) return;
         dispatch({ type: "replace-state", state: {
           ...draft.state,
-          screen: !CLOUD_SYNC_UI_ENABLED && draft.state.screen === "my-boxes" ? "home" : draft.state.screen,
+          screen: "home",
         } });
         setWorkspace(draft.workspace);
         setShouldPersistLocalDraft(true);
@@ -2366,9 +2309,9 @@ export function App() {
     }
   }, [confirmDiscard]);
 
-  const startNew = useCallback(() => {
+  const startNew = useCallback((boxType: BoxType = "straight-tuck-carton-v1") => {
     if (!confirmDiscard()) return;
-    const next = { ...initialState, screen: "size" as const };
+    const next = { ...appReducer(initialState, { type: "set-box-type", boxType }), screen: "size" as const };
     dispatch({ type: "replace-state", state: next });
     setHasRestoredLocalDraft(false);
     setShouldPersistLocalDraft(true);
@@ -2491,45 +2434,13 @@ export function App() {
   const [settingsSheetOpen, setSettingsSheetOpen] = useState(false);
 
   const isBoxType = state.box.type !== "envelope-v1";
-  const bottomNavActiveTab: BottomNavTab =
-    state.screen === "my-boxes" ? "my-designs" :
-    state.screen === "letter-set" ? "letter-set" :
-    (state.screen === "size" || state.screen === "design" || state.screen === "print")
-      ? (isBoxType ? "box" : "letter-set")
-      : "letter-set";
+  const bottomNavActiveTab: BottomNavTab = state.screen === "my-boxes" ? "my-designs" : "home";
   const canUndo = historyVersion >= 0 && historyRef.current.undo !== null;
   const canRedo = historyVersion >= 0 && historyRef.current.redo !== null;
 
   const handleBottomNavChange = (tab: BottomNavTab) => {
-    if (tab === "new") {
-      setNewCreationSheetOpen(true);
-      return;
-    }
-    if (tab === "settings") {
-      setSettingsSheetOpen(true);
-      return;
-    }
-    if (tab === "my-designs") {
-      dispatch({ type: "go", screen: "my-boxes" });
-      return;
-    }
-    if (tab === "box") {
-      if (!isBoxType || state.screen === "letter-set") {
-        startNew();
-      } else {
-        dispatch({ type: "go", screen: "design" });
-      }
-      return;
-    }
-    if (tab === "letter-set") {
-      if (isBoxType) {
-        if (confirmDiscard()) {
-          dispatch({ type: "go", screen: "letter-set" });
-        }
-      } else {
-        dispatch({ type: "go", screen: "design" });
-      }
-    }
+    if (tab === "settings") setSettingsSheetOpen(true);
+    else dispatch({ type: "go", screen: tab === "my-designs" ? "my-boxes" : "home" });
   };
 
   return (
@@ -2551,7 +2462,8 @@ export function App() {
         onDeleteAccount={() => { void deleteAccount(); }}
       />
       {clientContext.isInstagramInAppBrowser && <InstagramBrowserNotice hasBrowserOnlyWork={saveState === "dirty" || saveState === "error" || saveState === "conflict"} onOpenGuide={() => setInstallGuideOpen(true)} />}
-      {(state.screen === "home" || state.screen === "letter-set") && <LetterSetSelectScreen onSelect={startLetterSet} />}
+      {state.screen === "home" && <CreationHome onBox={startNew} onLetter={startLetterSet} onMore={() => dispatch({ type: "go", screen: "letter-set" })} onResume={shouldPersistLocalDraft ? () => dispatch({ type: "go", screen: "design" }) : null} resumeLabel={state.box.type === "envelope-v1" ? "レターセット" : BOX_TYPE_COPY[state.box.type].name} />}
+      {state.screen === "letter-set" && <LetterSetSelectScreen onSelect={startLetterSet} />}
       {state.screen === "templates" && <TemplateScreen onBack={() => dispatch({ type: "go", screen: "home" })} onSelect={startTemplate} unlockedThemePackIds={unlockedThemePackIds} />}
       {state.screen === "size" && <SizeScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
       {state.screen === "design" && <DesignScreen key={user?.id ?? "device"} imageOwner={user?.id ?? "device"} state={state} dispatch={dispatch} pages={pages} activePage={activePage} unlockedThemePackIds={unlockedThemePackIds} hasFreeTrialEntitlement={hasFreeTrialEntitlement} onUnlockThemePack={requestThemeUnlock} />}
@@ -2560,13 +2472,13 @@ export function App() {
         <MyBoxesScreen
           user={user}
           onLogin={() => { void login(); }}
-          onBack={() => dispatch({ type: "go", screen: isBoxType ? "home" : "letter-set" })}
-          onNew={() => setNewCreationSheetOpen(true)}
+          onBack={() => dispatch({ type: "go", screen: "home" })}
+          onNew={() => dispatch({ type: "go", screen: "home" })}
           onOpen={openProject}
           onWorkspaceChange={(updated) => { if (workspace?.id === updated.id) setWorkspace(updated); }}
         />
       )}
-      {state.screen !== "size" && state.screen !== "design" && state.screen !== "print" && (
+      {state.screen !== "home" && state.screen !== "size" && state.screen !== "design" && state.screen !== "print" && (
         <footer className="app-footer"><strong>うさぽん パッケージメーカー</strong><span>未保存は端末内／保存作品は非公開クラウド</span>{installContext.isStandalone ? <span>ホーム画面版で起動中</span> : <button type="button" onClick={() => setInstallGuideOpen(true)}>ホーム画面に追加する</button>}<a href={`${import.meta.env.BASE_URL}privacy.html`}>プライバシーポリシー</a></footer>
       )}
       <BottomNavBar activeTab={bottomNavActiveTab} onChange={handleBottomNavChange} />
