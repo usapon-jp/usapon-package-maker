@@ -1566,9 +1566,10 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
               <section className="background-editor-zone artwork-adjust-zone">
                 <strong className="background-editor-zone-title">背景・模様の調整{selectedArtwork ? <span>{selectedArtwork.name}</span> : null}</strong>
                 {selectedArtwork ? (
-                <div className="selected-layer-controls">
+                <div className={`selected-layer-controls background-adjust-controls is-${selectedArtwork.kind}`}>
                   <strong className="selected-layer-title">{selectedArtwork.name}</strong>
                   <label className="range-control"><span>透明度 <output>{Math.round(selectedArtwork.opacity * 100)}%</output></span><input type="range" min="0.1" max="1" step="0.05" value={selectedArtwork.opacity} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { opacity: Number(event.target.value) } })} /></label>
+                  <div className="layer-action-row"><button type="button" onClick={() => dispatch({ type: "move-artwork", id: selectedArtwork.id, direction: "backward" })}>← 背面</button><button type="button" onClick={() => dispatch({ type: "move-artwork", id: selectedArtwork.id, direction: "forward" })}>前面 →</button><button type="button" onClick={() => dispatch({ type: "duplicate-artwork", id: selectedArtwork.id, newId: crypto.randomUUID() })}>複製</button><button className="danger" type="button" onClick={() => dispatch({ type: "remove-artwork", id: selectedArtwork.id })}>削除</button></div>
                   {selectedArtwork.kind === "stripe-pattern" && (
                     <>
                       <DesignColorControl label="ストライプ色" value={selectedArtwork.color} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={(color) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
@@ -1594,7 +1595,6 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                     <FineTuneControl label="横位置 X" value={roundMm(selectedArtwork.offsetXmm, 1)} min={-geometry.bounds.widthMm} max={geometry.bounds.widthMm} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { offsetXmm: value } })} />
                     <FineTuneControl label="縦位置 Y" value={roundMm(selectedArtwork.offsetYmm, 1)} min={-geometry.bounds.heightMm} max={geometry.bounds.heightMm} onChange={(value) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { offsetYmm: value } })} />
                   </div>
-                  <div className="layer-action-row"><button type="button" onClick={() => dispatch({ type: "move-artwork", id: selectedArtwork.id, direction: "backward" })}>← 背面</button><button type="button" onClick={() => dispatch({ type: "move-artwork", id: selectedArtwork.id, direction: "forward" })}>前面 →</button><button type="button" onClick={() => dispatch({ type: "duplicate-artwork", id: selectedArtwork.id, newId: crypto.randomUUID() })}>複製</button><button className="danger" type="button" onClick={() => dispatch({ type: "remove-artwork", id: selectedArtwork.id })}>削除</button></div>
                 </div>
                 ) : <p className="artwork-zone-empty">配置済みの背景・模様を選択してください。</p>}
               </section>

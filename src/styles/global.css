@@ -2635,9 +2635,48 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .range-control input[type="range"], .stamp-adjust-range input[type="range"] { appearance: none; height: 6px; border-radius: 99px; background: #e8d9d2; accent-color: #d9798e; }
 .range-control input[type="range"]::-webkit-slider-thumb, .stamp-adjust-range input[type="range"]::-webkit-slider-thumb { appearance: none; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; background: #d9798e; box-shadow: 0 1px 4px #c7a99d; }
 .range-control input[type="range"]::-moz-range-thumb, .stamp-adjust-range input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; background: #d9798e; }
+.artwork-adjust-zone { padding-bottom: 6px; }
+.background-adjust-controls { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; margin-top: 4px; padding: 6px 8px; }
+.background-adjust-controls > .selected-layer-title { display: none; }
+.background-adjust-controls > .range-control { display: grid; grid-template-columns: 84px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 28px; margin: 0; }
+.background-adjust-controls > .range-control > span { margin: 0; font-size: 11px; white-space: nowrap; }
+.background-adjust-controls > .fine-tune-control,
+.background-adjust-controls .background-position-controls .fine-tune-control { display: grid; grid-template-columns: 84px minmax(0, 1fr); align-items: center; gap: 8px; min-height: 30px; margin: 0; }
+.background-adjust-controls .fine-tune-control > div:first-child { margin: 0; font-size: 11px; white-space: nowrap; }
+.background-adjust-controls .fine-tune-control > div:last-child { grid-template-columns: 28px minmax(0, 1fr) 28px; gap: 5px; }
+.background-adjust-controls .fine-tune-control button { width: 28px; height: 28px; border-radius: 8px; font-size: 15px; }
+.background-adjust-controls .fine-tune-control input[type="range"] { appearance: none; height: 6px; border-radius: 99px; background: #e8d9d2; accent-color: #d9798e; }
+.background-adjust-controls .fine-tune-control input[type="range"]::-webkit-slider-thumb { appearance: none; width: 18px; height: 18px; border: 2px solid white; border-radius: 50%; background: #d9798e; box-shadow: 0 1px 4px #c7a99d; }
+.background-adjust-controls .fine-tune-control input[type="range"]::-moz-range-thumb { width: 15px; height: 15px; border: 2px solid white; border-radius: 50%; background: #d9798e; }
+.background-adjust-controls > .toggle-row { min-height: 32px; margin: 0; padding: 0 4px; }
+.background-adjust-controls > .toggle-row strong { font-size: 11px; }
+.background-adjust-controls > .toggle-row small { display: none; }
+.background-adjust-controls > .rotate-button { min-height: 32px; margin: 0; }
+.background-adjust-controls.is-uploaded-artwork > .toggle-row,
+.background-adjust-controls.is-uploaded-artwork > .rotate-button { grid-row: auto; }
+.background-position-controls { display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; margin: 0; padding: 0; }
+.background-adjust-controls .layer-action-row { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; margin-top: 2px; }
+.background-adjust-controls .layer-action-row button { min-height: 30px; font-size: 11px; }
+.background-adjust-controls .select-row { min-height: 32px; margin: 0; font-size: 11px; }
+.background-adjust-controls .select-row select { height: 30px; font-size: 11px; }
+.background-adjust-controls .mini-number-grid { margin-top: 0; }
+.background-adjust-controls > .design-color-control { margin: 0; }
+.background-adjust-controls > .design-color-control .color-row { min-height: 32px; margin: 0; font-size: 11px; }
+.background-adjust-controls > .design-color-control .circular-color-toggle { min-height: 30px; padding-block: 3px; }
+.background-adjust-controls > .design-color-control .design-color-palette,
+.background-adjust-controls > .design-color-control .favorite-color-section { display: none; }
 @media (min-width: 768px) {
   .antigravity-design-page .editor-controls:has(.stamp-editor-workspace) { overflow-y: auto; }
   .antigravity-design-page .stamp-editor-workspace { grid-template-rows: minmax(160px, 1fr) 76px 84px; min-height: 320px; overflow: visible; }
+  .background-adjust-controls.is-uploaded-artwork { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 10px; }
+  .background-adjust-controls.is-uploaded-artwork > .range-control,
+  .background-adjust-controls.is-uploaded-artwork > .fine-tune-control,
+  .background-adjust-controls.is-uploaded-artwork > .background-position-controls,
+  .background-adjust-controls.is-uploaded-artwork > .layer-action-row { grid-column: 1 / -1; }
+  .background-adjust-controls.is-uploaded-artwork > .toggle-row { grid-column: 1; }
+  .background-adjust-controls.is-uploaded-artwork > .rotate-button { grid-column: 2; }
+  .background-adjust-controls.is-uploaded-artwork > .background-position-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .background-adjust-controls.is-uploaded-artwork .background-position-controls .fine-tune-control { grid-template-columns: minmax(0, 1fr); gap: 3px; }
 }
 @media (max-width: 767px) {
   .letter-set-choice-card .choice-thumbnail-box { height: 128px; }
