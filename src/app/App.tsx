@@ -1,5 +1,7 @@
 import { previousScreen } from "./navigation";
 import { CreationHome } from "../components/common/CreationHome";
+import { MaterialNotice } from "../MaterialNotice";
+import { MaterialGallery } from "../MaterialGallery";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ChangeEvent, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 
@@ -2189,6 +2191,11 @@ export function App() {
     setHistoryVersion((version) => version + 1);
   }, []);
   useEffect(() => { stateRef.current = state; }, [state]);
+  const [authReady, setAuthReady] = useState(false);
+  const [materialOwner, setMaterialOwner] = useState("");
+  const [materialStatus, setMaterialStatus] = useState("loading");
+  const [materialPacks, setMaterialPacks] = useState<string[]>([]);
+  const [materialGallery, setMaterialGallery] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [canEditUi, setCanEditUi] = useState(false);
   const [unlockedThemePackIds, setUnlockedThemePackIds] = useState<string[]>([]);
@@ -2256,10 +2263,10 @@ export function App() {
   useEffect(() => {
     let mounted = true;
     if (CLOUD_SYNC_UI_ENABLED && isCloudConfigured) {
-      void currentUser().then((nextUser) => { if (mounted) setUser(nextUser); }).catch(() => undefined);
+      void currentUser().then((nextUser) => { if (mounted) { setUser(nextUser); setAuthReady(true); } }).catch(() => undefined);
     }
     const authSubscription = CLOUD_SYNC_UI_ENABLED ? supabase?.auth.onAuthStateChange((_event, session) => {
-      if (mounted) setUser(session?.user ?? null);
+      if (mounted) { setUser(session?.user ?? null); setAuthReady(true); }
     }).data.subscription : undefined;
     void loadLocalDraft()
       .then((draft) => {
@@ -2287,14 +2294,20 @@ export function App() {
 
   useEffect(() => {
     if (!user || !isCloudConfigured) {
+      setMaterialPacks([]); setMaterialStatus(authReady ? "signed-out" : "loading"); setMaterialGallery(null);
       setUnlockedThemePackIds([]);
       setHasFreeTrialEntitlement(false);
       return;
     }
+    setMaterialPacks([]); setMaterialStatus("loading"); setMaterialGallery(null);
     let mounted = true;
     const refreshEntitlements = () => {
-      void listThemePackEntitlements().then((ids) => { if (mounted) setUnlockedThemePackIds(ids); }).catch(() => undefined);
-      void hasFreeProductEntitlement(AUTUMN_TRIAL_PRODUCT_KEY, user.id).then((entitled) => { if (mounted) setHasFreeTrialEntitlement(entitled); }).catch(() => { if (mounted) setHasFreeTrialEntitlement(false); });
+      void Promise.all([listThemePackEntitlements(), hasFreeProductEntitlement(AUTUMN_TRIAL_PRODUCT_KEY, user.id)]).then(([ids, entitled]) => {
+        if (!mounted) return;
+        setUnlockedThemePackIds(ids); setHasFreeTrialEntitlement(entitled);
+        const packs = [...(ids.includes("autumn-letter-set") ? ["autumn-letter-set"] : []), ...(entitled ? [AUTUMN_TRIAL_PRODUCT_KEY] : [])];
+        setMaterialOwner(user.id); setMaterialPacks(packs); setMaterialStatus(packs.length ? "ready" : "none");
+      }).catch(() => { if (mounted) { setMaterialPacks([]); setMaterialStatus("error"); } });
     };
     refreshEntitlements();
     const refreshWhenVisible = () => { if (window.document.visibilityState === "visible") refreshEntitlements(); };
@@ -2312,7 +2325,7 @@ export function App() {
       window.removeEventListener("focus", refreshEntitlements);
       window.document.removeEventListener("visibilitychange", refreshWhenVisible);
     };
-  }, [user]);
+  }, [user, authReady]);
 
   useEffect(() => {
     if (!draftReady || saveState === "saving" || saveState === "conflict") return;
@@ -2350,10 +2363,12 @@ export function App() {
       await saveLocalDraft(state, workspace);
       oauthRedirecting.current = true;
       await signInWithGoogle();
+      return true;
     } catch (error) {
       oauthRedirecting.current = false;
       setSaveState("error");
       setSaveMessage(cloudErrorMessage(error));
+      return false;
     }
   }, [state, workspace]);
 
@@ -2612,6 +2627,8 @@ export function App() {
       {state.screen !== "home" && state.screen !== "letter-set" && state.screen !== "size" && state.screen !== "design" && state.screen !== "print" && (
         <footer className="app-footer"><strong>うさぽん パッケージメーカー</strong><span>未保存は端末内／保存作品は非公開クラウド</span>{installContext.isStandalone ? <span>ホーム画面版で起動中</span> : <button type="button" onClick={() => setInstallGuideOpen(true)}>ホーム画面に追加する</button>}<a href={`${import.meta.env.BASE_URL}privacy.html`}>プライバシーポリシー</a></footer>
       )}
+      <MaterialNotice app="package" userId={user?.id} status={user && materialOwner !== user.id ? "loading" : materialStatus} packs={materialOwner === user?.id ? materialPacks : []} onLogin={async () => { if (!await login()) throw new Error("LOGIN_FAILED"); }} onView={setMaterialGallery} />
+      {materialGallery && user && materialOwner === user.id && materialPacks.includes(materialGallery) && <MaterialGallery pack={materialGallery} onClose={() => setMaterialGallery(null)} />}
       <BottomNavBar activeTab={bottomNavActiveTab} onChange={handleBottomNavChange} />
 
       {newCreationSheetOpen && (
