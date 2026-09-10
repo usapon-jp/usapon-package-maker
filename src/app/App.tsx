@@ -80,7 +80,7 @@ import { SettingsSheetModal } from "../components/modals/SettingsSheetModal";
 import { AssembledEnvelopePreview } from "../components/common/AssembledEnvelopePreview";
 import { FinishedStationeryPreview } from "../components/common/FinishedStationeryPreview";
 import { FinishedStationeryDialog } from "../components/common/FinishedStationeryDialog";
-import { CopyIcon, DuplicatePlusIcon, EyeIcon, EyedropperIcon, LayerBackwardIcon, LayerForwardIcon, MagnifyIcon, RedoIcon, RotateIcon, SaveIcon, TrashIcon, UndoIcon } from "../components/common/UiIcons";
+import { CopyIcon, DuplicatePlusIcon, EyedropperIcon, LayerBackwardIcon, LayerForwardIcon, MagnifyIcon, PreviewIcon, RedoIcon, RotateIcon, SaveIcon, TrashIcon, UndoIcon } from "../components/common/UiIcons";
 import { isPackageUIEditorAdmin } from "../ui-editor/repository";
 
 const STAMP_SHOP_URL = "https://usapon-digital-shop.vercel.app/";
@@ -125,7 +125,7 @@ const BOX_TYPE_COPY: Record<BoxType, { name: string; description: string; struct
     description: "蓋と本体をA4 2枚で作る、上端二重の四隅接着箱",
     structure: "two-piece-gift-box-v1（蓋・本体分離／側面二重型）",
   },
-  "letter-paper-v1": { name: "便箋", description: "A4で印刷できる便箋", structure: "letter-paper-v1" },
+  "letter-paper-v1": { name: "便箋", description: "A4 1枚から2枚作れる便箋", structure: "letter-paper-v1" },
   "envelope-v1": { name: "封筒", description: "A4で作る封筒展開図", structure: "envelope-v1" },
   "mini-card-v1": { name: "ミニカード", description: "A4にまとめて印刷するカード", structure: "mini-card-v1" },
 };
@@ -570,7 +570,7 @@ function hsvToHex({ h, s, v }: HsvColor) {
   return `#${byte(red)}${byte(green)}${byte(blue)}`;
 }
 
-function CircularColorPicker({ label, value, favoriteLabel, favoriteColors, onChange, onAddFavorite }: { label: string; value: string; favoriteLabel: string; favoriteColors: string[]; onChange: (color: string) => void; onAddFavorite: (color: string) => void }) {
+function CircularColorPicker({ label, value, favoriteLabel, favoriteColors, onChange, onAddFavorite, onSelectComplete }: { label: string; value: string; favoriteLabel: string; favoriteColors: string[]; onChange: (color: string) => void; onAddFavorite: (color: string) => void; onSelectComplete?: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pointerMode = useRef<"hue" | "saturation" | null>(null);
   const [open, setOpen] = useState(false);
@@ -647,6 +647,7 @@ function CircularColorPicker({ label, value, favoriteLabel, favoriteColors, onCh
     try {
       const result = await new EyeDropperApi().open();
       onChange(result.sRGBHex.toLowerCase());
+      onSelectComplete?.();
     } catch {
       // Closing the browser eyedropper is a normal cancellation.
     }
@@ -688,8 +689,8 @@ function CircularColorPicker({ label, value, favoriteLabel, favoriteColors, onCh
           </div>
           <label className="circular-brightness-row"><span>明るさ <output>{Math.round(hsv.v * 100)}%</output></span><input aria-label={`${label}の明るさ`} type="range" min="0" max="1" step="0.01" value={hsv.v} onChange={(event) => applyHsv({ ...hsv, v: Number(event.target.value) })} /></label>
           <label className="circular-hex-row"><span>HEX</span><input aria-label={`${label}のHEX値`} value={hexDraft} maxLength={7} onChange={(event) => { const next = event.target.value.toUpperCase(); setHexDraft(next); if (/^#[0-9A-F]{6}$/.test(next)) onChange(next.toLowerCase()); }} onBlur={() => setHexDraft(value.toUpperCase())} /></label>
-          {favoriteColors.length > 0 && <div className="circular-favorite-colors"><small>お気に入り</small><div>{favoriteColors.map((color) => <button key={color} type="button" className={value.toLowerCase() === color.toLowerCase() ? "is-selected" : ""} style={{ "--favorite-color": color } as CSSProperties} aria-label={`お気に入り ${color}`} title={color} onClick={() => onChange(color)} />)}</div></div>}
-          <div className="circular-color-actions"><button type="button" className={`circular-color-favorite ${isFavorite ? "is-registered" : ""}`} onClick={() => onAddFavorite(value)} disabled={isFavorite} aria-label={`${favoriteLabel}をお気に入りに登録`}><span>{isFavorite ? "★ 登録済み" : "☆ 登録"}</span></button><button type="button" className="circular-color-confirm" onClick={() => setOpen(false)}>✓ この色に決定</button></div>
+          {favoriteColors.length > 0 && <div className="circular-favorite-colors"><small>お気に入り</small><div>{favoriteColors.map((color) => <button key={color} type="button" className={value.toLowerCase() === color.toLowerCase() ? "is-selected" : ""} style={{ "--favorite-color": color } as CSSProperties} aria-label={`お気に入り ${color}`} title={color} onClick={() => { onChange(color); onSelectComplete?.(); }} />)}</div></div>}
+          <div className="circular-color-actions"><button type="button" className={`circular-color-favorite ${isFavorite ? "is-registered" : ""}`} onClick={() => onAddFavorite(value)} disabled={isFavorite} aria-label={`${favoriteLabel}をお気に入りに登録`}><span>{isFavorite ? "★ 登録済み" : "☆ 登録"}</span></button><button type="button" className="circular-color-confirm" onClick={() => { setOpen(false); onSelectComplete?.(); }}>✓ この色に決定</button></div>
         </div>
       )}
     </div>
@@ -706,6 +707,7 @@ function DesignColorControl({
   onChange,
   onAddFavorite,
   onRemoveFavorite,
+  onSelectComplete,
   extraPalettes = [],
 }: {
   label: string;
@@ -717,6 +719,7 @@ function DesignColorControl({
   onChange: (color: string) => void;
   onAddFavorite: (color: string) => void;
   onRemoveFavorite: (color: string) => void;
+  onSelectComplete?: () => void;
   extraPalettes?: Array<{ label: string; colors: Array<{ name: string; value: `#${string}` }> }>;
 }) {
   const palettes = [
@@ -724,7 +727,8 @@ function DesignColorControl({
     { label: "参考画像・おすすめ", colors: RECOMMENDED_DESIGN_COLORS },
     ...extraPalettes,
   ];
-  const colorPicker = <CircularColorPicker label={label} value={value} favoriteLabel={favoriteLabel} favoriteColors={favoriteColors} onChange={onChange} onAddFavorite={onAddFavorite} />;
+  const chooseColor = (color: string) => { onChange(color); onSelectComplete?.(); };
+  const colorPicker = <CircularColorPicker label={label} value={value} favoriteLabel={favoriteLabel} favoriteColors={favoriteColors} onChange={onChange} onAddFavorite={onAddFavorite} onSelectComplete={onSelectComplete} />;
   return (
     <div className={`design-color-control ${className}`}>
       <div className="color-row"><strong>{label}</strong>{compact && colorPicker}</div>
@@ -740,7 +744,7 @@ function DesignColorControl({
                 style={{ "--design-color": color.value } as CSSProperties}
                 aria-label={`${color.name} ${color.value}`}
                 title={`${color.name} ${color.value}`}
-                onClick={() => onChange(color.value)}
+                onClick={() => chooseColor(color.value)}
               />
             ))}
           </div>
@@ -752,7 +756,7 @@ function DesignColorControl({
           <div className="favorite-color-swatches">
             {favoriteColors.map((color) => (
               <span key={color}>
-                <button type="button" className={value.toLowerCase() === color ? "is-selected" : ""} style={{ "--design-color": color } as CSSProperties} aria-label={`お気に入り ${color}`} title={color} onClick={() => onChange(color)} />
+                <button type="button" className={value.toLowerCase() === color ? "is-selected" : ""} style={{ "--design-color": color } as CSSProperties} aria-label={`お気に入り ${color}`} title={color} onClick={() => chooseColor(color)} />
                 <button type="button" aria-label={`${color}をお気に入りから削除`} title="お気に入りから削除" onClick={() => onRemoveFavorite(color)}>×</button>
               </span>
             ))}
@@ -1069,6 +1073,10 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [canvasCenter, setCanvasCenter] = useState({ x: geometry.bounds.widthMm / 2, y: geometry.bounds.heightMm / 2 });
   const [zoomControlsOpen, setZoomControlsOpen] = useState(false);
+  const zoomControlsRef = useRef<HTMLDivElement>(null);
+  const [backgroundPaletteOpen, setBackgroundPaletteOpen] = useState(false);
+  const [patternLibraryOpen, setPatternLibraryOpen] = useState(false);
+  const [artworkPanel, setArtworkPanel] = useState<{ id: string; mode: "color" | "adjust" } | null>(null);
   const [favoriteColors, setFavoriteColors] = useState<string[]>(() => {
     try {
       return parseFavoriteColors(window.localStorage.getItem(FAVORITE_COLORS_STORAGE_KEY));
@@ -1114,7 +1122,19 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     setCanvasZoom(1);
     setCanvasCenter({ x: geometry.bounds.widthMm / 2, y: geometry.bounds.heightMm / 2 });
     setZoomControlsOpen(false);
+    setBackgroundPaletteOpen(false);
+    setPatternLibraryOpen(false);
+    setArtworkPanel(null);
   }, [activePage.id]);
+
+  useEffect(() => {
+    if (!zoomControlsOpen) return;
+    const closeZoomControls = (event: PointerEvent) => {
+      if (!zoomControlsRef.current?.contains(event.target as Node)) setZoomControlsOpen(false);
+    };
+    document.addEventListener("pointerdown", closeZoomControls);
+    return () => document.removeEventListener("pointerdown", closeZoomControls);
+  }, [zoomControlsOpen]);
 
   const resetCanvasZoom = () => {
     setCanvasZoom(1);
@@ -1122,7 +1142,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   };
 
   const canvasZoomControl = (
-    <div className={`canvas-zoom-controls ${zoomControlsOpen ? "is-open" : ""}`} aria-label="展開図のズーム操作">
+    <div ref={zoomControlsRef} className={`canvas-zoom-controls ${zoomControlsOpen ? "is-open" : ""}`} aria-label="展開図のズーム操作">
       {zoomControlsOpen && <div className="canvas-zoom-popover">
         <output aria-live="polite">{canvasZoom.toFixed(1)}倍</output>
         <CanvasZoomSlider value={canvasZoom} onChange={setCanvasZoom} />
@@ -1371,6 +1391,17 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     }
   };
 
+  const backgroundColorLabel = faceEditing
+    ? backgroundScope === "all"
+      ? "セット全体の背景色"
+      : `${state.activeEnvelopeFace === "envelope-flap" ? "フタ" : state.activeEnvelopeFace === "envelope-front" ? "おもて" : "うら"}の色`
+    : "背景色";
+  const scopedBackgroundColor = faceEditing && backgroundScope === "face"
+    ? state.activeEnvelopeFace === "envelope-flap" && state.envelopeDesign.flapAccentEnabled
+      ? state.envelopeDesign.flapColor
+      : state.surfaceBackgroundColors[state.activeEnvelopeFace] ?? design.backgroundColor
+    : design.backgroundColor;
+
   const shareEnvelopeDesignWithSet = () => {
     const sourcePage = pages.find((page) => page.id === "main");
     const targetPages = pages.filter((page) => page.id === "letter" || page.id === "card");
@@ -1468,7 +1499,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
           )}
           {canvasToolbar("desktop-canvas-toolbar", false)}
           <div className="dieline-stage editor-stage">
-            {canvasToolbar("mobile-canvas-toolbar")}
+            {canvasToolbar("mobile-canvas-toolbar", false)}
             <DielineSvg
               geometry={geometry}
               {...design}
@@ -1514,14 +1545,16 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
               onMoveText={(id, xMm, yMm) => { const item = design.texts.find((candidate) => candidate.id === id); const point = clampToEnvelopeFace(geometry, faceEditing ? item?.surfaceId : undefined, xMm, yMm); dispatch({ type: "update-text", id, patch: point }); }}
               onSelectEnvelopeFace={faceScopedEditing ? (faceId) => dispatch({ type: "set-envelope-face", faceId }) : undefined}
             />
-            {isStationeryPage && <button className="finished-box-trigger stationery-preview-trigger" type="button" onClick={() => setFinishedPreviewOpen(true)}><EyeIcon /><span>プレビュー</span></button>}
-            {isStationeryPage && canvasZoomControl}
+            <div className="canvas-view-actions canvas-stage-actions" aria-label="展開図の表示操作">
+              {(isStationeryPage || isPreviewBox(state.box.type)) && <button className="finished-box-trigger" type="button" aria-label="A4印刷プレビュー" title="A4印刷プレビュー" onClick={() => setFinishedPreviewOpen(true)}><PreviewIcon /></button>}
+              {canvasZoomControl}
+            </div>
           </div>
-          {!isStationeryPage && <div className="canvas-view-actions" aria-label="展開図の表示操作">
-            {isPreviewBox(state.box.type) && <button className="finished-box-trigger" type="button" onClick={() => setFinishedPreviewOpen(true)}><EyeIcon /><span>プレビュー</span></button>}
-            {canvasZoomControl}
-          </div>}
-          {geometry.type === "envelope-v1" ? <p className="canvas-caption envelope-canvas-caption"><strong>完成 {mm(geometry.input.widthMm)} × {mm(geometry.input.heightMm)}</strong><span>画面は拡大表示・PDFは実寸です。</span></p> : <p className="canvas-caption">画面は拡大表示・PDFは実寸です。</p>}
+          {geometry.type === "envelope-v1"
+            ? <p className="canvas-caption envelope-canvas-caption"><strong>完成 {mm(geometry.input.widthMm)} × {mm(geometry.input.heightMm)}</strong><span>画面は拡大表示・PDFは実寸です。</span></p>
+            : geometry.type === "letter-paper-v1"
+              ? <p className="canvas-caption letter-sheet-caption"><strong>便箋1枚を編集中</strong><span>印刷時はA4に2面割り付けします。</span></p>
+              : <p className="canvas-caption">画面は拡大表示・PDFは実寸です。</p>}
 
         </section>
 
@@ -1531,7 +1564,15 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
           {faceEditing && <div className="edit-scope-bar"><div className="background-scope-picker" role="group" aria-label="編集する範囲"><button type="button" className={backgroundScope === "all" ? "is-selected" : ""} onClick={() => setBackgroundScope("all")}>全体</button><button type="button" className={backgroundScope === "face" ? "is-selected" : ""} onClick={() => setBackgroundScope("face")}>選択面</button></div></div>}
           {state.openEditorSection === "artwork" && (
             <div className="drawer-section background-editor-workspace">
-              <DesignColorControl className="background-color-control" label={faceEditing ? backgroundScope === "all" ? "セット全体の背景色" : `${state.activeEnvelopeFace === "envelope-flap" ? "フタ" : state.activeEnvelopeFace === "envelope-front" ? "おもて" : "うら"}の色` : "基本背景色"} favoriteLabel="背景色" value={faceEditing && backgroundScope === "face" ? state.activeEnvelopeFace === "envelope-flap" && state.envelopeDesign.flapAccentEnabled ? state.envelopeDesign.flapColor : state.surfaceBackgroundColors[state.activeEnvelopeFace] ?? design.backgroundColor : design.backgroundColor} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={setScopedBackgroundColor} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
+              <section className={`background-color-disclosure ${backgroundPaletteOpen ? "is-open" : ""}`}>
+                <button className="background-color-summary" type="button" aria-expanded={backgroundPaletteOpen} onClick={() => { const next = !backgroundPaletteOpen; setBackgroundPaletteOpen(next); if (next) { setPatternLibraryOpen(false); setArtworkPanel(null); } }}>
+                  <strong>{backgroundColorLabel}</strong>
+                  <span className="background-summary-swatch" style={{ "--current-color": scopedBackgroundColor } as CSSProperties} aria-hidden="true" />
+                  <code>{scopedBackgroundColor.toUpperCase()}</code>
+                  <span className="disclosure-chevron" aria-hidden="true">⌄</span>
+                </button>
+                {backgroundPaletteOpen && <DesignColorControl className="background-color-control" label={backgroundColorLabel} favoriteLabel="背景色" value={scopedBackgroundColor} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={setScopedBackgroundColor} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} onSelectComplete={() => setBackgroundPaletteOpen(false)} />}
+              </section>
               {state.box.type === "two-piece-gift-box-v1" && activePage.id === "lid" && (
                 <div className="background-copy-control">
                   <button className="outline-button full-button" type="button" onClick={copyLidBackgroundToBase}>背景を本体にもコピー</button>
@@ -1540,31 +1581,45 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                 </div>
               )}
               <section className="background-editor-zone pattern-library-zone">
-                <strong className="background-editor-zone-title">模様一覧</strong>
-                <div className="pattern-preset-grid" aria-label="基本柄プリセット">
-                  <button type="button" aria-label="ストライプを追加" onClick={() => { const item = createStripePattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "stripe-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="stripe-preview" /></button>
-                  <button type="button" aria-label="水玉を追加" onClick={() => { const item = createDotPattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "dot-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); }}><i className="dot-preview" /></button>
-                  {otherStamps.filter((preset) => preset.key === "autumn-trial-cover").map((preset) => <button key={preset.key} className="pattern-upload-tile" type="button" disabled={uploadingArtwork} aria-label={`${preset.name}を背景に追加`} title={`${preset.name}を背景に追加`} onClick={() => { void addPresetArtwork(preset); }}><img src={`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`} alt="" aria-hidden="true" /></button>)}
+                <button className="pattern-library-summary" type="button" aria-expanded={patternLibraryOpen} onClick={() => { const next = !patternLibraryOpen; setPatternLibraryOpen(next); if (next) { setBackgroundPaletteOpen(false); setArtworkPanel(null); } }}>
+                  <strong>模様一覧</strong>
+                  <span className="pattern-summary-previews" aria-hidden="true">{pageArtworkLayers.slice(0, 3).map((item) => <span key={item.id}><ArtworkThumbnail item={item} /></span>)}{pageArtworkLayers.length === 0 && <i>＋</i>}</span>
+                  <span className="disclosure-chevron" aria-hidden="true">⌄</span>
+                </button>
+                {patternLibraryOpen && <div className="pattern-preset-grid" aria-label="基本柄プリセット">
+                  <button type="button" aria-label="ストライプを追加" onClick={() => { const item = createStripePattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "stripe-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); setPatternLibraryOpen(false); }}><i className="stripe-preview" /></button>
+                  <button type="button" aria-label="水玉を追加" onClick={() => { const item = createDotPattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "dot-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); setPatternLibraryOpen(false); }}><i className="dot-preview" /></button>
+                  {otherStamps.filter((preset) => preset.key === "autumn-trial-cover").map((preset) => <button key={preset.key} className="pattern-upload-tile" type="button" disabled={uploadingArtwork} aria-label={`${preset.name}を背景に追加`} title={`${preset.name}を背景に追加`} onClick={() => { setPatternLibraryOpen(false); void addPresetArtwork(preset); }}><img src={`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`} alt="" aria-hidden="true" /></button>)}
                   <button className="pattern-upload-tile" type="button" disabled={uploadingArtwork} aria-label="自分の画像を追加" title="自分の画像を追加" onClick={() => artworkFileInput.current?.click()}>{uploadingArtwork ? "…" : "+"}</button>
-                </div>
+                </div>}
                 <input ref={artworkFileInput} type="file" accept="image/png,image/svg+xml,.png,.svg" multiple hidden onChange={handleArtworkFiles} />
                 {artworkUploadError && <p className="field-error preserve-lines">{artworkUploadError}</p>}
               </section>
 
               <section className="background-editor-zone placed-artwork-zone">
                 <strong className="background-editor-zone-title">配置済み</strong>
-                {pageArtworkLayers.length > 0 ? <div className="placed-artwork-grid" aria-label="配置済みの背景・模様">{pageArtworkLayers.map((item) => <div key={item.id} className={`placed-artwork-card ${state.selectedArtworkId === item.id ? "is-selected" : ""}`}><button className="placed-artwork-select" type="button" aria-label={`${item.name}を選択`} title={item.name} onClick={() => dispatch({ type: "select-artwork", id: item.id })}><ArtworkThumbnail item={item} /></button><button className="placed-artwork-visibility" type="button" aria-label={`${item.name}を${item.visible ? "非表示" : "表示"}`} onClick={() => dispatch({ type: "update-artwork", id: item.id, patch: { visible: !item.visible } })}>{item.visible ? "●" : "○"}</button></div>)}</div> : <p className="artwork-zone-empty">模様をタップして追加</p>}
+                {pageArtworkLayers.length > 0 ? <div className="placed-artwork-grid" aria-label="配置済みの背景・模様">{pageArtworkLayers.map((item) => {
+                  const colorPanelOpen = artworkPanel?.id === item.id && artworkPanel.mode === "color";
+                  const adjustPanelOpen = artworkPanel?.id === item.id && artworkPanel.mode === "adjust";
+                  return <div key={item.id} className={`placed-artwork-item ${state.selectedArtworkId === item.id ? "is-selected" : ""}`}>
+                    <div className="placed-artwork-card">
+                      <button className="placed-artwork-select" type="button" aria-label={`${item.name}を選択`} title={item.name} onClick={() => dispatch({ type: "select-artwork", id: item.id })}><ArtworkThumbnail item={item} /></button>
+                      {item.kind !== "uploaded-artwork" && <button className="placed-artwork-color" type="button" aria-label={`${item.name}の色を変更`} title="模様の色" aria-expanded={colorPanelOpen} onClick={() => { dispatch({ type: "select-artwork", id: item.id }); setBackgroundPaletteOpen(false); setPatternLibraryOpen(false); setArtworkPanel(colorPanelOpen ? null : { id: item.id, mode: "color" }); }}><i style={{ "--current-color": item.color } as CSSProperties} /></button>}
+                      <button className="placed-artwork-adjust" type="button" aria-expanded={adjustPanelOpen} onClick={() => { dispatch({ type: "select-artwork", id: item.id }); setBackgroundPaletteOpen(false); setPatternLibraryOpen(false); setArtworkPanel(adjustPanelOpen ? null : { id: item.id, mode: "adjust" }); }}>調整する</button>
+                      <button className="placed-artwork-visibility" type="button" aria-label={`${item.name}を${item.visible ? "非表示" : "表示"}`} title={item.visible ? "非表示" : "表示"} onClick={() => dispatch({ type: "update-artwork", id: item.id, patch: { visible: !item.visible } })}>{item.visible ? "●" : "○"}</button>
+                    </div>
+                    {colorPanelOpen && item.kind !== "uploaded-artwork" && <DesignColorControl className="artwork-color-panel" label="模様の色" favoriteLabel="模様の色" value={item.color} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={(color) => dispatch({ type: "update-artwork", id: item.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} onSelectComplete={() => setArtworkPanel(null)} />}
+                  </div>;
+                })}</div> : <p className="artwork-zone-empty">模様を追加してください</p>}
               </section>
 
-              <section className="background-editor-zone artwork-adjust-zone">
-                <strong className="background-editor-zone-title">調整</strong>
-                {selectedArtwork ? (
+              {selectedArtwork && artworkPanel?.id === selectedArtwork.id && artworkPanel.mode === "adjust" && <section className="background-editor-zone artwork-adjust-zone">
+                <strong className="background-editor-zone-title">{selectedArtwork.name}の調整</strong>
                 <div className={`selected-layer-controls background-adjust-controls is-${selectedArtwork.kind}`}>
                   <strong className="selected-layer-title">{selectedArtwork.name}</strong>
                   <div className="layer-action-row"><button type="button" aria-label="背面へ移動" title="背面へ移動" onClick={() => dispatch({ type: "move-artwork", id: selectedArtwork.id, direction: "backward" })}><LayerBackwardIcon /><span>背面</span></button><button type="button" aria-label="前面へ移動" title="前面へ移動" onClick={() => dispatch({ type: "move-artwork", id: selectedArtwork.id, direction: "forward" })}><LayerForwardIcon /><span>前面</span></button><button type="button" aria-label="複製" title="複製" onClick={() => dispatch({ type: "duplicate-artwork", id: selectedArtwork.id, newId: crypto.randomUUID() })}><DuplicatePlusIcon /><span>複製</span></button><button className="danger" type="button" aria-label="削除" title="削除" onClick={() => dispatch({ type: "remove-artwork", id: selectedArtwork.id })}><TrashIcon /><span>削除</span></button></div>
-                  <div className={`background-opacity-color-row ${selectedArtwork.kind === "uploaded-artwork" ? "is-opacity-only" : ""}`}>
+                  <div className="background-opacity-color-row is-opacity-only">
                     <label className="range-control background-opacity-control"><span><i className="background-opacity-icon" aria-hidden="true" /><output>{Math.round(selectedArtwork.opacity * 100)}%</output></span><input aria-label="透明度" type="range" min="0.1" max="1" step="0.05" value={selectedArtwork.opacity} onChange={(event) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { opacity: Number(event.target.value) } })} /></label>
-                    {selectedArtwork.kind !== "uploaded-artwork" && <DesignColorControl compact label="色" favoriteLabel={selectedArtwork.kind === "dot-pattern" ? "水玉色" : "模様色"} value={selectedArtwork.color} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={(color) => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />}
                   </div>
                   {selectedArtwork.kind === "stripe-pattern" && (
                     <>
@@ -1594,8 +1649,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                     <button type="button" aria-label="下へ1mm" title="下へ" onClick={() => dispatch({ type: "update-artwork", id: selectedArtwork.id, patch: { offsetYmm: roundMm(clamp(selectedArtwork.offsetYmm + 1, -geometry.bounds.heightMm, geometry.bounds.heightMm), 1) } })}>↓</button>
                   </div>
                 </div>
-                ) : <p className="artwork-zone-empty">調整する模様をタップ</p>}
-              </section>
+              </section>}
             </div>
           )}
 
@@ -1783,8 +1837,8 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
       </MobileSettingsSheet>
 
       {finishedPreviewOpen && (isPreviewBox(state.box.type)
-        ? <FinishedBoxDialog state={state} onClose={() => setFinishedPreviewOpen(false)} />
-        : <FinishedStationeryDialog state={state} pageId={activePage.id} geometry={geometry} onClose={() => setFinishedPreviewOpen(false)} />)}
+        ? <FinishedBoxDialog state={state} pageId={activePage.id} pageLabel={activePage.label} geometry={geometry} onClose={() => setFinishedPreviewOpen(false)} />
+        : <FinishedStationeryDialog state={state} pageId={activePage.id} pageLabel={activePage.label} geometry={geometry} onClose={() => setFinishedPreviewOpen(false)} />)}
 
       <div data-ui-id="design.actions">{designActionButtons(`sticky-actions design-bottom-actions${isLetterSetDesign ? " is-letter-set" : ""}`)}</div>
     </main>
@@ -1807,7 +1861,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
   const hasFoldoverLines = pages.some((page) => page.geometry.layers.foldover.length > 0);
   const envelopePage = pages.find((page) => page.geometry.type === "envelope-v1");
   const imposedPages = pages
-    .map((page) => ({ label: page.label, imposition: printImposition(page.geometry) }))
+    .map((page) => ({ label: page.label, type: page.geometry.type, imposition: printImposition(page.geometry) }))
     .filter((page) => page.imposition.count > 1);
 
   const clearPrintablePdf = useCallback(() => {
@@ -1967,7 +2021,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
           </div>}
           <div className="fit-notice-stack">{pages.map((page) => <FitNotice key={page.id} geometry={page.geometry} fit={page.fit} label={page.label} />)}</div>
           {envelopePage && <div className="envelope-finished-note"><strong>完成：横 {mm(envelopePage.geometry.input.widthMm)} × 縦 {mm(envelopePage.geometry.input.heightMm)}{envelopePage.geometry.input.widthMm === 162 && envelopePage.geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong>{envelopePage.geometry.envelope?.construction === "kamasu" ? <><span>展開：{mm(envelopePage.geometry.bounds.widthMm)} × {mm(envelopePage.geometry.bounds.heightMm)} ／ A フタ {mm(envelopePage.geometry.envelope.topFlapMm)} ／ 左右のりしろ 各{mm(envelopePage.geometry.envelope.glueWidthMm)}</span><span>Cの左右のりしろを内側へ折り、Bを重ねて接着します。最後にAで封をします。</span></> : <><span>展開：{mm(envelopePage.geometry.bounds.widthMm)} × {mm(envelopePage.geometry.bounds.heightMm)}</span><span>左右 → 下の順に折り、貼って袋状にします。</span></>}</div>}
-          {imposedPages.map(({ label, imposition }) => <div className="template-imposition-note" key={label}><strong>{label}をA4に{imposition.count}枚自動配置</strong><span>{imposition.columns}列 × {imposition.rows}段。編集した同じカードを実寸でまとめて印刷します。</span></div>)}
+          {imposedPages.map(({ label, type, imposition }) => <div className="template-imposition-note" key={label}><strong>{type === "letter-paper-v1" ? "便箋をA4に2面割り付け" : `${label}をA4に${imposition.count}枚自動配置`}</strong><span>{type === "letter-paper-v1" ? "中央で1回切ると、同じ便箋が2枚できます。" : `${imposition.columns}列 × ${imposition.rows}段。編集した同じカードを実寸でまとめて印刷します。`}</span></div>)}
           <div className="print-instruction">
             <span aria-hidden="true">!</span>
             <div><strong>印刷設定が重要です</strong><p>プリンター設定で<strong>「100%／実際のサイズ」</strong>を選び、<strong>「用紙に合わせる」をOFF</strong>にしてください。</p></div>

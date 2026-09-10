@@ -11,6 +11,7 @@ export type PrintImposition = {
 
 export function printImposition(geometry: DielineGeometry): PrintImposition {
   const { widthMm, heightMm } = geometry.bounds;
+  if (geometry.type === "letter-paper-v1") return { columns: 2, rows: 1, count: 2, widthMm: widthMm * 2, heightMm };
   if (geometry.type !== "mini-card-v1") return { columns: 1, rows: 1, count: 1, widthMm, heightMm };
 
   const candidates = [A4_PORTRAIT, { widthMm: A4_PORTRAIT.heightMm, heightMm: A4_PORTRAIT.widthMm }]

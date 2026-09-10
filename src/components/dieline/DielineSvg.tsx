@@ -146,6 +146,15 @@ export function DielineLayers({
           pointerEvents="none"
         />
       )}
+      <g clipPath={`url(#${clipId})`}>
+        {(geometry.type === "letter-paper-v1" || geometry.type === "mini-card-v1") && showWritingLines && (() => {
+          const span = centeredLineSpan(geometry.bounds.x, geometry.bounds.widthMm, writingLineWidthPercent);
+          const lineYs = evenlySpacedLineYs(geometry.bounds.y, geometry.bounds.heightMm, writingLineCount, geometry.type === "mini-card-v1" ? 0.3 : 0.12, geometry.type === "mini-card-v1" ? 0.76 : 0.88);
+          return <g data-layer="writing-lines" fill="none" stroke="#c9b4a7" strokeWidth="0.22" opacity="0.72" pointerEvents="none">
+            {lineYs.map((lineY) => <line key={lineY} x1={span.x1} y1={lineY} x2={span.x2} y2={lineY} />)}
+          </g>;
+        })()}
+      </g>
       <ArtworkLayer
         geometry={geometry}
         backgroundColor={backgroundColor}
@@ -164,13 +173,6 @@ export function DielineLayers({
         onStampRotate={onStampRotate}
       />
       <g clipPath={`url(#${clipId})`}>
-        {(geometry.type === "letter-paper-v1" || geometry.type === "mini-card-v1") && showWritingLines && (() => {
-          const span = centeredLineSpan(geometry.bounds.x, geometry.bounds.widthMm, writingLineWidthPercent);
-          const lineYs = evenlySpacedLineYs(geometry.bounds.y, geometry.bounds.heightMm, writingLineCount, geometry.type === "mini-card-v1" ? 0.3 : 0.12, geometry.type === "mini-card-v1" ? 0.76 : 0.88);
-          return <g data-layer="writing-lines" fill="none" stroke="#c9b4a7" strokeWidth="0.22" opacity="0.72" pointerEvents="none">
-            {lineYs.map((lineY) => <line key={lineY} x1={span.x1} y1={lineY} x2={span.x2} y2={lineY} />)}
-          </g>;
-        })()}
         <TextLayer
           texts={texts}
           selectedTextId={selectedTextId}

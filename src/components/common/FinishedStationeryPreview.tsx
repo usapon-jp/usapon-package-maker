@@ -51,6 +51,7 @@ export function FinishedStationeryPreview({ state, pageId, geometry }: Props) {
           selectedArtworkId={null}
           selectedStampId={null}
           exportMode
+          showStamps={false}
         />
         {showWritingFrame && <rect x={x + (isLetter ? 14 : 7)} y={y + (isLetter ? 20 : 7)} width={Math.max(1, widthMm - (isLetter ? 28 : 14))} height={Math.max(1, heightMm - (isLetter ? 40 : 14))} rx="4" fill="#ffffff" fillOpacity="0.92" stroke="#ead8d3" strokeWidth="0.55" />}
         <g clipPath={`url(#${clipId})`}>
@@ -62,6 +63,20 @@ export function FinishedStationeryPreview({ state, pageId, geometry }: Props) {
               })}
             </g>
           )}
+        </g>
+        <ArtworkLayer
+          geometry={geometry}
+          backgroundColor={backgroundColor}
+          artworkLayers={artworkLayers}
+          stamps={stamps}
+          clipId={clipId}
+          idPrefix={`finished-stationery-stamps-${rawId}`}
+          selectedArtworkId={null}
+          selectedStampId={null}
+          exportMode
+          showBaseLayers={false}
+        />
+        <g clipPath={`url(#${clipId})`}>
           <TextLayer texts={texts} selectedTextId={null} exportMode />
         </g>
       </svg>

@@ -75,6 +75,12 @@ export const A4PageSvg = forwardRef<SVGSVGElement, A4PageSvgProps>(function A4Pa
           </g>
         );
       })}
+      {geometry.type === "letter-paper-v1" && imposition.count === 2 && (
+        <g data-letter-sheet-center-cut="true" pointerEvents="none">
+          <line x1={fit.offsetXmm + geometry.bounds.widthMm} y1={fit.offsetYmm} x2={fit.offsetXmm + geometry.bounds.widthMm} y2={fit.offsetYmm + geometry.bounds.heightMm} stroke="#ffffff" strokeWidth="1.1" />
+          <line x1={fit.offsetXmm + geometry.bounds.widthMm} y1={fit.offsetYmm} x2={fit.offsetXmm + geometry.bounds.widthMm} y2={fit.offsetYmm + geometry.bounds.heightMm} stroke={lineColors.cut} strokeWidth="0.28" />
+        </g>
+      )}
     </svg>
   );
 });

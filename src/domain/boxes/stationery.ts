@@ -125,12 +125,16 @@ export function calculateKamasuEnvelopeMetrics(input: Pick<BoxInput, "widthMm" |
 }
 
 export function calculateLetterPaperSize(input: Pick<BoxInput, "widthMm" | "heightMm">) {
-  const sideClearanceMm = clamp(round(Math.min(input.widthMm, input.heightMm) * 0.03), 3, 5);
-  const foldedWidthMm = round(input.widthMm - sideClearanceMm * 2);
-  const foldedHeightMm = round(input.heightMm - sideClearanceMm * 2);
+  // A4横を中央で1回切るだけで、同じ便箋が2枚できる寸法。
+  // 規格A5（148×210mm）との差は幅0.5mmだけなので、封筒への収まりも保てる。
+  const widthMm = 148.5;
+  const heightMm = 210;
+  const foldedWidthMm = widthMm;
+  const foldedHeightMm = heightMm / 2;
+  const sideClearanceMm = round(Math.max(0, Math.min((input.widthMm - foldedWidthMm) / 2, (input.heightMm - foldedHeightMm) / 2)));
   return {
-    widthMm: foldedWidthMm,
-    heightMm: round(foldedHeightMm * 2),
+    widthMm,
+    heightMm,
     foldedWidthMm,
     foldedHeightMm,
     sideClearanceMm,

@@ -30,14 +30,15 @@ describe("封筒連動レターセット", () => {
     expect(generateStationerySetDocument(envelope, selection).pages.map((page) => page.id)).toEqual(expected);
   });
 
-  it("便箋を2つ折り後に封筒へ周囲の余裕を残して収め、折り線を表示する", () => {
+  it("A4半分の便箋を2つ折り後に封筒へ収め、A4横へ2枚並べる", () => {
     const size = calculateLetterPaperSize(envelope);
     const page = generateStationerySetDocument(envelope, "envelope-letter").pages[1];
 
-    expect(size).toMatchObject({ widthMm: 155.2, heightMm: 214.4, foldedWidthMm: 155.2, foldedHeightMm: 107.2, sideClearanceMm: 3.4, foldYmm: 107.2 });
+    expect(size).toMatchObject({ widthMm: 148.5, heightMm: 210, foldedWidthMm: 148.5, foldedHeightMm: 105, sideClearanceMm: 4.5, foldYmm: 105 });
     expect(size.foldedWidthMm).toBeLessThan(envelope.widthMm);
     expect(size.foldedHeightMm).toBeLessThan(envelope.heightMm);
-    expect(page.geometry.layers.fold).toEqual([{ id: "letter-paper-center-fold", from: { x: 0, y: 107.2 }, to: { x: 155.2, y: 107.2 } }]);
+    expect(page.geometry.layers.fold).toEqual([{ id: "letter-paper-center-fold", from: { x: 0, y: 105 }, to: { x: 148.5, y: 105 } }]);
+    expect(printImposition(page.geometry)).toEqual({ columns: 2, rows: 1, count: 2, widthMm: 297, heightMm: 210 });
   });
 
   it("ミニカードを自然な比率で封筒内へ収め、A4に複数面付けする", () => {

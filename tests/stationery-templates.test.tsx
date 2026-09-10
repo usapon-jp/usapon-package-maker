@@ -6,12 +6,39 @@ import { createStamp } from "../src/app/artwork";
 import { createTextItem } from "../src/features/auto-layout/text-layout";
 import { A4ExportSvg, A4PreviewSvg } from "../src/components/dieline/A4ExportSvg";
 import { generateDielineDocument } from "../src/domain/boxes/registry";
+import { generateStationerySetDocument } from "../src/domain/boxes/stationery";
 import { evaluateA4Fit } from "../src/domain/paper/a4";
 import { printImposition } from "../src/domain/paper/imposition";
 import { PACKAGE_TEMPLATES, stampSetsForTemplate, templateById } from "../src/features/templates/template-catalog";
 import { DEFAULT_LETTER_SET_ENVELOPE } from "../src/features/letter-set/envelope-layout-templates";
+import { A4PrintPreview } from "../src/components/common/A4PrintPreview";
+import type { BoxInput, StationerySetSelection } from "../src/domain/boxes/types";
 
 describe("秋のレターセットテンプレート", () => {
+  it("箱3種類とレター用3ページをA4用紙との比率でプレビューできる", () => {
+    const types: BoxInput["type"][] = ["straight-tuck-carton-v1", "gift-box-v1", "two-piece-gift-box-v1", "envelope-v1", "letter-paper-v1", "mini-card-v1"];
+
+    for (const type of types) {
+      const box = { ...initialState.box, type } as BoxInput;
+      const page = generateDielineDocument(box).pages[0];
+      const state = { ...initialState, box };
+      const markup = renderToStaticMarkup(<A4PrintPreview state={state} pageId={page.id} pageLabel={page.label} geometry={page.geometry} />);
+      expect(markup).toContain(`data-a4-print-preview="${type}"`);
+      expect(markup).toContain("A4");
+      expect(markup).toContain('data-export-document="dieline"');
+    }
+
+    const selections: StationerySetSelection[] = ["envelope-only", "envelope-letter", "envelope-card", "envelope-letter-card"];
+    for (const stationerySetSelection of selections) {
+      const box = { ...initialState.box, type: "envelope-v1" } as BoxInput;
+      const state = { ...initialState, box, stationerySetSelection };
+      for (const page of generateStationerySetDocument(box, stationerySetSelection).pages) {
+        const markup = renderToStaticMarkup(<A4PrintPreview state={state} pageId={page.id} pageLabel={page.label} geometry={page.geometry} />);
+        expect(markup).toContain(`data-a4-print-preview="${page.geometry.type}"`);
+      }
+    }
+  });
+
   it("便箋・封筒・ミニカードを同じシリーズとおすすめ素材にまとめる", () => {
     const autumnTemplates = PACKAGE_TEMPLATES.filter((template) => template.seriesId === "autumn-letter-set");
     expect(autumnTemplates.map((template) => template.category)).toEqual(["letter-paper", "envelope", "card"]);
@@ -30,13 +57,17 @@ describe("秋のレターセットテンプレート", () => {
     const props = { geometry, fit, backgroundColor: "#fffdf9", artworkLayers: [], stamps: [], texts: [], lineColors: initialState.lineColors };
     const withLines = renderToStaticMarkup(<A4PreviewSvg {...props} showWritingLines writingLineCount={12} writingLineWidthPercent={80} />);
     const withoutLines = renderToStaticMarkup(<A4ExportSvg {...props} showWritingLines={false} />);
+    const stamp = createStamp({ id: "line-layer-stamp", fileName: "rabbit.png", sourceType: "png", dataUrl: "data:image/png;base64,AA==", aspectRatio: 1 }, geometry);
+    const withStamp = renderToStaticMarkup(<A4PreviewSvg {...props} stamps={[stamp]} showWritingLines />);
 
     expect(fit.status).toBe("safe");
     expect(withLines).toContain('data-layer="writing-lines"');
     const writingLayer = withLines.match(/<g data-layer="writing-lines"[\s\S]*?<\/g>/)?.[0] ?? "";
     expect(writingLayer.match(/<line /g)).toHaveLength(12);
-    expect(writingLayer).toContain('x1="19"');
+    const firstLineStart = writingLayer.match(/<line x1="([\d.]+)"/)?.[1];
+    expect(Number(firstLineStart)).toBeCloseTo(geometry.bounds.widthMm * 0.1, 5);
     expect(withoutLines).not.toContain('data-layer="writing-lines"');
+    expect(withStamp.indexOf('data-layer="writing-lines"')).toBeLessThan(withStamp.indexOf('data-stamp-id="line-layer-stamp"'));
   });
 
   it("洋形2号カマス貼りを186×258mmで作り、A4縦へ実寸配置する", () => {
@@ -97,6 +128,23 @@ describe("秋のレターセットテンプレート", () => {
     expect(markup.match(/data-imposition-item=/g)).toHaveLength(10);
     expect(markup.match(/data-stamp-id="autumn-stamp"/g)).toHaveLength(10);
     expect(markup).toContain('transform="translate(105 231)"');
+  });
+
+  it("148.5×210mm便箋をA4横へ2面割り付けし、罫線とスタンプを両方へ反映する", () => {
+    const template = templateById("autumn-letter-paper")!;
+    const geometry = generateDielineDocument(template.box).pages[0].geometry;
+    const imposition = printImposition(geometry);
+    const fit = evaluateA4Fit(imposition.widthMm, imposition.heightMm);
+    const stamp = createStamp({ id: "letter-stamp", fileName: "rabbit.png", sourceType: "png", dataUrl: "data:image/png;base64,AA==", aspectRatio: 1 }, geometry);
+    const markup = renderToStaticMarkup(<A4ExportSvg geometry={geometry} fit={fit} backgroundColor="#fffdf9" artworkLayers={[]} stamps={[stamp]} texts={[]} lineColors={initialState.lineColors} showWritingLines writingLineCount={12} />);
+
+    expect(geometry.bounds).toMatchObject({ widthMm: 148.5, heightMm: 210 });
+    expect(imposition).toEqual({ columns: 2, rows: 1, count: 2, widthMm: 297, heightMm: 210 });
+    expect(fit).toMatchObject({ status: "paper-only", orientation: "landscape", offsetXmm: 0, offsetYmm: 0 });
+    expect(markup.match(/data-imposition-item=/g)).toHaveLength(2);
+    expect(markup.match(/data-layer="writing-lines"/g)).toHaveLength(2);
+    expect(markup.match(/data-stamp-id="letter-stamp"/g)).toHaveLength(2);
+    expect(markup).toContain('data-letter-sheet-center-cut="true"');
   });
 
   it("ミニカードの白い記入枠と罫線を中央へ揃えて全カードへ印刷する", () => {

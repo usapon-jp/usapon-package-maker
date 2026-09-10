@@ -4,6 +4,8 @@ import { faceMatrix, finishedBoxFaces, visibleBoxFaces, type BoxView } from '../
 import { boxPerspective, perspectiveTriangles } from '../../domain/boxes/box-perspective';
 import { ArtworkLayer } from '../dieline/layers/ArtworkLayer';
 import { TextLayer } from '../dieline/layers/TextLayer';
+import type { DielineGeometry, DielinePageId } from '../../domain/boxes/types';
+import { A4PrintPreview } from './A4PrintPreview';
 
 const views: [BoxView,string][] = [['top','真上から'],['front-angle','斜め前'],['back-angle','斜め後ろ'],['front','正面']];
 export function FinishedBoxPreview({ state }: { state: AppState }) {
@@ -52,12 +54,14 @@ export function FinishedBoxPreview({ state }: { state: AppState }) {
   </div>;
 }
 
-export function FinishedBoxDialog({ state, onClose }: { state: AppState; onClose: ()=>void }) {
+export function FinishedBoxDialog({ state, pageId, pageLabel, geometry, onClose }: { state: AppState; pageId: DielinePageId; pageLabel: string; geometry: DielineGeometry; onClose: ()=>void }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const [mode, setMode] = useState<'paper'|'finished'>('paper');
   useEffect(()=>{ const previous = document.activeElement as HTMLElement; dialog.current?.showModal(); return ()=>{ previous?.focus(); }; },[]);
-  return <dialog ref={dialog} className="finished-box-dialog" aria-label="箱の完成イメージ" onCancel={onClose} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
-    <header><h2>完成イメージ</h2><button type="button" onClick={onClose} aria-label="完成イメージを閉じる" autoFocus>×</button></header>
-    <FinishedBoxPreview state={state}/>
+  return <dialog ref={dialog} className="finished-box-dialog" aria-label="箱のプレビュー" onCancel={onClose} onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+    <header><h2>プレビュー</h2><button type="button" onClick={onClose} aria-label="プレビューを閉じる" autoFocus>×</button></header>
+    <div className="preview-mode-tabs" role="group" aria-label="プレビューの表示"><button type="button" aria-pressed={mode==='paper'} onClick={()=>setMode('paper')}>A4印刷</button><button type="button" aria-pressed={mode==='finished'} onClick={()=>setMode('finished')}>完成イメージ</button></div>
+    {mode==='paper' ? <A4PrintPreview state={state} pageId={pageId} pageLabel={pageLabel} geometry={geometry}/> : <FinishedBoxPreview state={state}/>}
     <button className="primary-button full-button" type="button" onClick={onClose}>デザインへ戻る</button>
   </dialog>;
 }
