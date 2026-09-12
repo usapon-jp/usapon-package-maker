@@ -923,6 +923,10 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .stamp-add-menu-popover a, .stamp-add-menu-popover button { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 44px; padding: 8px 10px; border: 0; border-radius: 9px; color: #6f554e; background: transparent; font-size: calc(9px * var(--ui-font-scale)); font-weight: 800; text-align: left; text-decoration: none; cursor: pointer; }
 .stamp-add-menu-popover a:hover, .stamp-add-menu-popover button:hover { background: #fff1f3; }
 .stamp-add-menu-popover span { display: grid; flex: none; place-items: center; width: 28px; height: 28px; border-radius: 8px; color: #a94759; background: #ffecef; }
+.my-image-folder-chips { display:flex; gap:6px; min-width:0; overflow-x:auto; padding:8px 8px 2px; scrollbar-width:none; }
+.my-image-folder-chips::-webkit-scrollbar { display:none; }
+.my-image-folder-chips button { flex:0 0 auto; min-height:34px; padding:6px 11px; border:0; border-radius:999px; color:#6f554e; background:#f5ece6; font:inherit; font-size:12px; font-weight:800; cursor:pointer; }
+.my-image-folder-chips button[aria-pressed="true"] { color:#a94759; background:#ffe1e7; }
 .placed-stamps-zone { display: flex; flex-direction: column; }
 .placed-stamp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 62px)); gap: 6px; align-content: start; justify-content: start; flex: 1; min-height: 0; margin-top: 5px; overflow-y: auto; overscroll-behavior: contain; }
 .placed-stamp-card { position: relative; min-width: 0; aspect-ratio: 1; border: 1px solid #eadbd6; border-radius: 11px; background: white; }

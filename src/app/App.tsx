@@ -23,7 +23,8 @@ import { canSharePdfFile, createPdfShareFile, createTimestampedPdfFileName, shar
 import { detectClientContext, type ClientContext } from "../lib/browser/client-context";
 import { readPatternFile, readStoredPatternBlob } from "../lib/uploads/read-pattern";
 import { readImageBackgroundColor, readImageEdgeColor } from "../lib/uploads/image-edge-color";
-import { loadMyImages, saveMyImage, mergeMyImages } from "../features/stamps/my-images";
+import { loadMyImages, saveMyImage, mergeMyImages, myImageFolders, type MyImageItem } from "../features/stamps/my-images";
+import { readUsaponStickerPack } from "../features/stamps/sticker-pack";
 import { clearLocalDraft, loadLocalDraft, saveLocalDraft } from "../lib/drafts/local-draft";
 import {
   currentUser,
@@ -1030,13 +1031,15 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const pageTexts = design.texts.filter(onActiveFace);
   const artworkFileInput = useRef<HTMLInputElement>(null);
   const stampFileInput = useRef<HTMLInputElement>(null);
+  const stickerPackInput = useRef<HTMLInputElement>(null);
   const [artworkUploadError, setArtworkUploadError] = useState("");
   const [stampUploadError, setStampUploadError] = useState("");
   const [uploadingArtwork, setUploadingArtwork] = useState(false);
   const [uploadingStamp, setUploadingStamp] = useState(false);
   const [stampAddMenuOpen, setStampAddMenuOpen] = useState(false);
   const [stampTab, setStampTab] = useState("basic");
-  const [myImages, setMyImages] = useState<typeof state.stamps>([]);
+  const [myImages, setMyImages] = useState<MyImageItem[]>([]);
+  const [myImageFolder, setMyImageFolder] = useState("all");
   useEffect(() => {
     let current = true;
     loadMyImages(imageOwner).then((items) => { if (current) setMyImages((previous) => mergeMyImages(items, previous)); })
@@ -1065,6 +1068,11 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const [freeTrialPassphrase, setFreeTrialPassphrase] = useState("");
   const [freeTrialMessage, setFreeTrialMessage] = useState("");
   const uploadedImages = mergeMyImages(myImages, state.stamps);
+  const myImageFolderOptions = myImageFolders(uploadedImages);
+  const visibleMyImages = uploadedImages.filter((image) => (
+    myImageFolder === "all"
+    || (myImageFolder === "unfiled" ? !image.libraryFolderId || image.libraryFolderId === "unfiled" : image.libraryFolderId === myImageFolder)
+  ));
   const stampTabs = [
     { id: "basic", name: "うさぽん", presets: stampPresets.filter((preset) => !STAMP_SETS.some((set) => set.stampKeys.includes(preset.key))) },
     ...STAMP_SETS.map((set) => ({ id: set.id, name: set.name, presets: stampPresets.filter((preset) => set.stampKeys.includes(preset.key)) })),
@@ -1224,6 +1232,48 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     }
     setStampUploadError(errors.join("\n"));
     setUploadingStamp(false);
+  };
+
+  const handleStickerPack = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setUploadingStamp(true);
+    setStampUploadError("");
+    try {
+      const pack = await readUsaponStickerPack(file);
+      const current = mergeMyImages(myImages, state.stamps);
+      const knownHashes = new Set(current.map(image => image.contentHash).filter(Boolean));
+      const knownIds = new Set(current.flatMap(image => image.assetRef.kind === "user" ? [image.assetRef.assetId] : []));
+      const imported: MyImageItem[] = [];
+      let skipped = 0;
+      for (const [index, sticker] of pack.stickers.entries()) {
+        if (sticker.contentHash && knownHashes.has(sticker.contentHash)) { skipped += 1; continue; }
+        const assetId = knownIds.has(sticker.id) ? crypto.randomUUID() : sticker.id;
+        const fileName = `${sticker.name.replace(/[\\/:*?"<>|]/g, "-") || "マイステッカー"}.png`;
+        const pngBytes = new Uint8Array(sticker.bytes.length);
+        pngBytes.set(sticker.bytes);
+        const asset = await readStoredPatternBlob(new Blob([pngBytes.buffer], { type: "image/png" }), fileName, "png", assetId, { kind: "user", assetId });
+        const item = createStamp(asset, geometry, sticker.name, activePage.id) as MyImageItem;
+        item.libraryFolderId = sticker.folderId;
+        item.libraryFolderName = sticker.folderName;
+        item.libraryFolderOrder = sticker.folderOrder;
+        item.libraryOrder = current.length + index;
+        item.contentHash = sticker.contentHash;
+        await saveMyImage(imageOwner, item);
+        imported.push(item);
+        knownIds.add(assetId);
+        if (sticker.contentHash) knownHashes.add(sticker.contentHash);
+      }
+      setMyImages(items => mergeMyImages(items, imported));
+      setStampTab("my-images");
+      setMyImageFolder("all");
+      setStampUploadError(`${imported.length}点をマイ画像へ読み込みました${skipped ? `（重複${skipped}点を除外）` : ""}。`);
+    } catch (error) {
+      setStampUploadError(error instanceof Error ? error.message : "ステッカーパックを読み込めませんでした。");
+    } finally {
+      setUploadingStamp(false);
+    }
   };
 
   const addPresetStamp = async (preset: (typeof BUILT_IN_STAMPS)[number]) => {
@@ -1668,13 +1718,19 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                     {stampAddMenuOpen && <div className="stamp-add-menu-popover">
                       <a href={STAMP_SHOP_URL} target="_blank" rel="noreferrer" onClick={() => setStampAddMenuOpen(false)}><span aria-hidden="true">▣</span>ショップから購入する</a>
                       <button type="button" disabled={uploadingStamp} onClick={() => { setStampAddMenuOpen(false); stampFileInput.current?.click(); }}><span aria-hidden="true">↑</span>{uploadingStamp ? "読み込み中…" : "画像をアップロード"}</button>
+                      <button type="button" disabled={uploadingStamp} onClick={() => { setStampAddMenuOpen(false); stickerPackInput.current?.click(); }}><span aria-hidden="true">▦</span>うさぽんステッカーパック</button>
                     </div>}
                   </div>
                 </div>
                 <div className="stamp-library-body" id="stamp-library-panel" role="tabpanel" aria-labelledby={`stamp-tab-${activeStampTab}`}>
+                  {activeStampTab === "my-images" && uploadedImages.length > 0 && <div className="my-image-folder-chips" aria-label="マイ画像のフォルダ">
+                    <button type="button" aria-pressed={myImageFolder === "all"} onClick={() => setMyImageFolder("all")}>すべて</button>
+                    <button type="button" aria-pressed={myImageFolder === "unfiled"} onClick={() => setMyImageFolder("unfiled")}>未分類</button>
+                    {myImageFolderOptions.map(folder => <button key={folder.id} type="button" aria-pressed={myImageFolder === folder.id} onClick={() => setMyImageFolder(folder.id)}>{folder.name}</button>)}
+                  </div>}
                   <div className="stamp-preset-scroller">
                     <div className="stamp-preset-grid">
-                      {activeStampTab === "my-images" ? uploadedImages.map((image) => (
+                      {activeStampTab === "my-images" ? visibleMyImages.map((image) => (
                         <button key={image.assetRef.kind === "user" ? image.assetRef.assetId : image.id} className="stamp-preset-card" type="button" aria-label={`${image.name}を追加`} title={image.name} onClick={() => { void (async () => {
                           const panel = faceScopedEditing ? envelopeFacePanel(geometry, state.activeEnvelopeFace) : undefined;
                           const backgroundColor = geometry.type === "straight-tuck-carton-v1" && image.aspectRatio < 1
@@ -1694,6 +1750,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                 </div>
               </section>
               <input ref={stampFileInput} type="file" accept="image/png,image/svg+xml,.png,.svg" multiple hidden onChange={handleStampFiles} />
+              <input ref={stickerPackInput} type="file" accept=".zip,.usapon-stickers.zip,application/zip" hidden onChange={handleStickerPack} />
               {stampUploadError && <p className="field-error preserve-lines">{stampUploadError}</p>}
               <section className="stamp-editor-zone placed-stamps-zone">
                 <strong className="stamp-editor-zone-title">配置済みスタンプ</strong>
