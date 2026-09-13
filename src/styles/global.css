@@ -2868,13 +2868,17 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .creation-home-grid > button:hover { background: var(--pink-soft); border-color: var(--pink); }
 .creation-home-grid strong { font-size: 15px; }
 .home-box-picture { width: 100%; max-width: 135px; height: 82px; object-fit: contain; }
-.home-letter-picture { position: relative; display: block; width: 100px; height: 82px; color: #b86f81; }
-.home-letter-picture svg { position: absolute; width: 55px; height: 55px; fill: #fff4e4; }
-.home-letter-picture svg:first-child { left: 3px; top: 0; transform: rotate(-10deg); }
-.home-letter-picture svg:last-child { right: 0; bottom: 0; fill: #fff0f2; }
-.home-letter-picture.is-envelope-letter-card svg:nth-child(2) { right:2px; top:2px; transform:rotate(8deg); }
-.home-letter-picture.is-envelope-letter-card svg:last-child { right:16px; bottom:0; }
-.home-letter-picture.is-envelope-only svg { position:static; width:64px; height:64px; }
+.home-letter-picture { position: relative; display: block; width: 118px; height: 82px; }
+.home-letter-picture img { position: absolute; display: block; object-fit: contain; }
+.home-stationery-letter { top: 0; left: 3px; width: 62px; height: 62px; transform: rotate(-7deg); }
+.home-stationery-card { top: 3px; right: 3px; width: 50px; height: 45px; transform: rotate(6deg); }
+.home-stationery-envelope { right: 8px; bottom: 1px; width: 86px; height: 55px; }
+.home-letter-picture.is-envelope-letter .home-stationery-envelope { right: 3px; }
+.home-letter-picture.is-envelope-card .home-stationery-envelope { left: 4px; right: auto; }
+.home-letter-picture.is-envelope-card .home-stationery-card { right: 4px; }
+.home-letter-picture.is-envelope-letter-card .home-stationery-envelope { right: 16px; }
+.home-letter-picture.is-envelope-only { display: grid; place-items: center; }
+.home-letter-picture.is-envelope-only .home-stationery-envelope { position: static; width: 92px; height: 66px; }
 .home-resume { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 20px; padding: 13px 18px; text-align: left; color: var(--ink); border: 1px solid #e8bac7; border-radius: 18px; background: #fff0f4; cursor: pointer; }
 .home-resume small { display: block; color: var(--muted); margin-top: 3px; }
 .mobile-bottom-nav { grid-template-columns: repeat(3,minmax(0,1fr)); }
@@ -2917,8 +2921,11 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
   .creation-home-grid > button { min-height:116px; padding:9px 4px; border-radius:16px; }
   .creation-home-grid strong { font-size:12px; }
   .home-box-picture { height:66px; }
-  .home-letter-picture { height:66px; width:76px; }
-  .home-letter-picture svg { width:44px; height:44px; }
+  .home-letter-picture { width:96px; height:66px; }
+  .home-stationery-letter { width:50px; height:50px; }
+  .home-stationery-card { width:40px; height:37px; }
+  .home-stationery-envelope { width:70px; height:45px; }
+  .home-letter-picture.is-envelope-only .home-stationery-envelope { width:76px; height:54px; }
   .home-resume { margin-top:14px; }
   .size-page { height: calc(100dvh - 70px - 78px); max-height:none; gap:8px; }
   .size-page > .page-heading { display:block !important; margin:0; }

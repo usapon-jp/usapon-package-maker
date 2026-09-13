@@ -1,6 +1,4 @@
 import type { BoxType, StationerySetSelection } from '../../domain/boxes/types';
-import { BoxTypeIcon } from '../icons/BoxTypeIcon';
-import { EnvelopeIcon, LetterIcon, CardIcon } from './UiIcons';
 
 export const HOME_BOXES = [
   ['straight-tuck-carton-v1', 'キャラメル箱'],
@@ -15,6 +13,12 @@ export const HOME_LETTER_SETS = [
   { value: 'envelope-only', label: '封筒のみ', letter: false, card: false },
 ] as const satisfies ReadonlyArray<{ value: StationerySetSelection; label: string; letter: boolean; card: boolean }>;
 
+const HOME_BOX_PICTURES: Record<(typeof HOME_BOXES)[number][0], string> = {
+  'straight-tuck-carton-v1': '/assets/home/box-caramel.png',
+  'gift-box-v1': '/assets/home/box-shallow.png',
+  'two-piece-gift-box-v1': '/assets/home/box-two-piece.png',
+};
+
 export function CreationHome({ onBox, onLetter, onResume, resumeLabel }: {
   onBox: (type: BoxType) => void;
   onLetter: (selection: StationerySetSelection) => void;
@@ -27,7 +31,7 @@ export function CreationHome({ onBox, onLetter, onResume, resumeLabel }: {
       <h2>箱</h2>
       <div className="creation-home-grid">{HOME_BOXES.map(([type,label]) =>
         <button key={type} type="button" onClick={() => onBox(type)}>
-          <BoxTypeIcon type={type} className="home-box-picture"/>
+          <img className="home-box-picture" src={HOME_BOX_PICTURES[type]} alt="" aria-hidden="true" />
           <strong>{label}</strong>
         </button>)}</div>
     </section>
@@ -37,9 +41,9 @@ export function CreationHome({ onBox, onLetter, onResume, resumeLabel }: {
         {HOME_LETTER_SETS.map((option) => (
           <button key={option.value} type="button" onClick={() => onLetter(option.value)}>
             <span className={`home-letter-picture is-${option.value}`} aria-hidden="true">
-              {option.letter && <LetterIcon />}
-              {option.card && <CardIcon />}
-              <EnvelopeIcon />
+              {option.letter && <img className="home-stationery-letter" src="/assets/home/letter-paper.png" alt="" />}
+              {option.card && <img className="home-stationery-card" src="/assets/home/mini-card.png" alt="" />}
+              <img className="home-stationery-envelope" src="/assets/home/envelope.png" alt="" />
             </span>
             <strong>{option.label}</strong>
           </button>

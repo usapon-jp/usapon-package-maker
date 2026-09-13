@@ -13,12 +13,18 @@ import type { UploadedAsset } from "../src/app/app-types";
 describe("モバイル中心のレターセットUI", () => {
   it("ホームに4つの組み合わせをシンプルに表示する", () => {
     const markup = renderToStaticMarkup(<CreationHome onBox={() => undefined} onLetter={() => undefined} onResume={null} resumeLabel="" />);
+    expect(markup).toContain('/assets/home/box-caramel.png');
+    expect(markup).toContain('/assets/home/box-shallow.png');
+    expect(markup).toContain('/assets/home/box-two-piece.png');
     expect(markup).toContain("封筒＋便箋");
     expect(markup).toContain("封筒＋ミニカード");
     expect(markup).toContain("フルセット");
     expect(markup).toContain("封筒のみ");
     expect(markup).not.toContain("ほかのセット");
     expect(markup).toContain('class="creation-home-grid creation-home-letter-grid"');
+    expect(markup).toContain('/assets/home/envelope.png');
+    expect(markup).toContain('/assets/home/letter-paper.png');
+    expect(markup).toContain('/assets/home/mini-card.png');
   });
 
   it("役割が重ならない3項目の下部ナビを表示する", () => {
