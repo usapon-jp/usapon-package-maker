@@ -1324,6 +1324,23 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .modal-actions.stacked { flex-direction: column; }
 .modal-actions.stacked button { width: 100%; }
 
+.sticker-pack-guide { max-height: min(700px, 88dvh); overflow-y: auto; }
+.sticker-pack-trial { display: flex; align-items: center; gap: 14px; margin-top: 18px; padding: 12px; border-radius: 16px; background: #fff6ed; }
+.sticker-pack-trial img { width: 76px; height: 76px; flex: none; object-fit: contain; }
+.sticker-pack-trial strong, .sticker-pack-purchased strong { display: block; font-size: calc(12px * var(--ui-font-scale)); }
+.sticker-pack-trial p, .sticker-pack-purchased p { margin: 5px 0 0; color: var(--muted); font-size: calc(10px * var(--ui-font-scale)); line-height: 1.6; }
+.sticker-pack-guide-actions { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 9px; margin-top: 12px; }
+.sticker-pack-guide-actions button, .sticker-pack-guide-actions a, .sticker-pack-purchased button, .sticker-pack-purchased a { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 11px; background: #fff; color: #5f4540; font-size: calc(10px * var(--ui-font-scale)); font-weight: 800; text-align: center; text-decoration: none; cursor: pointer; }
+.sticker-pack-guide-actions > * { min-width: 0; white-space: nowrap; }
+.sticker-pack-guide-actions .primary-button { border-color: var(--pink); background: var(--pink); color: #fff; }
+.sticker-pack-purchased { display: grid; gap: 9px; margin-top: 19px; padding-top: 17px; border-top: 1px solid var(--line); }
+.sticker-pack-purchased p { margin: 0; }
+.sticker-pack-purchased > span { color: var(--muted); font-size: calc(10px * var(--ui-font-scale)); }
+.sticker-pack-guide-footer { display: flex; justify-content: space-between; gap: 12px; margin-top: 18px; }
+.sticker-pack-guide-footer button { min-height: 44px; padding: 8px 10px; border: 0; background: transparent; color: #795f58; font-size: calc(10px * var(--ui-font-scale)); font-weight: 700; cursor: pointer; }
+.sticker-pack-guide-footer button:first-child { text-decoration: underline; text-underline-offset: 3px; }
+.sticker-pack-guide button:focus-visible, .sticker-pack-guide a:focus-visible { outline: 3px solid var(--pink); outline-offset: 2px; }
+
 @media (min-width: 601px) {
   .app-shell.is-fixed-workspace:has(.antigravity-design-page) {
     height: 100dvh;

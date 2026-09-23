@@ -996,7 +996,7 @@ function AccordionSection({
   );
 }
 
-function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds, hasFreeTrialEntitlement, onUnlockThemePack, imageOwner, detailsOpen, onDetailsClose }: ScreenProps & { imageOwner: string; unlockedThemePackIds: string[]; hasFreeTrialEntitlement: boolean; onUnlockThemePack: (themePackId: string) => void; detailsOpen: boolean; onDetailsClose: () => void }) {
+function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds, hasFreeTrialEntitlement, onUnlockThemePack, imageOwner, user, onLogin, detailsOpen, onDetailsClose }: ScreenProps & { imageOwner: string; user: User | null; onLogin: () => void; unlockedThemePackIds: string[]; hasFreeTrialEntitlement: boolean; onUnlockThemePack: (themePackId: string) => void; detailsOpen: boolean; onDetailsClose: () => void }) {
   const geometry = activePage.geometry;
   const fit = activePage.fit;
   const design = pageDesign(state, activePage.id);
@@ -1037,6 +1037,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const [uploadingArtwork, setUploadingArtwork] = useState(false);
   const [uploadingStamp, setUploadingStamp] = useState(false);
   const [stampAddMenuOpen, setStampAddMenuOpen] = useState(false);
+  const [stickerPackGuideOpen, setStickerPackGuideOpen] = useState(false);
   const [stampTab, setStampTab] = useState("basic");
   const [myImages, setMyImages] = useState<MyImageItem[]>([]);
   const [myImageFolder, setMyImageFolder] = useState("all");
@@ -1718,7 +1719,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                     {stampAddMenuOpen && <div className="stamp-add-menu-popover">
                       <a href={STAMP_SHOP_URL} target="_blank" rel="noreferrer" onClick={() => setStampAddMenuOpen(false)}><span aria-hidden="true">▣</span>ショップから購入する</a>
                       <button type="button" disabled={uploadingStamp} onClick={() => { setStampAddMenuOpen(false); stampFileInput.current?.click(); }}><span aria-hidden="true">↑</span>{uploadingStamp ? "読み込み中…" : "画像をアップロード"}</button>
-                      <button type="button" disabled={uploadingStamp} onClick={() => { setStampAddMenuOpen(false); stickerPackInput.current?.click(); }}><span aria-hidden="true">▦</span>うさぽんステッカーパック</button>
+                      <button type="button" disabled={uploadingStamp} onClick={() => { setStampAddMenuOpen(false); setStickerPackGuideOpen(true); }}><span aria-hidden="true">▦</span>うさぽんステッカーパック</button>
                     </div>}
                   </div>
                 </div>
@@ -1900,8 +1901,48 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
         : <FinishedStationeryDialog state={state} pageId={activePage.id} pageLabel={activePage.label} geometry={geometry} onClose={() => setFinishedPreviewOpen(false)} />)}
 
       <div data-ui-id="design.actions">{designActionButtons(`sticky-actions design-bottom-actions${isLetterSetDesign ? " is-letter-set" : ""}`)}</div>
+      {stickerPackGuideOpen && <StickerPackGuideDialog
+        loggedIn={Boolean(user)}
+        trialImageUrl={`${import.meta.env.BASE_URL}assets/stamps/autumn-stamp-9803.png`}
+        onUseTrial={() => {
+          setStickerPackGuideOpen(false);
+          try { saveFreeTrialReceipt(window.localStorage); } catch { /* この画面を開いている間は利用できます。 */ }
+          setFreeTrialUnlocked(true);
+          const preset = BUILT_IN_STAMPS.find((item) => item.key === AUTUMN_FREE_TRIAL_STAMP_ID);
+          if (preset) void addPresetStamp(preset);
+        }}
+        onLogin={() => { setStickerPackGuideOpen(false); onLogin(); }}
+        onImport={() => { setStickerPackGuideOpen(false); stickerPackInput.current?.click(); }}
+        onClose={() => setStickerPackGuideOpen(false)}
+      />}
     </main>
   );
+}
+
+function StickerPackGuideDialog({ loggedIn, trialImageUrl, onUseTrial, onLogin, onImport, onClose }: { loggedIn: boolean; trialImageUrl: string; onUseTrial: () => void; onLogin: () => void; onImport: () => void; onClose: () => void }) {
+  return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
+    <section className="app-modal sticker-pack-guide" role="dialog" aria-modal="true" aria-labelledby="sticker-pack-guide-title">
+      <h2 id="sticker-pack-guide-title">うさぽんステッカーパック</h2>
+      <div className="sticker-pack-trial">
+        <img src={trialImageUrl} alt="秋うさぎの無料お試しステッカー" />
+        <div><strong>無料お試し・1点</strong><p>ログインなしで、今すぐ貼れます。</p></div>
+      </div>
+      <div className="sticker-pack-guide-actions">
+        <button className="primary-button" type="button" onClick={onUseTrial}>今すぐ貼る</button>
+        <a href={trialImageUrl} download="usapon-autumn-trial-sticker.png">PNGを保存</a>
+      </div>
+      <div className="sticker-pack-purchased">
+        <strong>購入済みの素材</strong>
+        <p>購入・受取時と同じGoogleアカウントでログインしてください。</p>
+        {loggedIn ? <span>ログイン中です</span> : <button type="button" onClick={onLogin}>Googleでログイン</button>}
+        <a href={STAMP_SHOP_URL} target="_blank" rel="noreferrer">ショップで素材を探す</a>
+      </div>
+      <div className="sticker-pack-guide-footer">
+        <button type="button" onClick={onImport}>手元のZIPを読み込む</button>
+        <button type="button" onClick={onClose}>閉じる</button>
+      </div>
+    </section>
+  </div>;
 }
 
 function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSuccessfulExport }: ScreenProps & { clientContext: ClientContext; onSuccessfulExport: () => void }) {
@@ -2669,7 +2710,7 @@ export function App() {
       {(state.screen === "home" || state.screen === "letter-set") && <CreationHome onBox={startNew} onLetter={startLetterSet} onResume={shouldPersistLocalDraft ? () => dispatch({ type: "go", screen: "design" }) : null} resumeLabel={state.box.type === "envelope-v1" ? "レターセット" : BOX_TYPE_COPY[state.box.type].name} />}
       {state.screen === "templates" && <TemplateScreen onBack={() => dispatch({ type: "go", screen: "home" })} onSelect={startTemplate} unlockedThemePackIds={unlockedThemePackIds} />}
       {state.screen === "size" && <SizeScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
-      {state.screen === "design" && <DesignScreen key={user?.id ?? "device"} imageOwner={user?.id ?? "device"} state={state} dispatch={dispatch} pages={pages} activePage={activePage} unlockedThemePackIds={unlockedThemePackIds} hasFreeTrialEntitlement={hasFreeTrialEntitlement} onUnlockThemePack={requestThemeUnlock} detailsOpen={designDetailsOpen} onDetailsClose={() => setDesignDetailsOpen(false)} />}
+      {state.screen === "design" && <DesignScreen key={user?.id ?? "device"} imageOwner={user?.id ?? "device"} user={user} onLogin={() => { void login(); }} state={state} dispatch={dispatch} pages={pages} activePage={activePage} unlockedThemePackIds={unlockedThemePackIds} hasFreeTrialEntitlement={hasFreeTrialEntitlement} onUnlockThemePack={requestThemeUnlock} detailsOpen={designDetailsOpen} onDetailsClose={() => setDesignDetailsOpen(false)} />}
       {state.screen === "print" && <PrintScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} clientContext={clientContext} onSuccessfulExport={offerInstallAfterSuccess} />}
       {CLOUD_SYNC_UI_ENABLED && state.screen === "my-boxes" && (
         <MyBoxesScreen
