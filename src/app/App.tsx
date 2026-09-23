@@ -3,6 +3,7 @@ import { CreationHome } from "../components/common/CreationHome";
 import { MaterialNotice } from "../MaterialNotice";
 import { MaterialGallery } from "../MaterialGallery";
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ChangeEvent, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { zipSync } from "fflate";
 import type { User } from "@supabase/supabase-js";
 
 import { A4ExportSvg, A4PreviewSvg, CalibrationSvg } from "../components/dieline/A4ExportSvg";
@@ -73,8 +74,7 @@ import { LetterSetPanel } from "../features/letter-set/LetterSetPanel";
 import { adaptEnvelopeDesignToPage } from "../features/letter-set/design-sharing";
 import { arrangeEnvelopeTemplate, DEFAULT_LETTER_SET_ENVELOPE, ENVELOPE_LAYOUT_TEMPLATES } from "../features/letter-set/envelope-layout-templates";
 import { AUTUMN_THEME_PACK, THEME_PACKS, themePackById, type ThemePackDefinition } from "../features/theme-packs/theme-pack-catalog";
-import { AUTUMN_FREE_TRIAL_STAMP_ID } from "../features/theme-packs/autumn-stamp-catalog";
-import { canUseAutumnTrialStamp, hasFreeTrialReceipt, isAutumnTrialStamp, isFreeTrialPassphrase, saveFreeTrialReceipt } from "../features/theme-packs/free-trial";
+import { canUseAutumnTrialStamp, isAutumnTrialStamp } from "../features/theme-packs/free-trial";
 import { BottomNavBar, type BottomNavTab } from "../components/navigation/BottomNavBar";
 import { AssemblyGuideModal } from "../components/modals/AssemblyGuideModal";
 import { MobileSettingsSheet } from "../components/modals/MobileSettingsSheet";
@@ -996,7 +996,7 @@ function AccordionSection({
   );
 }
 
-function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds, hasFreeTrialEntitlement, onUnlockThemePack, imageOwner, user, onLogin, detailsOpen, onDetailsClose }: ScreenProps & { imageOwner: string; user: User | null; onLogin: () => void; unlockedThemePackIds: string[]; hasFreeTrialEntitlement: boolean; onUnlockThemePack: (themePackId: string) => void; detailsOpen: boolean; onDetailsClose: () => void }) {
+function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds, onUnlockThemePack, imageOwner, user, onLogin, detailsOpen, onDetailsClose }: ScreenProps & { imageOwner: string; user: User | null; onLogin: () => void; unlockedThemePackIds: string[]; onUnlockThemePack: (themePackId: string) => void; detailsOpen: boolean; onDetailsClose: () => void }) {
   const geometry = activePage.geometry;
   const fit = activePage.fit;
   const design = pageDesign(state, activePage.id);
@@ -1009,13 +1009,9 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     ? [...templateStampSets, autumnStampSet]
     : templateStampSets;
   const recommendedKeys = new Set(recommendedStampSets.flatMap((set) => set.stampKeys));
-  const [freeTrialUnlocked, setFreeTrialUnlocked] = useState(() => {
-    try { return hasFreeTrialReceipt(window.localStorage); } catch { return false; }
-  });
-  const freeTrialAvailable = freeTrialUnlocked || hasFreeTrialEntitlement || autumnUnlocked;
   const otherStamps = BUILT_IN_STAMPS.filter((preset) => isBuiltInStampPickerVisible(preset) && !recommendedKeys.has(preset.key) && (
     isAutumnTrialStamp(preset.key)
-      ? canUseAutumnTrialStamp(preset.key, freeTrialUnlocked, hasFreeTrialEntitlement, autumnUnlocked)
+      ? canUseAutumnTrialStamp(preset.key)
       : !preset.themePackId || unlockedThemePackIds.includes(preset.themePackId)
   ));
   const stampPresets = [...new Map([
@@ -1066,8 +1062,6 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const [letterSetShareMessage, setLetterSetShareMessage] = useState("");
   const [applyingThemePack, setApplyingThemePack] = useState(false);
   const [privateStampPreviewUrls, setPrivateStampPreviewUrls] = useState<Record<string, string>>({});
-  const [freeTrialPassphrase, setFreeTrialPassphrase] = useState("");
-  const [freeTrialMessage, setFreeTrialMessage] = useState("");
   const uploadedImages = mergeMyImages(myImages, state.stamps);
   const myImageFolderOptions = myImageFolders(uploadedImages);
   const visibleMyImages = uploadedImages.filter((image) => (
@@ -1075,7 +1069,8 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     || (myImageFolder === "unfiled" ? !image.libraryFolderId || image.libraryFolderId === "unfiled" : image.libraryFolderId === myImageFolder)
   ));
   const stampTabs = [
-    { id: "basic", name: "うさぽん", presets: stampPresets.filter((preset) => !STAMP_SETS.some((set) => set.stampKeys.includes(preset.key))) },
+    { id: "basic", name: "うさぽん", presets: stampPresets.filter((preset) => !isAutumnTrialStamp(preset.key) && !STAMP_SETS.some((set) => set.stampKeys.includes(preset.key))) },
+    { id: "autumn-trial", name: "無料お試し５点", presets: stampPresets.filter((preset) => isAutumnTrialStamp(preset.key)) },
     ...STAMP_SETS.map((set) => ({ id: set.id, name: set.name, presets: stampPresets.filter((preset) => set.stampKeys.includes(preset.key)) })),
   ].filter((set) => set.presets.length > 0);
   const activeStampTab = (stampTab === "my-images" && uploadedImages.length > 0) || stampTabs.some((set) => set.id === stampTab) ? stampTab : stampTabs[0]?.id;
@@ -1346,17 +1341,6 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     } finally {
       setUploadingArtwork(false);
     }
-  };
-
-  const receiveFreeTrial = () => {
-    if (!isFreeTrialPassphrase(freeTrialPassphrase)) {
-      setFreeTrialMessage("合言葉が違います。");
-      return;
-    }
-    try { saveFreeTrialReceipt(window.localStorage); } catch { /* この画面を開いている間は利用できます。 */ }
-    setFreeTrialUnlocked(true);
-    setFreeTrialPassphrase("");
-    setFreeTrialMessage("無料お試しスタンプをこの端末で受け取りました。");
   };
 
   const applyAutumnThemePack = async () => {
@@ -1903,13 +1887,10 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
       <div data-ui-id="design.actions">{designActionButtons(`sticky-actions design-bottom-actions${isLetterSetDesign ? " is-letter-set" : ""}`)}</div>
       {stickerPackGuideOpen && <StickerPackGuideDialog
         loggedIn={Boolean(user)}
-        trialImageUrl={`${import.meta.env.BASE_URL}assets/stamps/autumn-stamp-9803.png`}
+        trialStamps={BUILT_IN_STAMPS.filter((preset) => isAutumnTrialStamp(preset.key)).map((preset) => ({ name: preset.name, url: `${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}` }))}
         onUseTrial={() => {
           setStickerPackGuideOpen(false);
-          try { saveFreeTrialReceipt(window.localStorage); } catch { /* この画面を開いている間は利用できます。 */ }
-          setFreeTrialUnlocked(true);
-          const preset = BUILT_IN_STAMPS.find((item) => item.key === AUTUMN_FREE_TRIAL_STAMP_ID);
-          if (preset) void addPresetStamp(preset);
+          setStampTab("autumn-trial");
         }}
         onLogin={() => { setStickerPackGuideOpen(false); onLogin(); }}
         onImport={() => { setStickerPackGuideOpen(false); stickerPackInput.current?.click(); }}
@@ -1919,18 +1900,48 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   );
 }
 
-function StickerPackGuideDialog({ loggedIn, trialImageUrl, onUseTrial, onLogin, onImport, onClose }: { loggedIn: boolean; trialImageUrl: string; onUseTrial: () => void; onLogin: () => void; onImport: () => void; onClose: () => void }) {
+async function downloadTrialPngZip(stamps: { url: string }[]) {
+  const files: Record<string, Uint8Array> = {};
+  for (const stamp of stamps) {
+    const response = await fetch(stamp.url);
+    if (!response.ok) throw new Error("無料素材を読み込めませんでした。");
+    const fileName = new URL(stamp.url, window.location.href).pathname.split("/").pop();
+    if (!fileName || !/^autumn-(trial-(cover|sticky|heading|tape)|stamp-9803)\.png$/.test(fileName)) throw new Error("無料素材の名前を確認できませんでした。");
+    files[fileName] = new Uint8Array(await response.arrayBuffer());
+  }
+  if (Object.keys(files).length !== 5) throw new Error("無料素材が５点そろいませんでした。");
+  const archive = new Blob([new Uint8Array(zipSync(files, { level: 0 })).buffer], { type: "application/zip" });
+  const url = URL.createObjectURL(archive);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = "usapon-autumn-trial-5-png.zip";
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+function StickerPackGuideDialog({ loggedIn, trialStamps, onUseTrial, onLogin, onImport, onClose }: { loggedIn: boolean; trialStamps: { name: string; url: string }[]; onUseTrial: () => void; onLogin: () => void; onImport: () => void; onClose: () => void }) {
+  const [downloadBusy, setDownloadBusy] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
+  const downloadTrial = async () => {
+    setDownloadBusy(true); setDownloadError("");
+    try { await downloadTrialPngZip(trialStamps); }
+    catch { setDownloadError("保存できませんでした。もう一度お試しください。"); }
+    finally { setDownloadBusy(false); }
+  };
   return <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) onClose(); }}>
     <section className="app-modal sticker-pack-guide" role="dialog" aria-modal="true" aria-labelledby="sticker-pack-guide-title">
       <h2 id="sticker-pack-guide-title">うさぽんステッカーパック</h2>
       <div className="sticker-pack-trial">
-        <img src={trialImageUrl} alt="秋うさぎの無料お試しステッカー" />
-        <div><strong>無料お試し・1点</strong><p>ログインなしで、今すぐ貼れます。</p></div>
+        <div className="sticker-pack-trial-images">{trialStamps.map((stamp) => <img key={stamp.url} src={stamp.url} alt={stamp.name} />)}</div>
+        <div><strong>無料お試し・５点</strong><p>ログインなしで、好きな柄を選んで貼れます。</p></div>
       </div>
       <div className="sticker-pack-guide-actions">
-        <button className="primary-button" type="button" onClick={onUseTrial}>今すぐ貼る</button>
-        <a href={trialImageUrl} download="usapon-autumn-trial-sticker.png">PNGを保存</a>
+        <button className="primary-button" type="button" onClick={onUseTrial}>５点から選ぶ</button>
+        <button type="button" disabled={downloadBusy} onClick={() => { void downloadTrial(); }}>{downloadBusy ? "準備中…" : "PNG５点を保存"}</button>
       </div>
+      {downloadError && <p role="alert">{downloadError}</p>}
       <div className="sticker-pack-purchased">
         <strong>購入済みの素材</strong>
         <p>購入・受取時と同じGoogleアカウントでログインしてください。</p>
@@ -2297,7 +2308,6 @@ export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [canEditUi, setCanEditUi] = useState(false);
   const [unlockedThemePackIds, setUnlockedThemePackIds] = useState<string[]>([]);
-  const [hasFreeTrialEntitlement, setHasFreeTrialEntitlement] = useState(false);
   const [unlockPackId, setUnlockPackId] = useState<string | null>(null);
   const [pendingTemplate, setPendingTemplate] = useState<PackageTemplate | null>(null);
   const [workspace, setWorkspace] = useState<ProjectWorkspace | null>(null);
@@ -2394,7 +2404,6 @@ export function App() {
     if (!user || !isCloudConfigured) {
       setMaterialPacks([]); setMaterialStatus(authReady ? "signed-out" : "loading"); setMaterialGallery(null);
       setUnlockedThemePackIds([]);
-      setHasFreeTrialEntitlement(false);
       return;
     }
     setMaterialPacks([]); setMaterialStatus("loading"); setMaterialGallery(null);
@@ -2402,7 +2411,7 @@ export function App() {
     const refreshEntitlements = () => {
       void Promise.all([listThemePackEntitlements(), hasFreeProductEntitlement(AUTUMN_TRIAL_PRODUCT_KEY, user.id)]).then(([ids, entitled]) => {
         if (!mounted) return;
-        setUnlockedThemePackIds(ids); setHasFreeTrialEntitlement(entitled);
+        setUnlockedThemePackIds(ids);
         const packs = [...(ids.includes("autumn-letter-set") ? ["autumn-letter-set"] : []), ...(entitled ? [AUTUMN_TRIAL_PRODUCT_KEY] : [])];
         setMaterialOwner(user.id); setMaterialPacks(packs); setMaterialStatus(packs.length ? "ready" : "none");
       }).catch(() => { if (mounted) { setMaterialPacks([]); setMaterialStatus("error"); } });
@@ -2710,7 +2719,7 @@ export function App() {
       {(state.screen === "home" || state.screen === "letter-set") && <CreationHome onBox={startNew} onLetter={startLetterSet} onResume={shouldPersistLocalDraft ? () => dispatch({ type: "go", screen: "design" }) : null} resumeLabel={state.box.type === "envelope-v1" ? "レターセット" : BOX_TYPE_COPY[state.box.type].name} />}
       {state.screen === "templates" && <TemplateScreen onBack={() => dispatch({ type: "go", screen: "home" })} onSelect={startTemplate} unlockedThemePackIds={unlockedThemePackIds} />}
       {state.screen === "size" && <SizeScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
-      {state.screen === "design" && <DesignScreen key={user?.id ?? "device"} imageOwner={user?.id ?? "device"} user={user} onLogin={() => { void login(); }} state={state} dispatch={dispatch} pages={pages} activePage={activePage} unlockedThemePackIds={unlockedThemePackIds} hasFreeTrialEntitlement={hasFreeTrialEntitlement} onUnlockThemePack={requestThemeUnlock} detailsOpen={designDetailsOpen} onDetailsClose={() => setDesignDetailsOpen(false)} />}
+      {state.screen === "design" && <DesignScreen key={user?.id ?? "device"} imageOwner={user?.id ?? "device"} user={user} onLogin={() => { void login(); }} state={state} dispatch={dispatch} pages={pages} activePage={activePage} unlockedThemePackIds={unlockedThemePackIds} onUnlockThemePack={requestThemeUnlock} detailsOpen={designDetailsOpen} onDetailsClose={() => setDesignDetailsOpen(false)} />}
       {state.screen === "print" && <PrintScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} clientContext={clientContext} onSuccessfulExport={offerInstallAfterSuccess} />}
       {CLOUD_SYNC_UI_ENABLED && state.screen === "my-boxes" && (
         <MyBoxesScreen

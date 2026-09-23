@@ -31,10 +31,9 @@ describe("秋スタンプ無料お試し", () => {
     expect(canUseAutumnStamp("autumn-stamp-9798", false, true)).toBe(true);
   });
 
-  it("共通の無料権利はお試し5点だけを許可する", () => {
-    expect(canUseAutumnTrialStamp("autumn-trial-cover", false, true, false)).toBe(true);
-    expect(canUseAutumnTrialStamp(AUTUMN_FREE_TRIAL_STAMP_ID, false, true, false)).toBe(true);
-    expect(canUseAutumnTrialStamp("autumn-trial-heading", true, false, false)).toBe(false);
-    expect(canUseAutumnTrialStamp("autumn-trial-cover", false, false, true)).toBe(false);
+  it("ログインなしで無料お試し５点を選べる", () => {
+    for (const id of ["autumn-trial-cover", "autumn-trial-sticky", "autumn-trial-heading", "autumn-trial-tape", AUTUMN_FREE_TRIAL_STAMP_ID] as const) {
+      expect(canUseAutumnTrialStamp(id)).toBe(true);
+    }
   });
 });

@@ -21,8 +21,10 @@ export function canUseAutumnStamp(stampId: AutumnStampId, hasFreeReceipt: boolea
   return hasPurchaseEntitlement || (hasFreeReceipt && stampId === AUTUMN_FREE_TRIAL_STAMP_ID);
 }
 
-export function canUseAutumnTrialStamp(stampId: AutumnTrialStampId, hasFreeReceipt: boolean, hasFreeEntitlement: boolean, hasPurchaseEntitlement: boolean) {
-  return hasFreeEntitlement || ((hasFreeReceipt || hasPurchaseEntitlement) && stampId === AUTUMN_FREE_TRIAL_STAMP_ID);
+// All five trial PNGs are public. The old one-stamp receipt remains readable for
+// existing documents, but no account or receipt is needed for the trial set.
+export function canUseAutumnTrialStamp(stampId: AutumnTrialStampId) {
+  return isAutumnTrialStamp(stampId);
 }
 
 export function isAutumnTrialStamp(stampId: string): stampId is AutumnTrialStampId {
