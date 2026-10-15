@@ -1,4 +1,4 @@
-import { authenticatedUser, clients, corsHeaders, json, PACKAGE_BOX_ASSETS_BUCKET, PACKAGE_SCHEMA, safeFileName } from "../_shared/supabase.ts";
+import { authenticatedUser, corsHeaders, json, PACKAGE_BOX_ASSETS_BUCKET, safeFileName } from "../_shared/supabase.ts";
 
 const MAX_FILE_BYTES = 10 * 1024 * 1024;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -7,8 +7,6 @@ Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: corsHeaders(request) });
   if (request.method !== "POST") return json(request, { error: "METHOD_NOT_ALLOWED" }, 405);
 
-  let reservedId: string | null = null;
-  let reservedPath: string | null = null;
   try {
     const { user, admin, packageAdmin } = await authenticatedUser(request);
     const form = await request.formData();
@@ -37,8 +35,6 @@ Deno.serve(async (request) => {
 
     const extension = sourceType === "svg" ? "svg" : "png";
     const storagePath = `${user.id}/${assetId}.${extension}`;
-    reservedId = assetId;
-    reservedPath = storagePath;
     const { data: reservation, error: reserveError } = await packageAdmin.rpc("reserve_box_asset_upload", {
       p_user_id: user.id,
       p_asset_id: assetId,
@@ -67,11 +63,10 @@ Deno.serve(async (request) => {
     if (readyError) throw readyError;
     return json(request, { asset });
   } catch (error) {
-    if (reservedId) {
-      const { admin } = clients(request);
-      if (reservedPath) await admin.storage.from(PACKAGE_BOX_ASSETS_BUCKET).remove([reservedPath]);
-      await admin.schema(PACKAGE_SCHEMA).from("box_assets").delete().eq("id", reservedId).eq("status", "pending");
-    }
+    // A reservation or upload error does not prove this request owns the row
+    // or file: another request may be using it, or the write may have succeeded
+    // before its response was lost. Preserve pending data rather than deleting
+    // with the service-role client. Reconcile abandoned uploads separately.
     const message = error instanceof Error
       ? error.message
       : typeof error === "object" && error
