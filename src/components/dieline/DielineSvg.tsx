@@ -183,9 +183,10 @@ export function DielineLayers({
       </g>
       {!exportMode && activeEnvelopeFace && facePolygons[activeEnvelopeFace] && <polygon data-active-envelope-face={activeEnvelopeFace} points={pointsToString(facePolygons[activeEnvelopeFace]!.points)} fill="rgba(238,111,131,.10)" stroke="#ee6f83" strokeWidth="0.8" strokeDasharray="2 1.4" pointerEvents="none" />}
       <GlueLayer geometry={geometry} patternId={gluePatternId} exportMode={exportMode} showAssemblyGuide={printGuideMode === "assembly"} />
-      <FoldLayer geometry={geometry} color={lineColors.fold} />
+      {/* 編集画面は縮小表示なので、印刷より線を太くして箱の形を見やすくする。PDFの線幅は変えない。 */}
+      <FoldLayer geometry={geometry} color={lineColors.fold} strokeWidth={exportMode ? undefined : 0.45} />
       {(!exportMode || includeFoldoverLines) && <FoldoverLayer geometry={geometry} color={lineColors.fold} />}
-      <CutLayer geometry={geometry} color={lineColors.cut} />
+      <CutLayer geometry={geometry} color={lineColors.cut} strokeWidth={exportMode ? undefined : 0.6} />
       {!exportMode && showGuides && <GuideLayer geometry={geometry} />}
       {exportMode && printGuideMode === "assembly" && geometry.type === "envelope-v1" && <GuideLayer geometry={geometry} assemblyOnly />}
     </>
