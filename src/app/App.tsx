@@ -1076,6 +1076,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const activeStampTab = (stampTab === "my-images" && uploadedImages.length > 0) || stampTabs.some((set) => set.id === stampTab) ? stampTab : stampTabs[0]?.id;
   const visibleStampPresets = stampTabs.find((set) => set.id === activeStampTab)?.presets ?? [];
   const [finishedPreviewOpen, setFinishedPreviewOpen] = useState(false);
+  const [controlsCollapsed, setControlsCollapsed] = useState(false);
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [canvasCenter, setCanvasCenter] = useState({ x: geometry.bounds.widthMm / 2, y: geometry.bounds.heightMm / 2 });
   const [zoomControlsOpen, setZoomControlsOpen] = useState(false);
@@ -1494,9 +1495,20 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     setLetterSetShareMessage(`「${templateDefinition.label}」で${arrangedLabels.join("・")}を整えました。ここから手動で調整できます。`);
   };
 
-  const editorCategoryTabs = (placement: "top" | "below-canvas") => (
-    <div className={`editor-category-tabs is-${placement}`} data-ui-id={placement === "top" ? "design.editor-tabs-top" : "design.editor-tabs-mobile"} role="tablist" aria-label="編集内容">
-      {([['artwork','背景'],['stamps','スタンプ'],['text','文字'],['other','その他']] as Array<[EditorSection,string]>).map(([section,label]) => <button key={section} type="button" role="tab" aria-selected={state.openEditorSection === section} className={state.openEditorSection === section ? "is-selected" : ""} onClick={() => dispatch({ type: "set-open-editor-section", section })}>{label}</button>)}
+  const isLetterSetDesign = state.box.type === "envelope-v1";
+  const isStationeryPage = geometry.type === "envelope-v1" || geometry.type === "letter-paper-v1" || geometry.type === "mini-card-v1";
+  // 箱の「その他」は編集ガイドだけで、詳細メニュー（•••）と重複していたため記入欄のある品目だけに出す。
+  const editorSection: EditorSection = !isStationeryPage && state.openEditorSection === "other" ? "artwork" : state.openEditorSection;
+  const editorTabs: Array<[EditorSection, string]> = isStationeryPage
+    ? [["artwork", "背景"], ["stamps", "スタンプ"], ["text", "文字"], ["other", "記入欄"]]
+    : [["artwork", "背景"], ["stamps", "スタンプ"], ["text", "文字"]];
+  // 選択中のタブをもう一度押すと操作パネルを畳み、展開図を広く使える。
+  const editorCategoryTabs = (
+    <div className={`editor-category-tabs is-below-canvas${controlsCollapsed ? " is-collapsed" : ""}`} data-ui-id="design.editor-tabs-mobile" role="tablist" aria-label="編集内容" style={{ "--editor-tab-count": editorTabs.length } as CSSProperties}>
+      {editorTabs.map(([section, label]) => {
+        const selected = editorSection === section;
+        return <button key={section} type="button" role="tab" aria-selected={selected} aria-expanded={selected ? !controlsCollapsed : undefined} title={selected ? (controlsCollapsed ? "操作パネルを開く" : "もう一度押すと操作パネルを閉じます") : undefined} className={selected ? "is-selected" : ""} onClick={() => { if (selected) { setControlsCollapsed(!controlsCollapsed); return; } setControlsCollapsed(false); dispatch({ type: "set-open-editor-section", section }); }}>{label}{selected && <span className="editor-tab-fold" aria-hidden="true">{controlsCollapsed ? "▴" : "▾"}</span>}</button>;
+      })}
     </div>
   );
   const canvasToolbar = (className: string, showDimensions = true) => (
@@ -1505,8 +1517,6 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
       {showDimensions && <span className="dimension-pill">{geometry.type === "envelope-v1" ? <><b>完成 {mm(geometry.input.widthMm)} × {mm(geometry.input.heightMm)}</b><i aria-hidden="true">／</i><b>展開 {mm(geometry.bounds.widthMm)} × {mm(geometry.bounds.heightMm)}</b></> : <b>{mm(geometry.bounds.widthMm)} × {mm(geometry.bounds.heightMm)}</b>}</span>}
     </div>
   );
-  const isLetterSetDesign = state.box.type === "envelope-v1";
-  const isStationeryPage = geometry.type === "envelope-v1" || geometry.type === "letter-paper-v1" || geometry.type === "mini-card-v1";
   const designActionButtons = (className: string) => (
     <div className={className}>
       <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: isLetterSetDesign ? "letter-set" : template ? "templates" : "size" })}>{isLetterSetDesign ? "セットを選び直す" : template ? "型を選び直す" : "サイズに戻る"}</button>
@@ -1522,12 +1532,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
       </div>
       {!isLetterSetDesign && <PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} uiId="design.item-tabs" />}
 
-      <div className="workspace-tab-row without-face-tabs">
-        <div className="workspace-tab-spacer" aria-hidden="true" />
-        {editorCategoryTabs("top")}
-      </div>
-
-      <div className="editor-layout" data-ui-id="design.workspace">
+      <div className={`editor-layout${controlsCollapsed ? " is-controls-collapsed" : ""}`} data-ui-id="design.workspace">
         <section className="editor-canvas-panel panel-card" data-ui-id="design.canvas">
           {isLetterSetDesign && (
             <div className="letter-set-mobile-page-row" data-ui-id="design.item-tabs-mobile">
@@ -1595,11 +1600,11 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
 
         </section>
 
-        {editorCategoryTabs("below-canvas")}
+        {editorCategoryTabs}
 
-        <aside className="editor-controls panel-card" data-ui-id="design.controls">
+        <aside className="editor-controls panel-card" data-ui-id="design.controls" hidden={controlsCollapsed}>
           {faceEditing && <div className="edit-scope-bar"><div className="background-scope-picker" role="group" aria-label="編集する範囲"><button type="button" className={backgroundScope === "all" ? "is-selected" : ""} onClick={() => setBackgroundScope("all")}>全体</button><button type="button" className={backgroundScope === "face" ? "is-selected" : ""} onClick={() => setBackgroundScope("face")}>選択面</button></div></div>}
-          {state.openEditorSection === "artwork" && (
+          {!controlsCollapsed && editorSection === "artwork" && (
             <div className="drawer-section background-editor-workspace">
               <section className={`background-color-disclosure ${backgroundPaletteOpen ? "is-open" : ""}`}>
                 <button className="background-color-summary" type="button" aria-expanded={backgroundPaletteOpen} onClick={() => { const next = !backgroundPaletteOpen; setBackgroundPaletteOpen(next); if (next) { setPatternLibraryOpen(false); setArtworkPanel(null); } }}>
@@ -1690,7 +1695,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
             </div>
           )}
 
-          {state.openEditorSection === "stamps" && (
+          {!controlsCollapsed && editorSection === "stamps" && (
             <div className="drawer-section stamp-editor-workspace">
               <section className="stamp-editor-zone stamp-library-zone">
                 <div className="stamp-library-toolbar">
@@ -1752,7 +1757,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
             </div>
           )}
 
-          {state.openEditorSection === "text" && (
+          {!controlsCollapsed && editorSection === "text" && (
             <div className="drawer-section">
               <button className="outline-button full-button" type="button" onClick={addText}>＋ テキストを追加</button>
               {pageTexts.length > 0 && (
@@ -1776,7 +1781,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
             </div>
           )}
 
-          {state.openEditorSection === "other" && (
+          {!controlsCollapsed && editorSection === "other" && (
             <div className="drawer-section other-editor-panel">
               <div className="other-editor-heading"><span aria-hidden="true">✧</span><div><strong>{geometry.type === "envelope-v1" ? "宛名を書く場所" : geometry.type === "letter-paper-v1" ? "書きやすい便箋" : geometry.type === "mini-card-v1" ? "書きやすいミニカード" : "仕上がりの補助"}</strong><small>必要なものだけ追加できます</small></div></div>
               <div className="other-option-grid">
@@ -1792,7 +1797,6 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                   <label className={`other-option-card ${state.envelopeDesign.showAddressField ? "is-selected" : ""}`}><span className="other-option-preview address-frame-preview" aria-hidden="true"><i /></span><span><strong>宛名用の白い枠</strong><small>模様に重ねて読みやすくする</small></span><input aria-label="封筒に宛名用の白い枠を表示" type="checkbox" checked={state.envelopeDesign.showAddressField} onChange={(event) => dispatch({ type: "update-envelope-design", patch: { showAddressField: event.target.checked } })} /></label>
                   <label className={`other-option-card ${state.envelopeDesign.showAddressLines ? "is-selected" : ""}`}><span className="other-option-preview writing-lines-preview" aria-hidden="true"><i /><i /><i /></span><span><strong>宛名の罫線</strong><small>住所や名前を書きやすい{state.envelopeDesign.addressLineCount ?? 3}本線</small></span><input aria-label="封筒に宛名の罫線を表示" type="checkbox" checked={state.envelopeDesign.showAddressLines} onChange={(event) => dispatch({ type: "update-envelope-design", patch: { showAddressLines: event.target.checked } })} /></label>
                 </>}
-                {geometry.type !== "letter-paper-v1" && geometry.type !== "envelope-v1" && geometry.type !== "mini-card-v1" && <label className={`other-option-card ${state.showGuides ? "is-selected" : ""}`}><span className="other-option-preview guide-preview" aria-hidden="true">＋</span><span><strong>編集ガイド</strong><small>面名と中心線を表示する</small></span><input aria-label="編集ガイドを表示" type="checkbox" checked={state.showGuides} onChange={() => dispatch({ type: "toggle-guides" })} /></label>}
               </div>
               {geometry.type === "letter-paper-v1" && state.showWritingLines && (
                 <div className="line-tuning-panel" aria-label="便箋の罫線調整">
@@ -2460,9 +2464,10 @@ export function App() {
 
   const confirmDiscard = useCallback(() => {
     if (documentSignature === lastSavedSignature.current) return true;
-    if (!CLOUD_SYNC_UI_ENABLED) return window.confirm("いまの編集をいったん閉じて、別の作品へ移動しますか？\n作業内容はこの端末に残ります。");
-    return window.confirm("いまの編集をいったん閉じて、別の画面へ移動しますか？\n作業内容はこの端末に残るので、あとから続けられます。");
-  }, [documentSignature]);
+    // 端末内の下書きは1作品分だけなので、別の作品を開くと今の作品は上書きされる。
+    if (!CLOUD_SYNC_UI_ENABLED || !user || !workspace) return window.confirm("保存していない作品があります。\n別の作品を開くと、いまの作品はこの端末から消えます。続けますか？");
+    return window.confirm("保存していない変更があります。\n別の作品を開くと、いまの変更は消えます（前回クラウドに保存した内容は残ります）。続けますか？");
+  }, [documentSignature, user, workspace]);
 
   const login = useCallback(async () => {
     try {
@@ -2736,7 +2741,8 @@ export function App() {
       )}
       <MaterialNotice app="package" userId={user?.id} status={user && materialOwner !== user.id ? "loading" : materialStatus} packs={materialOwner === user?.id ? materialPacks : []} onLogin={async () => { if (!await login()) throw new Error("LOGIN_FAILED"); }} onView={setMaterialGallery} />
       {materialGallery && user && materialOwner === user.id && materialPacks.includes(materialGallery) && <MaterialGallery pack={materialGallery} onClose={() => setMaterialGallery(null)} />}
-      <BottomNavBar activeTab={bottomNavActiveTab} onChange={handleBottomNavChange} />
+      {/* デザイン中は展開図を広く使うため下部ナビを出さない。ホームへはヘッダーから戻れる。 */}
+      {state.screen !== "design" && <BottomNavBar activeTab={bottomNavActiveTab} onChange={handleBottomNavChange} />}
 
       {newCreationSheetOpen && (
         <NewCreationSheet

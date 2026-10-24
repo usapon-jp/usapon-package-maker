@@ -6,6 +6,7 @@ import { App } from "./app/App";
 import { PACKAGE_UI_EDITOR_REGISTRY } from "./ui-editor/registry";
 import { loadPublishedPackageUI } from "./ui-editor/repository";
 import "./styles/global.css";
+import "./styles/design-workspace.css";
 
 const PackageUIEditor = lazy(() => import("./ui-editor/PackageUIEditor").then((module) => ({ default: module.PackageUIEditor })));
 
