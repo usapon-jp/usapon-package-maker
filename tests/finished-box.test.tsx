@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { initialState } from '../src/app/app-state';
-import { boxSizeFields, finishedBoxFaces, faceMatrix, visibleBoxFaces, projectBoxPoint, type BoxView } from '../src/domain/boxes/finished-box';
+import { boxSizeFields, faceFrames3d, rotateView, finishedBoxFaces, faceMatrix, visibleBoxFaces, projectBoxPoint, type BoxView } from '../src/domain/boxes/finished-box';
 import { FinishedBoxPreview } from '../src/components/common/FinishedBoxPreview';
 
 describe('箱の完成プレビュー', () => {
@@ -21,7 +21,7 @@ describe('箱の完成プレビュー', () => {
     expect(a * d - b * c).toBeCloseTo(1);
     expect([a,b]).toEqual([face.u[0]/face.panel.width, -face.u[2]/face.panel.width]);
     const html=renderToStaticMarkup(<FinishedBoxPreview state={{...initialState,box:{...initialState.box,type}}}/>);
-    expect(html).toContain(`translate(${-face.panel.x} ${-face.panel.y})`);
+    expect(html).toContain(`viewBox="${face.panel.x} ${face.panel.y} ${face.panel.width} ${face.panel.height}"`);
     expect(html).toContain('完成イメージ・斜め前');
   });
   it.each(['straight-tuck-carton-v1','gift-box-v1','two-piece-gift-box-v1'] as const)('%s の面を4方向に投影できる', type => {
@@ -75,12 +75,30 @@ describe('箱の完成プレビュー', () => {
     const box={...initialState.box,type,widthMm:40,depthMm:25,heightMm:60};
     expect(boxSizeFields(box).map(f=>`${f.label} ${f.value}`).join(' × ')).toBe(expected);
     const html=renderToStaticMarkup(<FinishedBoxPreview state={{...initialState,box}}/>);
-    expect(html).toContain(`${expected} mm`);
+    expect(html).toContain(`${expected.replaceAll(/ (\d)/g,'$1')} mm`);
   });
-  it('開いたときは斜め前の立体を最初に見せ、側面に陰影をつける',()=>{
+  it('開いたときは斜め前の立体を最初に見せ、上から光を当てて陰影をつける',()=>{
     const html=renderToStaticMarkup(<FinishedBoxPreview state={initialState}/>);
     expect(html.indexOf('斜め前')).toBeLessThan(html.indexOf('真上'));
-    expect(html).toContain('feDropShadow');
-    expect(html).toMatch(/data-finished-face="right"[\s\S]*?fill-opacity="0.16"/);
+    expect(html).toContain('finished-box-floor');
+    const shade=(name:string)=>Number(html.match(new RegExp(`data-finished-face="${name}"[\\s\\S]*?finished-box-shade" style="opacity:([0-9.]+)`))![1]);
+    expect(shade('top')).toBeLessThan(shade('front'));
+    expect(shade('front')).toBeLessThan(shade('right'));
+  });
+  it.each(['straight-tuck-carton-v1','gift-box-v1','two-piece-gift-box-v1'] as const)('%s の3D面は外向きで、斜め前から見える面だけ描く',type=>{
+    const faces=finishedBoxFaces({...initialState.box,type});
+    const frames=faceFrames3d(faces);
+    const shown=new Set<string>();
+    frames.forEach((frame,i)=>{
+      const middle=frame.origin.map((v,k)=>v+frame.u[k]/2+frame.v[k]/2);
+      expect(frame.normal.reduce((sum,v,k)=>sum+v*middle[k],0)).toBeGreaterThan(0);
+      if(rotateView(frame.normal,-35,28)[2]>0) shown.add(faces[i].name);
+    });
+    expect([...shown].sort()).toEqual(['front','right','top']);
+  });
+  it('真上から見ると、ふたの面がまっすぐこちらを向く',()=>{
+    const faces=finishedBoxFaces(initialState.box);
+    const top=faceFrames3d(faces)[faces.findIndex(f=>f.name==='top')];
+    expect(rotateView(top.normal,0,90)[2]).toBeCloseTo(1);
   });
 });
