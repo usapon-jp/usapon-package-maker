@@ -1,0 +1,96 @@
+/*
+ * デザイン画面の骨格（画面の高さ・展開図・タブ・操作パネルの大きさ）はこのファイルだけで決める。
+ * * global.css には見た目（色・角丸・影）だけを残しているので、ここでは優先度の強制指定を使わない。
+ * 方針: 展開図をいちばん大きく取り、操作パネルは必要な分だけ。
+ */
+
+.app-shell.is-fixed-workspace:has(> .antigravity-design-page) {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 100dvh;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+.app-shell.is-fixed-workspace:has(> .antigravity-design-page) > .app-header { flex: 0 0 auto; }
+
+.antigravity-design-page {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
+.antigravity-design-page .editor-canvas-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.antigravity-design-page .editor-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.antigravity-design-page .editor-controls {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.antigravity-design-page .editor-controls[hidden] { display: none; }
+.antigravity-design-page .editor-layout > .editor-category-tabs { width: 100%; margin: 0; }
+.editor-tab-fold { margin-left: 4px; font-size: .8em; opacity: .7; }
+
+/* スマホ: 上から 展開図（残り全部）→ タブ → 操作パネル（最大で画面の4割）。 */
+@media (max-width: 600px) {
+  .antigravity-design-page .editor-layout {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    gap: 6px;
+    padding-bottom: env(safe-area-inset-bottom);
+    overflow: hidden;
+  }
+  .antigravity-design-page .editor-canvas-panel { flex: 1 1 auto; padding: 4px; }
+  .antigravity-design-page .editor-layout > .editor-category-tabs { flex: 0 0 auto; }
+  .antigravity-design-page .editor-controls {
+    flex: 0 1 auto;
+    max-height: 40dvh;
+    padding: 10px 12px 12px;
+  }
+  /* スタンプ一覧は中身が多いので、少しだけ高さを許す。 */
+  .antigravity-design-page .editor-controls:has(.stamp-editor-workspace) { max-height: 44dvh; }
+}
+
+/* iPad・PC: 左に展開図（残り全部）、右に タブ＋操作パネル（固定幅）。 */
+@media (min-width: 601px) {
+  .antigravity-design-page { padding-top: 10px; padding-bottom: 16px; }
+  .antigravity-design-page > .page-heading { flex: 0 0 auto; margin-bottom: 10px; }
+  .antigravity-design-page .editor-layout {
+    --design-controls-width: clamp(320px, 34vw, 420px);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--design-controls-width);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "canvas tabs" "canvas controls";
+    flex: 1 1 auto;
+    min-height: 0;
+    gap: 10px 20px;
+    overflow: hidden;
+  }
+  .antigravity-design-page .editor-canvas-panel { grid-area: canvas; padding: 10px; }
+  .antigravity-design-page .editor-layout > .editor-category-tabs { grid-area: tabs; }
+  .antigravity-design-page .editor-controls { grid-area: controls; }
+  .antigravity-design-page .editor-controls:has(.stamp-editor-workspace) { overflow: hidden; }
+}
