@@ -1583,6 +1583,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                 if (stamp) dispatch({ type: "update-stamp", id, patch: { rotationDeg: rotateByDegrees(stamp.rotationDeg) } });
               }}
               onResizeStamp={(id, widthMm) => dispatch({ type: "update-stamp", id, patch: { widthMm } })}
+              onSetStampRotation={(id, rotationDeg) => dispatch({ type: "update-stamp", id, patch: { rotationDeg } })}
               onSelectText={(id) => { const item = design.texts.find((candidate) => candidate.id === id); if (faceEditing && item?.surfaceId) dispatch({ type: "set-envelope-face", faceId: item.surfaceId }); dispatch({ type: "select-text", id }); if (id) dispatch({ type: "set-open-editor-section", section: "text" }); }}
               onMoveText={(id, xMm, yMm) => { const item = design.texts.find((candidate) => candidate.id === id); const point = clampToEnvelopeFace(geometry, faceEditing ? item?.surfaceId : undefined, xMm, yMm); dispatch({ type: "update-text", id, patch: point }); }}
               onSelectEnvelopeFace={faceScopedEditing ? (faceId) => dispatch({ type: "set-envelope-face", faceId }) : undefined}

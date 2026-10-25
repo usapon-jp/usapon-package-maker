@@ -1,4 +1,5 @@
 import { StampPinch } from "../../features/stamps/pinch";
+import { StampHandleGesture, type StampHandleMode } from "../../features/stamps/transform-handle";
 import { useEffect, useId, useRef, useState, type PointerEvent } from "react";
 
 import type { ArtworkLayer as ArtworkItem, DielineLineColors, EnvelopeDesignSettings, PrintGuideMode, StampItem, TextItem } from "../../app/app-types";
@@ -10,7 +11,7 @@ import { FoldLayer } from "./layers/FoldLayer";
 import { FoldoverLayer } from "./layers/FoldoverLayer";
 import { GlueLayer } from "./layers/GlueLayer";
 import { GuideLayer } from "./layers/GuideLayer";
-import { ArtworkLayer } from "./layers/ArtworkLayer";
+import { ArtworkLayer, StampHandles } from "./layers/ArtworkLayer";
 import { TextLayer } from "./layers/TextLayer";
 import { EnvelopeDesignLayer } from "./layers/EnvelopeDesignLayer";
 import { centeredLineSpan, evenlySpacedLineYs } from "../../features/letter-set/writing-lines";
@@ -64,6 +65,9 @@ type LayersProps = {
   onArtworkPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
   onStampPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
   onStampRotate?: (id: string) => void;
+  onStampHandlePointerDown?: (event: PointerEvent<SVGGElement>, id: string, mode: StampHandleMode) => void;
+  /** Handle radius in mm; the editor passes a zoom-aware value so handles stay finger-sized on screen. */
+  stampHandleRadiusMm?: number;
   onTextPointerDown?: (event: PointerEvent<SVGGElement>, id: string) => void;
 };
 
@@ -92,6 +96,8 @@ export function DielineLayers({
   onArtworkPointerDown,
   onStampPointerDown,
   onStampRotate,
+  onStampHandlePointerDown,
+  stampHandleRadiusMm = 4,
   onTextPointerDown,
 }: LayersProps) {
   const clipId = `${idPrefix}-artwork-clip`;
@@ -189,11 +195,15 @@ export function DielineLayers({
       <CutLayer geometry={geometry} color={lineColors.cut} strokeWidth={exportMode ? undefined : 0.6} />
       {!exportMode && showGuides && <GuideLayer geometry={geometry} />}
       {exportMode && printGuideMode === "assembly" && geometry.type === "envelope-v1" && <GuideLayer geometry={geometry} assemblyOnly />}
+      {!exportMode && (() => {
+        const item = stamps.find((stamp) => stamp.id === selectedStampId && stamp.visible);
+        return item ? <StampHandles item={item} radius={stampHandleRadiusMm} onPointerDown={onStampHandlePointerDown} onRotate={onStampRotate} /> : null;
+      })()}
     </>
   );
 }
 
-type Props = Omit<LayersProps, "idPrefix" | "onArtworkPointerDown" | "onStampPointerDown" | "onStampRotate" | "onTextPointerDown"> & {
+type Props = Omit<LayersProps, "idPrefix" | "onArtworkPointerDown" | "onStampPointerDown" | "onStampRotate" | "onStampHandlePointerDown" | "stampHandleRadiusMm" | "onTextPointerDown"> & {
   onSelectArtwork: (id: string | null) => void;
   onMoveArtwork: (id: string, xMm: number, yMm: number) => void;
   onResizeArtwork?: (id: string, sizeMm: number) => void;
@@ -201,6 +211,8 @@ type Props = Omit<LayersProps, "idPrefix" | "onArtworkPointerDown" | "onStampPoi
   onMoveStamp: (id: string, xMm: number, yMm: number) => void;
   onRotateStamp: (id: string) => void;
   onResizeStamp?: (id: string, widthMm: number) => void;
+  /** Free-angle rotation from the top-right handle. Without it the handle only turns by 90°. */
+  onSetStampRotation?: (id: string, rotationDeg: number) => void;
   onSelectText: (id: string | null) => void;
   onMoveText: (id: string, xMm: number, yMm: number) => void;
   onSelectEnvelopeFace?: (faceId: EnvelopeFaceId) => void;
@@ -238,6 +250,7 @@ export function DielineSvg({
   onMoveStamp,
   onRotateStamp,
   onResizeStamp,
+  onSetStampRotation,
   onSelectText,
   onMoveText,
   onSelectEnvelopeFace,
@@ -251,6 +264,8 @@ export function DielineSvg({
   const svgRef = useRef<SVGSVGElement>(null);
   const stampPinch = useRef(new StampPinch());
   const artworkPinch = useRef(new StampPinch());
+  const stampHandle = useRef(new StampHandleGesture());
+  const [stageWidthPx, setStageWidthPx] = useState(0);
   const drag = useRef<{ kind: "artwork" | "stamp" | "text"; id: string; dx: number; dy: number } | null>(null);
   const pan = useRef<{ pointerId: number; point: DielineViewportCenter; center: DielineViewportCenter } | null>(null);
   const autoPan = useRef<{ pointerId: number; clientX: number; clientY: number; time: number } | null>(null);
@@ -268,7 +283,10 @@ export function DielineSvg({
     if (!stage || typeof ResizeObserver === "undefined") return;
     const updateAspect = () => {
       const { width, height } = stage.getBoundingClientRect();
-      if (width > 0 && height > 0) setViewportAspect(width / height);
+      if (width > 0 && height > 0) {
+        setViewportAspect(width / height);
+        setStageWidthPx(width);
+      }
     };
     updateAspect();
     const observer = new ResizeObserver(updateAspect);
@@ -407,7 +425,24 @@ export function DielineSvg({
     onSelectStamp(id);
   };
 
+  const handleStampHandlePointerDown = (event: PointerEvent<SVGGElement>, id: string, mode: StampHandleMode) => {
+    const item = stamps.find((stamp) => stamp.id === id);
+    if (!item) return;
+    stampPinch.current.cancel();
+    drag.current = null;
+    pan.current = null;
+    stopAutoPan();
+    stampHandle.current.begin(mode, item, pointFromEvent(event));
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
   const handlePointerMove = (event: PointerEvent<SVGSVGElement>) => {
+    if (stampHandle.current.active) {
+      const change = stampHandle.current.move(pointFromEvent(event));
+      if (change?.widthMm !== undefined) onResizeStamp?.(change.id, change.widthMm);
+      if (change?.rotationDeg !== undefined) onSetStampRotation?.(change.id, change.rotationDeg);
+      return;
+    }
     const resizedStamp = stampPinch.current.move(event.pointerId, { x: event.clientX, y: event.clientY });
     const resizedArtwork = artworkPinch.current.move(event.pointerId, { x: event.clientX, y: event.clientY });
     if (resizedStamp) onResizeStamp?.(resizedStamp.id, resizedStamp.widthMm);
@@ -426,7 +461,7 @@ export function DielineSvg({
   const startPan = (event: PointerEvent<SVGSVGElement>) => {
     if (zoom <= 1 || !onViewportCenterChange) return false;
     const target = event.target as Element;
-    if (target.closest("[data-artwork-id], [data-stamp-id], [data-text-container], [data-stamp-rotate-handle]")) return false;
+    if (target.closest("[data-artwork-id], [data-stamp-id], [data-text-container], [data-stamp-handle]")) return false;
     const current = viewBoxRef.current;
     pan.current = { pointerId: event.pointerId, point: pointFromEvent(event), center: { x: current.x + current.width / 2, y: current.y + current.height / 2 } };
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -443,6 +478,7 @@ export function DielineSvg({
       aria-label="箱の実寸展開図プレビュー"
       style={{ touchAction: "none" }}
       onPointerDownCapture={(event) => {
+        if (stampHandle.current.active || (event.target as Element).closest("[data-stamp-handle]")) return;
         if (event.pointerType === "touch") {
           const target = event.target as Element;
           const stampId = target.closest("[data-stamp-id]")?.getAttribute("data-stamp-id");
@@ -463,7 +499,7 @@ export function DielineSvg({
         if (!startPan(event)) handleEnvelopeFacePointerDown(event);
       }}
       onPointerDown={(event) => {
-        if (event.target === event.currentTarget) {
+        if (event.target === event.currentTarget && !stampHandle.current.active) {
           onSelectArtwork(null);
           onSelectStamp(null);
           onSelectText(null);
@@ -471,6 +507,11 @@ export function DielineSvg({
       }}
       onPointerMove={handlePointerMove}
       onPointerUp={(event) => {
+        if (stampHandle.current.active) {
+          const id = stampHandle.current.id;
+          const mode = stampHandle.current.mode;
+          if (stampHandle.current.end() && mode === "rotate" && id) onRotateStamp(id);
+        }
         stampPinch.current.up(event.pointerId);
         artworkPinch.current.up(event.pointerId);
         drag.current = null;
@@ -478,6 +519,7 @@ export function DielineSvg({
         stopAutoPan();
       }}
       onPointerCancel={() => {
+        stampHandle.current.cancel();
         stampPinch.current.cancel();
         artworkPinch.current.cancel();
         drag.current = null;
@@ -519,6 +561,8 @@ export function DielineSvg({
         onArtworkPointerDown={handleArtworkPointerDown}
         onStampPointerDown={handleStampPointerDown}
         onStampRotate={onRotateStamp}
+        onStampHandlePointerDown={handleStampHandlePointerDown}
+        stampHandleRadiusMm={stageWidthPx > 0 ? Math.max(2, 16 * viewBox.width / stageWidthPx) : 4}
         onTextPointerDown={handleTextPointerDown}
       />
     </svg>

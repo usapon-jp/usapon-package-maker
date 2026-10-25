@@ -3,6 +3,7 @@ import type { PointerEvent } from "react";
 import type { ArtworkLayer as ArtworkItem, StampItem, UploadedArtworkLayer } from "../../../app/app-types";
 import type { EnvelopeFaceId } from "../../../domain/boxes/types";
 import type { DielineGeometry } from "../../../domain/boxes/types";
+import type { StampHandleMode } from "../../../features/stamps/transform-handle";
 
 type Props = {
   geometry: DielineGeometry;
@@ -37,6 +38,61 @@ function selectedOutline(width: number, height: number) {
       strokeDasharray="1.4 1"
       pointerEvents="none"
     />
+  );
+}
+
+/**
+ * Selected-stamp handles sit on the screen-aligned corners of the stamp, outside its surface clip,
+ * so "top right = angle" and "bottom right = size" hold whatever the rotation or envelope face is.
+ */
+export function StampHandles({
+  item,
+  radius,
+  onPointerDown,
+  onRotate,
+}: {
+  item: StampItem;
+  radius: number;
+  onPointerDown?: (event: PointerEvent<SVGGElement>, id: string, mode: StampHandleMode) => void;
+  onRotate?: (id: string) => void;
+}) {
+  const width = Math.max(2, item.widthMm);
+  const height = width / Math.max(0.05, item.aspectRatio);
+  const radians = item.rotationDeg * Math.PI / 180;
+  const halfWidth = (Math.abs(width * Math.cos(radians)) + Math.abs(height * Math.sin(radians))) / 2;
+  const halfHeight = (Math.abs(width * Math.sin(radians)) + Math.abs(height * Math.cos(radians))) / 2;
+  const gap = radius * 0.6;
+  const x = item.xMm + halfWidth + gap;
+  const handle = (mode: StampHandleMode, y: number, label: string, glyph: string) => (
+    <g
+      {...(mode === "rotate" ? { "data-stamp-rotate-handle": item.id } : { "data-stamp-scale-handle": item.id })}
+      data-stamp-handle={mode}
+      role="button"
+      tabIndex={0}
+      aria-label={label}
+      transform={`translate(${x} ${y})`}
+      style={{ cursor: mode === "rotate" ? "grab" : "nwse-resize", touchAction: "none" }}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        onPointerDown?.(event, item.id, mode);
+      }}
+      onKeyDown={(event) => {
+        if (mode !== "rotate" || (event.key !== "Enter" && event.key !== " ")) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onRotate?.(item.id);
+      }}
+    >
+      <circle r={radius * 1.8} fill="transparent" />
+      <circle r={radius} fill="#fffdfb" stroke="#ee6f83" strokeWidth={radius * 0.16} />
+      <text x="0" y={radius * 0.09} fill="#c84e68" fontSize={radius * 1.35} fontWeight="800" textAnchor="middle" dominantBaseline="middle" pointerEvents="none">{glyph}</text>
+    </g>
+  );
+  return (
+    <g data-stamp-handles={item.id}>
+      {handle("rotate", item.yMm - halfHeight - gap, `${item.name}の角度を変える（ドラッグで回転・タップで90度）`, "↻")}
+      {handle("scale", item.yMm + halfHeight + gap, `${item.name}の大きさを変える（ドラッグで拡大縮小）`, "⤡")}
+    </g>
   );
 }
 
@@ -171,17 +227,6 @@ export function ArtworkLayer({
           if (!item.visible) return null;
           const width = Math.max(2, item.widthMm);
           const height = width / Math.max(0.05, item.aspectRatio);
-          const radians = item.rotationDeg * Math.PI / 180;
-          const rotatedWidth = Math.abs(width * Math.cos(radians)) + Math.abs(height * Math.sin(radians));
-          const rotatedHeight = Math.abs(width * Math.sin(radians)) + Math.abs(height * Math.cos(radians));
-          const screenHandle = { x: rotatedWidth / 2 + 3, y: -rotatedHeight / 2 - 3 };
-          const handlePosition = item.rotationDeg === 90
-            ? { x: screenHandle.y, y: -screenHandle.x }
-            : item.rotationDeg === 180
-              ? { x: -screenHandle.x, y: -screenHandle.y }
-              : item.rotationDeg === 270
-                ? { x: -screenHandle.y, y: screenHandle.x }
-                : screenHandle;
           return (
             <g
               key={item.id}
@@ -195,32 +240,7 @@ export function ArtworkLayer({
               onPointerDown={exportMode ? undefined : (event) => onStampPointerDown?.(event, item.id)}
             >
               <image href={item.dataUrl} x={-width / 2} y={-height / 2} width={width} height={height} preserveAspectRatio="xMidYMid meet" />
-              {!exportMode && selectedStampId === item.id && (
-                <>
-                  {selectedOutline(width, height)}
-                  <g
-                    data-stamp-rotate-handle={item.id}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`${item.name}を90度回転`}
-                    transform={`translate(${handlePosition.x} ${handlePosition.y}) rotate(${-item.rotationDeg})`}
-                    style={{ cursor: "pointer" }}
-                    onPointerDown={(event) => {
-                      event.stopPropagation();
-                      onStampRotate?.(item.id);
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key !== "Enter" && event.key !== " ") return;
-                      event.preventDefault();
-                      event.stopPropagation();
-                      onStampRotate?.(item.id);
-                    }}
-                  >
-                    <circle r="4" fill="#fffdfb" stroke="#ee6f83" strokeWidth="0.65" />
-                    <text x="0" y="0.35" fill="#c84e68" fontSize="5.4" fontWeight="800" textAnchor="middle" dominantBaseline="middle" pointerEvents="none">↻</text>
-                  </g>
-                </>
-              )}
+              {!exportMode && selectedStampId === item.id && selectedOutline(width, height)}
             </g>
             </g>
           );
