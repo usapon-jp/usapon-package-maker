@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { initialState } from '../src/app/app-state';
-import { finishedBoxFaces, faceMatrix, visibleBoxFaces, projectBoxPoint, type BoxView } from '../src/domain/boxes/finished-box';
+import { boxSizeFields, finishedBoxFaces, faceMatrix, visibleBoxFaces, projectBoxPoint, type BoxView } from '../src/domain/boxes/finished-box';
 import { FinishedBoxPreview } from '../src/components/common/FinishedBoxPreview';
 
 describe('箱の完成プレビュー', () => {
@@ -66,5 +66,21 @@ describe('箱の完成プレビュー', () => {
     expect(html).toContain('#abcdef');
     expect(html).toContain('data-source-panel="panel-0"');
     expect(html).not.toContain('data-stamp-rotate-handle');
+  });
+  it.each([
+    ['straight-tuck-carton-v1', '幅 40 × 奥行 25 × 高さ 60'],
+    ['gift-box-v1', '幅 40 × 高さ 60 × 深さ 25'],
+    ['two-piece-gift-box-v1', '幅 40 × 奥行 60 × 高さ 25'],
+  ] as const)('%s の寸法はサイズ画面と同じ名前・順番で表示する',(type,expected)=>{
+    const box={...initialState.box,type,widthMm:40,depthMm:25,heightMm:60};
+    expect(boxSizeFields(box).map(f=>`${f.label} ${f.value}`).join(' × ')).toBe(expected);
+    const html=renderToStaticMarkup(<FinishedBoxPreview state={{...initialState,box}}/>);
+    expect(html).toContain(`${expected} mm`);
+  });
+  it('開いたときは斜め前の立体を最初に見せ、側面に陰影をつける',()=>{
+    const html=renderToStaticMarkup(<FinishedBoxPreview state={initialState}/>);
+    expect(html.indexOf('斜め前')).toBeLessThan(html.indexOf('真上'));
+    expect(html).toContain('feDropShadow');
+    expect(html).toMatch(/data-finished-face="right"[\s\S]*?fill-opacity="0.16"/);
   });
 });

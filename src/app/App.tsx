@@ -10,7 +10,7 @@ import { A4ExportSvg, A4PreviewSvg, CalibrationSvg } from "../components/dieline
 import { DielineSvg } from "../components/dieline/DielineSvg";
 import { BoxTypeIcon } from "../components/icons/BoxTypeIcon";
 import { FinishedBoxPreview, FinishedBoxDialog } from "../components/common/FinishedBoxPreview";
-import { isPreviewBox } from "../domain/boxes/finished-box";
+import { boxSizeFields, isPreviewBox } from "../domain/boxes/finished-box";
 import { MyBoxesScreen } from "../components/cloud/MyBoxesScreen";
 import { InstallGuide } from "../components/pwa/InstallGuide";
 import { generateDielineDocument } from "../domain/boxes/registry";
@@ -83,7 +83,7 @@ import { SettingsSheetModal } from "../components/modals/SettingsSheetModal";
 import { AssembledEnvelopePreview } from "../components/common/AssembledEnvelopePreview";
 import { FinishedStationeryPreview } from "../components/common/FinishedStationeryPreview";
 import { FinishedStationeryDialog } from "../components/common/FinishedStationeryDialog";
-import { CopyIcon, DuplicatePlusIcon, EyedropperIcon, LayerBackwardIcon, LayerForwardIcon, MagnifyIcon, PreviewIcon, RedoIcon, RotateIcon, SaveIcon, TrashIcon, UndoIcon } from "../components/common/UiIcons";
+import { BoxIcon, CopyIcon, DuplicatePlusIcon, EyeIcon, EyedropperIcon, LayerBackwardIcon, LayerForwardIcon, MagnifyIcon, RedoIcon, RotateIcon, SaveIcon, TrashIcon, UndoIcon } from "../components/common/UiIcons";
 import { isPackageUIEditorAdmin } from "../ui-editor/repository";
 
 const STAMP_SHOP_URL = "https://usapon-digital-shop.vercel.app/";
@@ -1589,7 +1589,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
               onSelectEnvelopeFace={faceScopedEditing ? (faceId) => dispatch({ type: "set-envelope-face", faceId }) : undefined}
             />
             <div className="canvas-view-actions canvas-stage-actions" aria-label="展開図の表示操作">
-              {(isStationeryPage || isPreviewBox(state.box.type)) && <button className="finished-box-trigger" type="button" aria-label="A4印刷プレビュー" title="A4印刷プレビュー" onClick={() => setFinishedPreviewOpen(true)}><PreviewIcon /></button>}
+              {(isStationeryPage || isPreviewBox(state.box.type)) && <button className="finished-box-trigger is-labeled" type="button" title="組み立てた完成イメージを見る" onClick={() => setFinishedPreviewOpen(true)}>{isPreviewBox(state.box.type) ? <BoxIcon /> : <EyeIcon />}<span>完成イメージ</span></button>}
               {canvasZoomControl}
             </div>
           </div>
@@ -2047,7 +2047,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
       </div>
       <PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} uiId="print.item-tabs" />
       <div className="print-view-tabs" data-ui-id="print.view-tabs" role="tablist" aria-label="確認表示"><button type="button" role="tab" aria-selected={viewMode === "dieline"} className={viewMode === "dieline" ? "is-selected" : ""} onClick={() => setViewMode("dieline")}>展開図</button><button type="button" role="tab" aria-selected={viewMode === "finished"} className={viewMode === "finished" ? "is-selected" : ""} onClick={() => setViewMode("finished")}>完成イメージ</button></div>
-      <div className="print-summary-pills"><span><b>A4</b>A4実寸</span><span><b>200</b>200dpi</span><span><b>{activePage.geometry.input.widthMm}×{activePage.geometry.input.heightMm}</b>完成サイズ mm</span></div>
+      <div className="print-summary-pills"><span><b>A4</b>A4実寸</span><span><b>200</b>200dpi</span><span><b>{isPreviewBox(state.box.type) && ["main", "lid", "base"].includes(activePage.id) ? boxSizeFields(state.box).map((field) => field.value).join("×") : `${activePage.geometry.input.widthMm}×${activePage.geometry.input.heightMm}`}</b>完成サイズ mm</span></div>
 
       <div style={{ display: "none" }} aria-hidden="true">
         {pages.map((page) => (

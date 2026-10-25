@@ -58,14 +58,14 @@ export function AssembledEnvelopePreview({ state, activeFace = state.activeEnvel
             className={`toggle-tab ${viewSide === "front" ? "is-active" : ""}`}
             onClick={() => setViewSide("front")}
           >
-            B
+            おもて（B）
           </button>
           <button
             type="button"
             className={`toggle-tab ${viewSide === "back" ? "is-active" : ""}`}
             onClick={() => setViewSide("back")}
           >
-            A / C
+            うら（A・C）
           </button>
         </div>
       )}

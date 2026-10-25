@@ -113,8 +113,8 @@ describe("Mobile Workspace Refactorings & Components", () => {
     const markup = renderToStaticMarkup(<AssembledEnvelopePreview state={testState} />);
     expect(markup).toContain("single-assembled-envelope-card");
     expect(markup).toContain("assembled-single-svg");
-    expect(markup).toContain(">B<");
-    expect(markup).toContain("A / C");
+    expect(markup).toContain("おもて（B）");
+    expect(markup).toContain("うら（A・C）");
 
     const guideMarkup = renderToStaticMarkup(<AssembledEnvelopePreview state={testState} activeFace="envelope-back" showFaceMarkers />);
     expect(guideMarkup).toContain('data-face-marker="A"');
