@@ -17,7 +17,47 @@
 
 .finished-box-views { gap: 5px; }
 .finished-box-views button { min-height: 36px; padding: 7px 13px; font-weight: 700; }
-.finished-box-svg { overflow: visible; }
+
+/* 組み立てた箱は CSS 3D で描く。面ごとに展開図の一部をそのまま貼るので、斜めから見ても模様に継ぎ目が出ない。 */
+.finished-box-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: min(44dvh, 370px);
+  margin: 12px auto;
+  overflow: hidden;
+  border-radius: 18px;
+  background: radial-gradient(ellipse at center, #fff 20%, #f5eee6 100%);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.finished-box-stage:active { cursor: grabbing; }
+.finished-box-scene {
+  position: relative;
+  width: 0;
+  height: 0;
+  transform-style: preserve-3d;
+}
+.finished-box-scene.is-animating { transition: transform 0.55s cubic-bezier(0.3, 0.7, 0.2, 1); }
+.finished-box-face,
+.finished-box-floor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+.finished-box-face { outline: 1px solid rgba(143, 122, 108, 0.55); }
+.finished-box-face[hidden] { display: none; }
+.finished-box-face svg { display: block; width: 100%; height: 100%; }
+.finished-box-shade { position: absolute; inset: 0; background: #5b4038; pointer-events: none; }
+.finished-box-floor {
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(closest-side, rgba(91, 64, 56, 0.3), rgba(91, 64, 56, 0.12) 55%, transparent);
+  pointer-events: none;
+}
 .finished-box-caption { margin: 4px 0 2px; }
 .finished-box-note { margin: 0; text-align: center; }
 
@@ -33,7 +73,7 @@
     flex-direction: column;
     min-height: 0;
   }
-  .antigravity-print-page .finished-preview-stage .finished-box-svg {
+  .antigravity-print-page .finished-preview-stage .finished-box-stage {
     flex: 1 1 200px;
     height: 0;
     min-height: 180px;

@@ -84,3 +84,35 @@ export function faceMatrix(face: Face, view: BoxView) {
   const u = projectBoxPoint(face.u, view), v = projectBoxPoint(face.v, view);
   return [u[0]/face.panel.width,u[1]/face.panel.width,v[0]/face.panel.height,v[1]/face.panel.height,p[0],p[1]];
 }
+
+export type FaceFrame3d = { origin: Vec3; u: Vec3; v: Vec3; normal: Vec3 };
+
+/**
+ * Face axes in CSS 3D space (x right, y down, z toward the viewer), centred on the box.
+ * The box depth runs away from the front face, so world z is flipped. The normal always points outward.
+ */
+export function faceFrames3d(faces: Face[]): FaceFrame3d[] {
+  const corners = faces.flatMap(f => [f.origin, add(f.origin, f.u), add(f.origin, f.v), add(add(f.origin, f.u), f.v)]);
+  const center = [0, 1, 2].map(i => (Math.min(...corners.map(p => p[i])) + Math.max(...corners.map(p => p[i]))) / 2) as Vec3;
+  const css = ([x, y, z]: Vec3): Vec3 => [x, y, -z];
+  return faces.map(f => {
+    const origin = css(sub(f.origin, center)), u = css(f.u), v = css(f.v);
+    const cross: Vec3 = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+    const length = Math.hypot(...cross) || 1;
+    const middle = add(add(origin, scale(u, 0.5)), scale(v, 0.5));
+    const outward = dot(cross, middle) < 0 ? -1 : 1;
+    return { origin, u, v, normal: scale(cross, outward / length) };
+  });
+}
+
+/** Rotates a CSS-space vector the same way as `rotateX(-pitch) rotateY(yaw)`. */
+export function rotateView([x, y, z]: Vec3, yawDeg: number, pitchDeg: number): Vec3 {
+  const yaw = yawDeg * Math.PI / 180, pitch = -pitchDeg * Math.PI / 180;
+  const x1 = x * Math.cos(yaw) + z * Math.sin(yaw), z1 = -x * Math.sin(yaw) + z * Math.cos(yaw);
+  return [x1, y * Math.cos(pitch) - z1 * Math.sin(pitch), y * Math.sin(pitch) + z1 * Math.cos(pitch)];
+}
+
+const add = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const scale = (a: Vec3, s: number): Vec3 => [a[0] * s, a[1] * s, a[2] * s];
+const dot = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
