@@ -128,7 +128,7 @@ describe("背景・柄・スタンプのSVG描画", () => {
     expect(markup).not.toContain('data-pdf-repeat-images="true"');
   });
 
-  it("選択中スタンプの右上に回転ハンドルを表示し、PDFには含めない", () => {
+  it("選択中スタンプの右上に回転、右下に拡大縮小ハンドルを表示し、PDFには含めない", () => {
     const stamp = { ...createStamp({ ...asset, id: "stamp-rotate" }, geometry, "Pofumofu friends"), rotationDeg: 90 as const };
     const preview = renderToStaticMarkup(
       <DielineSvg
@@ -164,9 +164,21 @@ describe("背景・柄・スタンプのSVG描画", () => {
       />,
     );
 
-    expect(preview).toContain(`data-stamp-rotate-handle="${stamp.id}"`);
-    expect(preview).toContain('aria-label="Pofumofu friendsを90度回転"');
-    expect(preview).toMatch(/data-stamp-rotate-handle="stamp-rotate"[\s\S]*?transform="[^"]*rotate\(-90\)"/);
+    const handleAt = (attribute: string) => {
+      const match = preview.match(new RegExp(`${attribute}="stamp-rotate"[^>]*transform="translate\\(([-\\d.e]+) ([-\\d.e]+)\\)"`));
+      expect(match).not.toBeNull();
+      return { x: Number(match![1]), y: Number(match![2]) };
+    };
+    const rotateHandle = handleAt("data-stamp-rotate-handle");
+    const scaleHandle = handleAt("data-stamp-scale-handle");
+    // 回転していても画面上の右上＝角度、右下＝大きさ
+    expect(rotateHandle.x).toBeGreaterThan(stamp.xMm);
+    expect(rotateHandle.y).toBeLessThan(stamp.yMm);
+    expect(scaleHandle.x).toBeCloseTo(rotateHandle.x);
+    expect(scaleHandle.y).toBeGreaterThan(stamp.yMm);
+    expect(preview).toContain("Pofumofu friendsの角度を変える");
+    expect(preview).toContain("Pofumofu friendsの大きさを変える");
     expect(pdf).not.toContain("data-stamp-rotate-handle");
+    expect(pdf).not.toContain("data-stamp-scale-handle");
   });
 });
