@@ -6,6 +6,14 @@ export type BoxView = 'front-angle' | 'back-angle' | 'top' | 'front';
 export type Face = { name: 'front' | 'back' | 'left' | 'right' | 'top'; panel: Panel; geometry: DielineGeometry; pageId: DielinePageId; origin: Vec3; u: Vec3; v: Vec3 };
 export const isPreviewBox = (type: BoxInput['type']) => ['straight-tuck-carton-v1', 'gift-box-v1', 'two-piece-gift-box-v1'].includes(type);
 
+/** Same labels, order and fields as the size screen, so the numbers can be matched at a glance. */
+export function boxSizeFields(input: BoxInput): { short: string; label: string; value: number }[] {
+  const width = { short: 'W', label: '幅', value: input.widthMm };
+  if (input.type === 'two-piece-gift-box-v1') return [width, { short: 'D', label: '奥行', value: input.heightMm }, { short: 'H', label: '高さ', value: input.depthMm }];
+  if (input.type === 'gift-box-v1') return [width, { short: 'H', label: '高さ', value: input.heightMm }, { short: 'D', label: '深さ', value: input.depthMm }];
+  return [width, { short: 'D', label: '奥行', value: input.depthMm }, { short: 'H', label: '高さ', value: input.heightMm }];
+}
+
 /** Source panel axes mapped onto the outside of the folded box. Y points down. */
 export function finishedBoxFaces(input: BoxInput): Face[] {
   if (!isPreviewBox(input.type)) return [];

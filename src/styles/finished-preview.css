@@ -1,0 +1,42 @@
+/*
+ * 完成イメージ（組み立てた箱・封筒のプレビュー）の見た目はこのファイルで決める。
+ * global.css より後に読み込むので、優先度の強制指定は使わない。
+ */
+
+/* デザイン画面：アイコンだけだと「画像を追加」と見分けにくいので、文字付きのボタンにする。 */
+.canvas-view-actions .finished-box-trigger.is-labeled {
+  width: auto;
+  gap: 5px;
+  padding: 0 13px 0 10px;
+  border-radius: 999px;
+  color: #a4596e;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.finished-box-views { gap: 5px; }
+.finished-box-views button { min-height: 36px; padding: 7px 13px; font-weight: 700; }
+.finished-box-svg { overflow: visible; }
+.finished-box-caption { margin: 4px 0 2px; }
+.finished-box-note { margin: 0; text-align: center; }
+
+/* 印刷前の確認（スマホ）：向きボタンが上で切れたり、説明が下のボタンに重なったりしないよう、箱の絵だけが伸び縮みする。 */
+@media (max-width: 600px) {
+  .antigravity-print-page .finished-preview-stage {
+    justify-content: flex-start;
+    overflow-y: auto;
+  }
+  .antigravity-print-page .finished-preview-stage .finished-box {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .antigravity-print-page .finished-preview-stage .finished-box-svg {
+    flex: 1 1 200px;
+    height: 0;
+    min-height: 180px;
+    margin: 8px auto 4px;
+  }
+}
