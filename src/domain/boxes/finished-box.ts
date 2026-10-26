@@ -1,9 +1,14 @@
 import { generateDielineDocument } from './registry';
-import type { BoxInput, DielineGeometry, DielinePageId, Panel } from './types';
+import type { BoxInput, DielineGeometry, DielinePageId, Panel, Point } from './types';
 
 export type Vec3 = [number, number, number];
 export type BoxView = 'front-angle' | 'back-angle' | 'top' | 'front';
-export type Face = { name: 'front' | 'back' | 'left' | 'right' | 'top'; panel: Panel; geometry: DielineGeometry; pageId: DielinePageId; origin: Vec3; u: Vec3; v: Vec3 };
+export type Face = {
+  name: 'front' | 'back' | 'left' | 'right' | 'top' | 'tongue';
+  panel: Panel; geometry: DielineGeometry; pageId: DielinePageId; origin: Vec3; u: Vec3; v: Vec3;
+  /** The flap's real cut outline in dieline coordinates; the face shows only what is inside it. */
+  outline?: Point[];
+};
 export const isPreviewBox = (type: BoxInput['type']) => ['straight-tuck-carton-v1', 'gift-box-v1', 'two-piece-gift-box-v1'].includes(type);
 
 /** Same labels, order and fields as the size screen, so the numbers can be matched at a glance. */
@@ -34,6 +39,14 @@ export function finishedBoxFaces(input: BoxInput): Face[] {
     const g = pages[0].geometry;
     const depth = d + input.paperThicknessMm;
     add('main', { id: 'top-cover', label: '上面', x: input.glueFlapMm, y: g.bodyTopMm-depth, width:w, height:depth }, 'top', [0,0,d], [w,0,0], [0,0,-d]);
+    // The tongue hangs down inside the back wall; it is hidden until the flap is opened.
+    const outline = g.clipPolygons.find(p => p.id === 'top-tuck-0')?.points;
+    if (outline) {
+      const tipY = Math.min(...outline.map(p => p.y)), coverY = g.bodyTopMm - depth;
+      faces[faces.length - 1].outline = outline;
+      add('main', { id: 'top-tongue', label: 'さしこみ', x: input.glueFlapMm, y: tipY, width: w, height: coverY - tipY }, 'tongue', [0,0,d - tongueInset(input)], [w,0,0], [0,coverY - tipY,0]);
+      faces[faces.length - 1].outline = outline;
+    }
   } else if (input.type === 'gift-box-v1') {
     // This net's broad faces use width × height; depth is the assembled thickness.
     const w = input.heightMm, d = input.widthMm, h = input.depthMm;
@@ -85,17 +98,68 @@ export function faceMatrix(face: Face, view: BoxView) {
   return [u[0]/face.panel.width,u[1]/face.panel.width,v[0]/face.panel.height,v[1]/face.panel.height,p[0],p[1]];
 }
 
+const tongueInset = (input: BoxInput) => input.paperThicknessMm * 2 + 0.3;
+
+/** Flaps that fold inward at the mouth of a tuck carton. Plain paper; `polygon` is in mm along `u` (s) and `v` (t). */
+export type InnerFlap = Plane & { id: string; polygon: Point[] };
+export function finishedBoxInnerFlaps(input: BoxInput): InnerFlap[] {
+  if (input.type !== 'straight-tuck-carton-v1') return [];
+  const g = generateDielineDocument(input).pages[0].geometry;
+  const w = input.widthMm, d = input.depthMm;
+  const place: Record<string, { origin: Vec3; u: Vec3; v: Vec3 }> = {
+    'top-dust-1': { origin: [w, 0, 0], u: [0, 0, 1], v: [-1, 0, 0] },
+    'top-receiver-2': { origin: [w, 0, d], u: [-1, 0, 0], v: [0, 0, -1] },
+    'top-dust-3': { origin: [0, 0, d], u: [0, 0, -1], v: [1, 0, 0] },
+  };
+  const panelIndex: Record<string, number> = { 'top-dust-1': 1, 'top-receiver-2': 2, 'top-dust-3': 3 };
+  return Object.entries(place).flatMap(([id, at]) => {
+    const polygon = g.clipPolygons.find(p => p.id === id);
+    const panel = g.panels[panelIndex[id]];
+    if (!polygon) return [];
+    const local = polygon.points.map(p => ({ x: p.x - panel.x, y: g.bodyTopMm - p.y }));
+    const length = panel.width, depth = Math.max(...local.map(p => p.y));
+    return [{ id, polygon: local, origin: at.origin, u: scale(at.u, length), v: scale(at.v, depth) }];
+  });
+}
+
 export type FaceFrame3d = { origin: Vec3; u: Vec3; v: Vec3; normal: Vec3 };
+export type Plane = Pick<Face, 'origin' | 'u' | 'v'>;
+
+/** How a finished box can be opened in the preview: the tuck flap swings up, or the lid of a two-piece box lifts off. */
+export type BoxOpening = { kind: 'tuck-flap' | 'lift-lid'; label: string; closeLabel: string };
+export function boxOpening(input: BoxInput): BoxOpening | null {
+  if (input.type === 'straight-tuck-carton-v1') return { kind: 'tuck-flap', label: '口をあける', closeLabel: '口をとじる' };
+  if (input.type === 'two-piece-gift-box-v1') return { kind: 'lift-lid', label: 'ふたをはずす', closeLabel: 'ふたをのせる' };
+  return null;
+}
+
+/** Inner floor of the box, drawn as plain paper once the box is open. */
+export function finishedBoxFloor(input: BoxInput): Plane | null {
+  if (input.type === 'straight-tuck-carton-v1') return { origin: [0, input.heightMm, 0], u: [input.widthMm, 0, 0], v: [0, 0, input.depthMm] };
+  if (input.type !== 'two-piece-gift-box-v1') return null;
+  const pages = generateDielineDocument(input).pages;
+  const base = pages.find(p => p.id === 'base')!.geometry.panels.find(p => p.id === 'base-center')!;
+  const lidCenter = pages[0].geometry.panels[0];
+  const total = Math.max(input.depthMm, input.lidDepthMm ?? input.depthMm);
+  return { origin: [(lidCenter.width - base.width) / 2, total, (lidCenter.height - base.height) / 2], u: [base.width, 0, 0], v: [0, 0, base.height] };
+}
+
+/** Which edge of a lid wall is its open rim (the lower one), as the face axis and the end of that axis. */
+export function lidRimEdge(face: Face): { axis: 'u' | 'v'; end: 0 | 1 } | null {
+  if (face.pageId !== 'lid' || face.name === 'top') return null;
+  const axis = Math.abs(face.u[1]) > Math.abs(face.v[1]) ? 'u' : 'v';
+  return { axis, end: face[axis][1] > 0 ? 1 : 0 };
+}
 
 /**
  * Face axes in CSS 3D space (x right, y down, z toward the viewer), centred on the box.
  * The box depth runs away from the front face, so world z is flipped. The normal always points outward.
  */
-export function faceFrames3d(faces: Face[]): FaceFrame3d[] {
+export function faceFrames3d(faces: Face[], extras: Plane[] = []): FaceFrame3d[] {
   const corners = faces.flatMap(f => [f.origin, add(f.origin, f.u), add(f.origin, f.v), add(add(f.origin, f.u), f.v)]);
   const center = [0, 1, 2].map(i => (Math.min(...corners.map(p => p[i])) + Math.max(...corners.map(p => p[i]))) / 2) as Vec3;
   const css = ([x, y, z]: Vec3): Vec3 => [x, y, -z];
-  return faces.map(f => {
+  return [...faces, ...extras].map(f => {
     const origin = css(sub(f.origin, center)), u = css(f.u), v = css(f.v);
     const cross: Vec3 = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
     const length = Math.hypot(...cross) || 1;
@@ -103,6 +167,12 @@ export function faceFrames3d(faces: Face[]): FaceFrame3d[] {
     const outward = dot(cross, middle) < 0 ? -1 : 1;
     return { origin, u, v, normal: scale(cross, outward / length) };
   });
+}
+
+/** Rotates a CSS-space vector the way `rotateX(deg)` does. */
+export function rotateAboutX([x, y, z]: Vec3, deg: number): Vec3 {
+  const a = deg * Math.PI / 180;
+  return [x, y * Math.cos(a) - z * Math.sin(a), y * Math.sin(a) + z * Math.cos(a)];
 }
 
 /** Rotates a CSS-space vector the same way as `rotateX(-pitch) rotateY(yaw)`. */

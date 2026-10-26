@@ -1,6 +1,6 @@
-import { useEffect, useId, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import type { AppState } from '../../app/app-types';
-import { boxSizeFields, faceFrames3d, finishedBoxFaces, rotateView, type Vec3 } from '../../domain/boxes/finished-box';
+import { boxOpening, boxSizeFields, faceFrames3d, finishedBoxFaces, finishedBoxFloor, finishedBoxInnerFlaps, lidRimEdge, rotateAboutX, rotateView, type Vec3 } from '../../domain/boxes/finished-box';
 import { ArtworkLayer } from '../dieline/layers/ArtworkLayer';
 import { TextLayer } from '../dieline/layers/TextLayer';
 import type { DielineGeometry, DielinePageId } from '../../domain/boxes/types';
@@ -23,6 +23,8 @@ const sameAngle = (a: Angle, b: Angle) => Math.abs(a.pitch - b.pitch) < 0.5 && M
 export function FinishedBoxPreview({ state }: { state: AppState }) {
   const [angle, setAngle] = useState<Angle>(views[0][2]);
   const [animating, setAnimating] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [moving, setMoving] = useState(false);
   const [stageSize, setStageSize] = useState({ width: 320, height: 300 });
   const stage = useRef<HTMLDivElement>(null);
   const drag = useRef<{ id: number; x: number; y: number; start: Angle } | null>(null);
@@ -37,9 +39,20 @@ export function FinishedBoxPreview({ state }: { state: AppState }) {
   }, []);
 
   const faces = finishedBoxFaces(state.box);
-  const frames = faceFrames3d(faces);
+  const opening = boxOpening(state.box);
+  const floor = opening ? finishedBoxFloor(state.box) : null;
+  // Plain-paper parts that only show once the box is open: the inner floor and the flaps folded in at the mouth.
+  const papers = [...(floor ? [{ ...floor, id: 'floor', polygon: undefined }] : []), ...(opening ? finishedBoxInnerFlaps(state.box) : [])];
+  const frames = faceFrames3d(faces, papers);
   const corners = frames.flatMap(f => [f.origin, f.origin.map((x, i) => x + f.u[i] + f.v[i]) as Vec3]);
   const extent = [0, 1, 2].map(i => Math.max(...corners.map(p => p[i])) - Math.min(...corners.map(p => p[i])));
+  // The opened lid / flap rises above the box, so leave room for it even while closed.
+  const lidDepth = state.box.type === 'two-piece-gift-box-v1' ? state.box.lidDepthMm ?? state.box.depthMm : 0;
+  const lift = lidDepth + 8;
+  const headroom = !opening ? 0 : opening.kind === 'lift-lid' ? lift : state.box.depthMm * 0.9;
+  extent[1] += headroom;
+  const showBacks = open || moving;
+  const toggleOpen = () => { setMoving(true); setOpen(value => !value); };
   const diagonal = Math.hypot(...extent);
   const scale = Math.max(0.5, 0.82 * Math.min(stageSize.width, stageSize.height) / diagonal);
   const floorY = Math.max(...corners.map(p => p[1]));
@@ -80,34 +93,52 @@ export function FinishedBoxPreview({ state }: { state: AppState }) {
       onPointerCancel={onPointerEnd}
       style={{ perspective: `${Math.round(diagonal * scale * 4)}px` }}
     >
-      <div className={`finished-box-scene${animating ? ' is-animating' : ''}`} style={{ transform: `rotateX(${-angle.pitch}deg) rotateY(${angle.yaw}deg)` }} onTransitionEnd={() => setAnimating(false)}>
+      <div className={`finished-box-scene${animating ? ' is-animating' : ''}`} style={{ marginTop: headroom * scale / 2, transform: `rotateX(${-angle.pitch}deg) rotateY(${angle.yaw}deg)` }} onTransitionEnd={() => setAnimating(false)}>
         <div className="finished-box-floor" aria-hidden="true" style={{ transform: matrix3d([extent[0] * 1.6 * scale / 100, 0, 0], [0, 0, extent[2] * 1.6 * scale / 100], [0, 1, 0], [-extent[0] * 0.8 * scale, (floorY + 0.4) * scale, -extent[2] * 0.8 * scale]) }}/>
-        {faces.map((f, index) => {
+        {[...faces, ...papers.map(() => null)].map((f, index) => {
           const frame = frames[index];
-          const facing = rotateView(frame.normal, angle.yaw, angle.pitch);
+          const paper = f ? null : papers[index - faces.length];
+          const key = f ? `${f.pageId}-${f.panel.id}` : paper!.id;
+          const flap = !!f && opening?.kind === 'tuck-flap' && (f.name === 'top' || f.name === 'tongue');
+          const liftsWithLid = !!f && opening?.kind === 'lift-lid' && f.pageId === 'lid';
+          const flapAngle = flap && open ? -120 : 0;
+          const normal = rotateAboutX(frame.normal, flapAngle);
+          const facing = rotateView(normal, angle.yaw, angle.pitch);
+          const isBack = facing[2] <= 0.001 && !(paper && paper.id !== 'floor');
+          const hinge = frame.origin.map((x, i) => x + frame.v[i]).map(x => x * scale);
+          const part: CSSProperties = flap
+            ? { transformOrigin: `${hinge[0]}px ${hinge[1]}px ${hinge[2]}px`, transform: `rotateX(${flapAngle}deg)` }
+            : liftsWithLid ? { transform: `translateY(${open ? -lift * scale : 0}px)` } : {};
           const clip = `box-${id}-${index}`;
-          const { x, y, width: w, height: h } = f.panel;
-          const light = Math.max(0, frame.normal[0] * LIGHT[0] + frame.normal[1] * LIGHT[1] + frame.normal[2] * LIGHT[2]);
-          return <div
-            key={`${f.pageId}-${f.panel.id}`}
-            className="finished-box-face"
-            data-finished-face={f.name}
-            data-source-panel={f.panel.id}
-            hidden={facing[2] <= 0.001}
-            style={{ width: w * scale, height: h * scale, transform: matrix3d(frame.u.map(v => v / w) as Vec3, frame.v.map(v => v / h) as Vec3, frame.normal, frame.origin.map(v => v * scale) as Vec3) }}
-          >
-            <svg viewBox={`${x} ${y} ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
-              <defs><clipPath id={clip}><rect x={x} y={y} width={w} height={h}/></clipPath></defs>
-              <g clipPath={`url(#${clip})`}>
-                <ArtworkLayer geometry={f.geometry} backgroundColor={state.backgroundColors[f.pageId]} artworkLayers={state.artworkLayers.filter(i => i.pageId === f.pageId)} stamps={state.stamps.filter(i => i.pageId === f.pageId)} clipId={clip} idPrefix={clip} selectedArtworkId={null} selectedStampId={null} exportMode/>
-                <TextLayer texts={state.texts.filter(i => i.pageId === f.pageId)} selectedTextId={null} exportMode/>
-              </g>
-            </svg>
-            <span className="finished-box-shade" style={{ opacity: +(0.22 * (1 - light) ** 2).toFixed(3) }}/>
+          const w = f ? f.panel.width : Math.hypot(...frame.u), h = f ? f.panel.height : Math.hypot(...frame.v);
+          const hiddenUntilOpen = isBack || !!paper;
+          const polygonClip = paper?.polygon ? `polygon(${paper.polygon.map(p => `${p.x * scale}px ${p.y * scale}px`).join(',')})` : undefined;
+          const sign = isBack ? -1 : 1;
+          const light = Math.max(0, sign * (frame.normal[0] * LIGHT[0] + frame.normal[1] * LIGHT[1] + frame.normal[2] * LIGHT[2]));
+          const rim = f && !isBack ? lidRimEdge(f) : null;
+          return <div key={key} className="finished-box-part" hidden={hiddenUntilOpen && !showBacks} style={part} onTransitionEnd={event => { event.stopPropagation(); setMoving(false); }}>
+            <div
+              className={`finished-box-face${isBack || paper ? ' is-inside' : ''}`}
+              data-finished-face={f?.name ?? paper!.id}
+              data-source-panel={f?.panel.id}
+              style={{ clipPath: polygonClip, outline: polygonClip ? 'none' : undefined, width: w * scale, height: h * scale, transform: matrix3d(frame.u.map(v => v / w) as Vec3, frame.v.map(v => v / h) as Vec3, frame.normal, frame.origin.map(v => v * scale) as Vec3) }}
+            >
+              {f && !isBack && <svg viewBox={`${f.panel.x} ${f.panel.y} ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
+                <defs><clipPath id={clip}>{f.outline ? <polygon points={f.outline.map(p => `${p.x},${p.y}`).join(' ')}/> : <rect x={f.panel.x} y={f.panel.y} width={w} height={h}/>}</clipPath></defs>
+                <g clipPath={`url(#${clip})`}>
+                  <ArtworkLayer geometry={f.geometry} backgroundColor={state.backgroundColors[f.pageId]} artworkLayers={state.artworkLayers.filter(i => i.pageId === f.pageId)} stamps={state.stamps.filter(i => i.pageId === f.pageId)} clipId={clip} idPrefix={clip} selectedArtworkId={null} selectedStampId={null} exportMode/>
+                  <TextLayer texts={state.texts.filter(i => i.pageId === f.pageId)} selectedTextId={null} exportMode/>
+                </g>
+              </svg>}
+              <span className="finished-box-shade" style={{ opacity: +(0.22 * (1 - light) ** 2).toFixed(3) }}/>
+              {rim && <span className="finished-box-rim" aria-hidden="true" style={{ backgroundImage: `linear-gradient(${rim.axis === 'v' ? (rim.end ? 'to top' : 'to bottom') : (rim.end ? 'to left' : 'to right')}, rgba(91,64,56,0.5), rgba(91,64,56,0) 6px)` }}/>}
+              {flap && !isBack && !open && <span className="finished-box-mouth" aria-hidden="true"><b>あけ口</b></span>}
+            </div>
           </div>;
         })}
       </div>
     </div>
+    {opening && <button type="button" className="finished-box-open" aria-pressed={open} onClick={toggleOpen}>{open ? opening.closeLabel : opening.label}</button>}
     <p className="finished-box-caption">ドラッグで回せます · {size.map(f => `${f.label}${f.value}`).join(' × ')} mm</p>
     <p className="finished-box-note">紙の膨らみや接着のずれは省略しています。</p>
   </div>;
