@@ -80,8 +80,7 @@ import { AssemblyGuideModal } from "../components/modals/AssemblyGuideModal";
 import { MobileSettingsSheet } from "../components/modals/MobileSettingsSheet";
 import { NewCreationSheet } from "../components/modals/NewCreationSheet";
 import { SettingsSheetModal } from "../components/modals/SettingsSheetModal";
-import { AssembledEnvelopePreview } from "../components/common/AssembledEnvelopePreview";
-import { FinishedStationeryPreview } from "../components/common/FinishedStationeryPreview";
+import { StationeryTurntable } from "../components/common/StationeryTurntable";
 import { FinishedStationeryDialog } from "../components/common/FinishedStationeryDialog";
 import { BoxIcon, CopyIcon, DuplicatePlusIcon, EyeIcon, EyedropperIcon, LayerBackwardIcon, LayerForwardIcon, MagnifyIcon, RedoIcon, RotateIcon, SaveIcon, TrashIcon, UndoIcon } from "../components/common/UiIcons";
 import { isPackageUIEditorAdmin } from "../ui-editor/repository";
@@ -2103,7 +2102,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
           <div className="finished-preview-stage" data-ui-id="print.preview">
             {isPreviewBox(state.box.type) ? <FinishedBoxPreview state={state} /> : activePage.id === "main" ? (
               envelopePage ? (
-                <AssembledEnvelopePreview state={state} />
+                <StationeryTurntable state={state} pageId={activePage.id} geometry={activePage.geometry} />
               ) : (
                 <div className="finished-box-preview-card">
                   <span>{state.box.type === "two-piece-gift-box-v1" ? "二分割箱" : state.box.type === "gift-box-v1" ? "ギフト箱" : "キャラメル箱"}</span>
@@ -2111,11 +2110,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
                 </div>
               )
             ) : (
-              <FinishedStationeryPreview
-                state={state}
-                pageId={activePage.id as "letter" | "card"}
-                geometry={activePage.geometry}
-              />
+              <StationeryTurntable state={state} pageId={activePage.id} geometry={activePage.geometry} />
             )}
             {shouldShowAssemblyGuide(state.box.type, activePage.id) && (
               <button type="button" className="outline-button" onClick={() => setAssemblyGuideOpen(true)}>
