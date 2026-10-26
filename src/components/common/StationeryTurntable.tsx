@@ -41,7 +41,7 @@ export function StationeryTurntable({ state, pageId, geometry }: Props) {
     return () => observer.disconnect();
   }, []);
 
-  const scale = Math.max(0.5, Math.min(stageSize.width / (widthMm * 1.15), stageSize.height / (heightMm * 1.15)));
+  const scale = Math.max(0.5, Math.min(stageSize.width / (widthMm * 1.45), stageSize.height / (heightMm * 1.45)));
   const w = widthMm * scale, h = heightMm * scale;
   const half = Math.max(0.5, 0.2 * scale);
   const current = views.find(v => sameAngle(v[1], angle));
