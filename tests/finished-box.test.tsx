@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { initialState } from '../src/app/app-state';
-import { boxOpening, boxSizeFields, faceFrames3d, finishedBoxFloor, lidRimEdge, rotateAboutX, rotateView, finishedBoxFaces, faceMatrix, visibleBoxFaces, projectBoxPoint, type BoxView } from '../src/domain/boxes/finished-box';
+import { boxOpening, boxSizeFields, faceFrames3d, finishedBoxFloor, finishedBoxInnerFlaps, lidRimEdge, rotateAboutX, rotateView, finishedBoxFaces, faceMatrix, visibleBoxFaces, projectBoxPoint, type BoxView } from '../src/domain/boxes/finished-box';
 import { FinishedBoxPreview } from '../src/components/common/FinishedBoxPreview';
 
 describe('箱の完成プレビュー', () => {
@@ -137,5 +137,23 @@ describe('あけ方の作り分け', () => {
     const html = renderToStaticMarkup(<FinishedBoxPreview state={{ ...initialState, box: { ...initialState.box, type: 'straight-tuck-carton-v1' } }} />);
     expect(html).toContain('口をあける');
     expect(html).toContain('あけ口');
+  });
+  it('キャラメル箱は展開図の差し込みの舌とダストフラップを、口の内側に持つ', () => {
+    const box = { ...initialState.box, type: 'straight-tuck-carton-v1' as const, widthMm: 60, depthMm: 40, heightMm: 70 };
+    const faces = finishedBoxFaces(box);
+    const top = faces.find(f => f.name === 'top')!, tongue = faces.find(f => f.name === 'tongue')!;
+    expect(top.outline?.length).toBe(6);
+    expect(tongue.outline).toBe(top.outline);
+    // 舌は上面の奥の辺からぶら下がる
+    expect(tongue.origin[0]).toBe(0);
+    expect(tongue.origin[2]).toBeLessThan(40);
+    expect(tongue.v[1]).toBeGreaterThan(0);
+    const flaps = finishedBoxInnerFlaps(box);
+    expect(flaps.map(f => f.id)).toEqual(['top-dust-1', 'top-receiver-2', 'top-dust-3']);
+    for (const f of flaps) {
+      expect(f.polygon.length).toBeGreaterThanOrEqual(4);
+      expect(f.origin[1]).toBe(0);
+    }
+    expect(finishedBoxInnerFlaps({ ...box, type: 'gift-box-v1' })).toEqual([]);
   });
 });

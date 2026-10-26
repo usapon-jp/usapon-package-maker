@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react';
 import type { AppState } from '../../app/app-types';
-import { boxOpening, boxSizeFields, faceFrames3d, finishedBoxFaces, finishedBoxFloor, lidRimEdge, rotateAboutX, rotateView, type Vec3 } from '../../domain/boxes/finished-box';
+import { boxOpening, boxSizeFields, faceFrames3d, finishedBoxFaces, finishedBoxFloor, finishedBoxInnerFlaps, lidRimEdge, rotateAboutX, rotateView, type Vec3 } from '../../domain/boxes/finished-box';
 import { ArtworkLayer } from '../dieline/layers/ArtworkLayer';
 import { TextLayer } from '../dieline/layers/TextLayer';
 import type { DielineGeometry, DielinePageId } from '../../domain/boxes/types';
@@ -41,7 +41,9 @@ export function FinishedBoxPreview({ state }: { state: AppState }) {
   const faces = finishedBoxFaces(state.box);
   const opening = boxOpening(state.box);
   const floor = opening ? finishedBoxFloor(state.box) : null;
-  const frames = faceFrames3d(faces, floor ? [floor] : []);
+  // Plain-paper parts that only show once the box is open: the inner floor and the flaps folded in at the mouth.
+  const papers = [...(floor ? [{ ...floor, id: 'floor', polygon: undefined }] : []), ...(opening ? finishedBoxInnerFlaps(state.box) : [])];
+  const frames = faceFrames3d(faces, papers);
   const corners = frames.flatMap(f => [f.origin, f.origin.map((x, i) => x + f.u[i] + f.v[i]) as Vec3]);
   const extent = [0, 1, 2].map(i => Math.max(...corners.map(p => p[i])) - Math.min(...corners.map(p => p[i])));
   // The opened lid / flap rises above the box, so leave room for it even while closed.
@@ -93,33 +95,36 @@ export function FinishedBoxPreview({ state }: { state: AppState }) {
     >
       <div className={`finished-box-scene${animating ? ' is-animating' : ''}`} style={{ marginTop: headroom * scale / 2, transform: `rotateX(${-angle.pitch}deg) rotateY(${angle.yaw}deg)` }} onTransitionEnd={() => setAnimating(false)}>
         <div className="finished-box-floor" aria-hidden="true" style={{ transform: matrix3d([extent[0] * 1.6 * scale / 100, 0, 0], [0, 0, extent[2] * 1.6 * scale / 100], [0, 1, 0], [-extent[0] * 0.8 * scale, (floorY + 0.4) * scale, -extent[2] * 0.8 * scale]) }}/>
-        {[...faces, ...(floor ? [null] : [])].map((f, index) => {
+        {[...faces, ...papers.map(() => null)].map((f, index) => {
           const frame = frames[index];
-          const key = f ? `${f.pageId}-${f.panel.id}` : 'floor';
-          const flap = !!f && opening?.kind === 'tuck-flap' && f.name === 'top';
+          const paper = f ? null : papers[index - faces.length];
+          const key = f ? `${f.pageId}-${f.panel.id}` : paper!.id;
+          const flap = !!f && opening?.kind === 'tuck-flap' && (f.name === 'top' || f.name === 'tongue');
           const liftsWithLid = !!f && opening?.kind === 'lift-lid' && f.pageId === 'lid';
           const flapAngle = flap && open ? -120 : 0;
           const normal = rotateAboutX(frame.normal, flapAngle);
           const facing = rotateView(normal, angle.yaw, angle.pitch);
-          const isBack = facing[2] <= 0.001;
+          const isBack = facing[2] <= 0.001 && !(paper && paper.id !== 'floor');
           const hinge = frame.origin.map((x, i) => x + frame.v[i]).map(x => x * scale);
           const part: CSSProperties = flap
             ? { transformOrigin: `${hinge[0]}px ${hinge[1]}px ${hinge[2]}px`, transform: `rotateX(${flapAngle}deg)` }
             : liftsWithLid ? { transform: `translateY(${open ? -lift * scale : 0}px)` } : {};
           const clip = `box-${id}-${index}`;
           const w = f ? f.panel.width : Math.hypot(...frame.u), h = f ? f.panel.height : Math.hypot(...frame.v);
+          const hiddenUntilOpen = isBack || !!paper;
+          const polygonClip = paper?.polygon ? `polygon(${paper.polygon.map(p => `${p.x * scale}px ${p.y * scale}px`).join(',')})` : undefined;
           const sign = isBack ? -1 : 1;
           const light = Math.max(0, sign * (frame.normal[0] * LIGHT[0] + frame.normal[1] * LIGHT[1] + frame.normal[2] * LIGHT[2]));
           const rim = f && !isBack ? lidRimEdge(f) : null;
-          return <div key={key} className="finished-box-part" hidden={isBack && !showBacks} style={part} onTransitionEnd={event => { event.stopPropagation(); setMoving(false); }}>
+          return <div key={key} className="finished-box-part" hidden={hiddenUntilOpen && !showBacks} style={part} onTransitionEnd={event => { event.stopPropagation(); setMoving(false); }}>
             <div
-              className={`finished-box-face${isBack ? ' is-inside' : ''}`}
-              data-finished-face={f?.name ?? 'floor'}
+              className={`finished-box-face${isBack || paper ? ' is-inside' : ''}`}
+              data-finished-face={f?.name ?? paper!.id}
               data-source-panel={f?.panel.id}
-              style={{ width: w * scale, height: h * scale, transform: matrix3d(frame.u.map(v => v / w) as Vec3, frame.v.map(v => v / h) as Vec3, frame.normal, frame.origin.map(v => v * scale) as Vec3) }}
+              style={{ clipPath: polygonClip, outline: polygonClip ? 'none' : undefined, width: w * scale, height: h * scale, transform: matrix3d(frame.u.map(v => v / w) as Vec3, frame.v.map(v => v / h) as Vec3, frame.normal, frame.origin.map(v => v * scale) as Vec3) }}
             >
               {f && !isBack && <svg viewBox={`${f.panel.x} ${f.panel.y} ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
-                <defs><clipPath id={clip}><rect x={f.panel.x} y={f.panel.y} width={w} height={h}/></clipPath></defs>
+                <defs><clipPath id={clip}>{f.outline ? <polygon points={f.outline.map(p => `${p.x},${p.y}`).join(' ')}/> : <rect x={f.panel.x} y={f.panel.y} width={w} height={h}/>}</clipPath></defs>
                 <g clipPath={`url(#${clip})`}>
                   <ArtworkLayer geometry={f.geometry} backgroundColor={state.backgroundColors[f.pageId]} artworkLayers={state.artworkLayers.filter(i => i.pageId === f.pageId)} stamps={state.stamps.filter(i => i.pageId === f.pageId)} clipId={clip} idPrefix={clip} selectedArtworkId={null} selectedStampId={null} exportMode/>
                   <TextLayer texts={state.texts.filter(i => i.pageId === f.pageId)} selectedTextId={null} exportMode/>

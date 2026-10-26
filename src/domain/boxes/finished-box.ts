@@ -1,9 +1,14 @@
 import { generateDielineDocument } from './registry';
-import type { BoxInput, DielineGeometry, DielinePageId, Panel } from './types';
+import type { BoxInput, DielineGeometry, DielinePageId, Panel, Point } from './types';
 
 export type Vec3 = [number, number, number];
 export type BoxView = 'front-angle' | 'back-angle' | 'top' | 'front';
-export type Face = { name: 'front' | 'back' | 'left' | 'right' | 'top'; panel: Panel; geometry: DielineGeometry; pageId: DielinePageId; origin: Vec3; u: Vec3; v: Vec3 };
+export type Face = {
+  name: 'front' | 'back' | 'left' | 'right' | 'top' | 'tongue';
+  panel: Panel; geometry: DielineGeometry; pageId: DielinePageId; origin: Vec3; u: Vec3; v: Vec3;
+  /** The flap's real cut outline in dieline coordinates; the face shows only what is inside it. */
+  outline?: Point[];
+};
 export const isPreviewBox = (type: BoxInput['type']) => ['straight-tuck-carton-v1', 'gift-box-v1', 'two-piece-gift-box-v1'].includes(type);
 
 /** Same labels, order and fields as the size screen, so the numbers can be matched at a glance. */
@@ -34,6 +39,14 @@ export function finishedBoxFaces(input: BoxInput): Face[] {
     const g = pages[0].geometry;
     const depth = d + input.paperThicknessMm;
     add('main', { id: 'top-cover', label: '上面', x: input.glueFlapMm, y: g.bodyTopMm-depth, width:w, height:depth }, 'top', [0,0,d], [w,0,0], [0,0,-d]);
+    // The tongue hangs down inside the back wall; it is hidden until the flap is opened.
+    const outline = g.clipPolygons.find(p => p.id === 'top-tuck-0')?.points;
+    if (outline) {
+      const tipY = Math.min(...outline.map(p => p.y)), coverY = g.bodyTopMm - depth;
+      faces[faces.length - 1].outline = outline;
+      add('main', { id: 'top-tongue', label: 'さしこみ', x: input.glueFlapMm, y: tipY, width: w, height: coverY - tipY }, 'tongue', [0,0,d - tongueInset(input)], [w,0,0], [0,coverY - tipY,0]);
+      faces[faces.length - 1].outline = outline;
+    }
   } else if (input.type === 'gift-box-v1') {
     // This net's broad faces use width × height; depth is the assembled thickness.
     const w = input.heightMm, d = input.widthMm, h = input.depthMm;
@@ -83,6 +96,30 @@ export function faceMatrix(face: Face, view: BoxView) {
   const p = projectBoxPoint(face.origin, view);
   const u = projectBoxPoint(face.u, view), v = projectBoxPoint(face.v, view);
   return [u[0]/face.panel.width,u[1]/face.panel.width,v[0]/face.panel.height,v[1]/face.panel.height,p[0],p[1]];
+}
+
+const tongueInset = (input: BoxInput) => input.paperThicknessMm * 2 + 0.3;
+
+/** Flaps that fold inward at the mouth of a tuck carton. Plain paper; `polygon` is in mm along `u` (s) and `v` (t). */
+export type InnerFlap = Plane & { id: string; polygon: Point[] };
+export function finishedBoxInnerFlaps(input: BoxInput): InnerFlap[] {
+  if (input.type !== 'straight-tuck-carton-v1') return [];
+  const g = generateDielineDocument(input).pages[0].geometry;
+  const w = input.widthMm, d = input.depthMm;
+  const place: Record<string, { origin: Vec3; u: Vec3; v: Vec3 }> = {
+    'top-dust-1': { origin: [w, 0, 0], u: [0, 0, 1], v: [-1, 0, 0] },
+    'top-receiver-2': { origin: [w, 0, d], u: [-1, 0, 0], v: [0, 0, -1] },
+    'top-dust-3': { origin: [0, 0, d], u: [0, 0, -1], v: [1, 0, 0] },
+  };
+  const panelIndex: Record<string, number> = { 'top-dust-1': 1, 'top-receiver-2': 2, 'top-dust-3': 3 };
+  return Object.entries(place).flatMap(([id, at]) => {
+    const polygon = g.clipPolygons.find(p => p.id === id);
+    const panel = g.panels[panelIndex[id]];
+    if (!polygon) return [];
+    const local = polygon.points.map(p => ({ x: p.x - panel.x, y: g.bodyTopMm - p.y }));
+    const length = panel.width, depth = Math.max(...local.map(p => p.y));
+    return [{ id, polygon: local, origin: at.origin, u: scale(at.u, length), v: scale(at.v, depth) }];
+  });
 }
 
 export type FaceFrame3d = { origin: Vec3; u: Vec3; v: Vec3; normal: Vec3 };
