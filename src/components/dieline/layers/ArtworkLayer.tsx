@@ -98,12 +98,14 @@ export function StampHandles({
 
 function UploadedArtwork({
   item,
+  geometry,
   patternId,
   selected,
   exportMode,
   onPointerDown,
 }: {
   item: UploadedArtworkLayer;
+  geometry: DielineGeometry;
   patternId: string;
   selected: boolean;
   exportMode: boolean;
@@ -135,7 +137,8 @@ function UploadedArtwork({
             </g>
           </pattern>
         </defs>
-        <rect width="100%" height="100%" fill={`url(#${patternId})`} />
+        {/* Use the full net's mm dimensions even in a cropped 3D face SVG. */}
+        <rect width={geometry.bounds.widthMm} height={geometry.bounds.heightMm} fill={`url(#${patternId})`} />
       </g>
     );
   }
@@ -213,6 +216,7 @@ export function ArtworkLayer({
           return (
             <g key={item.id} clipPath={itemClip}><UploadedArtwork
               item={item}
+              geometry={geometry}
               patternId={patternId}
               selected={selectedArtworkId === item.id}
               exportMode={exportMode}
