@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { initialState } from '../src/app/app-state';
-import { boxSizeFields, faceFrames3d, rotateView, finishedBoxFaces, faceMatrix, visibleBoxFaces, projectBoxPoint, type BoxView } from '../src/domain/boxes/finished-box';
+import { boxOpening, boxSizeFields, faceFrames3d, finishedBoxFloor, lidRimEdge, rotateAboutX, rotateView, finishedBoxFaces, faceMatrix, visibleBoxFaces, projectBoxPoint, type BoxView } from '../src/domain/boxes/finished-box';
 import { FinishedBoxPreview } from '../src/components/common/FinishedBoxPreview';
 
 describe('箱の完成プレビュー', () => {
@@ -100,5 +100,42 @@ describe('箱の完成プレビュー', () => {
     const faces=finishedBoxFaces(initialState.box);
     const top=faceFrames3d(faces)[faces.findIndex(f=>f.name==='top')];
     expect(rotateView(top.normal,0,90)[2]).toBeCloseTo(1);
+  });
+});
+
+describe('あけ方の作り分け', () => {
+  it('キャラメル箱は口（フタ）、ふた付き箱はふたの取り外しだけを用意する', () => {
+    expect(boxOpening({ ...initialState.box, type: 'straight-tuck-carton-v1' })?.kind).toBe('tuck-flap');
+    expect(boxOpening({ ...initialState.box, type: 'two-piece-gift-box-v1' })?.kind).toBe('lift-lid');
+    expect(boxOpening({ ...initialState.box, type: 'gift-box-v1' })).toBeNull();
+  });
+  it('開いたときに見える箱の底は、本体の底面と同じ大きさで外向きは下を向く', () => {
+    const box = { ...initialState.box, type: 'straight-tuck-carton-v1' as const, widthMm: 40, depthMm: 25, heightMm: 60 };
+    const floor = finishedBoxFloor(box)!;
+    expect(floor.u).toEqual([40, 0, 0]);
+    expect(floor.v).toEqual([0, 0, 25]);
+    const frames = faceFrames3d(finishedBoxFaces(box), [floor]);
+    expect(frames.at(-1)!.normal[1]).toBeCloseTo(1);
+  });
+  it('ふたの縁（下側）を面ごとに見つける', () => {
+    const faces = finishedBoxFaces({ ...initialState.box, type: 'two-piece-gift-box-v1' });
+    expect(faces.filter(f => lidRimEdge(f)).length).toBe(4);
+    expect(faces.filter(f => f.pageId === 'base').every(f => lidRimEdge(f) === null)).toBe(true);
+    for (const f of faces.filter(f => lidRimEdge(f))) {
+      const edge = lidRimEdge(f)!;
+      const axis = f[edge.axis];
+      const bottomY = f.origin[1] + (edge.end ? axis[1] : 0);
+      expect(bottomY).toBeCloseTo(Math.max(f.origin[1], f.origin[1] + axis[1]));
+    }
+  });
+  it('rotateAboutX は rotateX と同じ向きに回す', () => {
+    const [, y, z] = rotateAboutX([0, 0, -10], -90);
+    expect(y).toBeCloseTo(-10);
+    expect(z).toBeCloseTo(0);
+  });
+  it('完成イメージにあけ方のボタンが出る', () => {
+    const html = renderToStaticMarkup(<FinishedBoxPreview state={{ ...initialState, box: { ...initialState.box, type: 'straight-tuck-carton-v1' } }} />);
+    expect(html).toContain('口をあける');
+    expect(html).toContain('あけ口');
   });
 });

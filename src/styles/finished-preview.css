@@ -48,8 +48,34 @@
   left: 0;
   transform-origin: 0 0;
 }
+.finished-box-part {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+.finished-box-part[hidden] { display: none; }
 .finished-box-face { outline: 1px solid rgba(143, 122, 108, 0.55); }
-.finished-box-face[hidden] { display: none; }
+/* 箱の内側は無地の紙。あけたときだけ見える。 */
+.finished-box-face.is-inside { background: #efe6dc; }
+/* ふた付き箱：ふたの縁（下側）に影を付けて、本体との境目が分かるようにする。 */
+.finished-box-rim { position: absolute; inset: 0; pointer-events: none; }
+/* キャラメル箱：上面の奥側が、ふたを差し込む「あけ口」。 */
+.finished-box-mouth {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 30%;
+  display: grid;
+  place-items: center;
+  border-bottom: 2px dashed rgba(164, 89, 110, 0.85);
+  background: rgba(255, 255, 255, 0.55);
+  pointer-events: none;
+}
+.finished-box-mouth b { color: #a4596e; font-size: 11px; font-weight: 800; line-height: 1; white-space: nowrap; }
+.finished-box-open { display: block; margin: 0 auto; min-height: 36px; padding: 7px 18px; font-weight: 700; }
 .finished-box-face svg { display: block; width: 100%; height: 100%; }
 .finished-box-shade { position: absolute; inset: 0; background: #5b4038; pointer-events: none; }
 .finished-box-floor {
