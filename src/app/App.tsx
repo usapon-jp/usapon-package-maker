@@ -54,6 +54,7 @@ import {
   BUILT_IN_STAMPS,
   createDotPattern,
   createFullPanelArtwork,
+  createRepeatingArtwork,
   createStamp,
   createStripePattern,
   createUploadedArtwork,
@@ -69,6 +70,7 @@ import { FAVORITE_SIZES_STORAGE_KEY, parseFavoriteSizes, registerFavoriteSize } 
 import { createTextItem } from "../features/auto-layout/text-layout";
 import { canOfferInstallGuide, detectInstallContext, INSTALL_GUIDE_HIDDEN_KEY } from "../lib/pwa/install-guide";
 import { TemplateScreen } from "../features/templates/TemplateScreen";
+import { HALLOWEEN_PATTERNS } from "../features/templates/halloween-patterns";
 import { STAMP_SETS, stampSetsForTemplate, templateById, type PackageTemplate } from "../features/templates/template-catalog";
 import { LetterSetPanel } from "../features/letter-set/LetterSetPanel";
 import { adaptEnvelopeDesignToPage } from "../features/letter-set/design-sharing";
@@ -1319,7 +1321,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     }
   };
 
-  const addPresetArtwork = async (preset: (typeof BUILT_IN_STAMPS)[number]) => {
+  const addPresetArtwork = async (preset: (typeof BUILT_IN_STAMPS)[number] | (typeof HALLOWEEN_PATTERNS)[number]) => {
     setUploadingArtwork(true);
     setArtworkUploadError("");
     try {
@@ -1327,12 +1329,17 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
       if (!response.ok) throw new Error("プリセット画像を読み込めませんでした。");
       const file = new File([await response.blob()], preset.fileName, { type: "image/png" });
       const targetPanel = faceScopedEditing ? envelopeFacePanel(geometry, state.activeEnvelopeFace) : undefined;
-      const item = createFullPanelArtwork(markAsBuiltInStamp(await readPatternFile(file), preset.key), geometry, activePage.id, targetPanel);
+      const asset = markAsBuiltInStamp(await readPatternFile(file), preset.key);
+      const repeating = HALLOWEEN_PATTERNS.some((pattern) => pattern.key === preset.key);
+      const item = repeating
+        ? createRepeatingArtwork(asset, geometry, activePage.id)
+        : createFullPanelArtwork(asset, geometry, activePage.id, targetPanel);
+      item.name = preset.name;
       if (faceScopedEditing) {
         item.surfaceId = state.activeEnvelopeFace;
         item.rotationDeg = envelopeFaceRotation(state.activeEnvelopeFace);
-        dispatch({ type: "set-surface-background-color", faceId: state.activeEnvelopeFace, color: AUTUMN_COVER_BACKGROUND });
-      } else {
+        if (!repeating) dispatch({ type: "set-surface-background-color", faceId: state.activeEnvelopeFace, color: AUTUMN_COVER_BACKGROUND });
+      } else if (!repeating) {
         dispatch({ type: "set-background-color", pageId: activePage.id, color: AUTUMN_COVER_BACKGROUND });
       }
       dispatch({ type: "add-artwork", item });
@@ -1631,6 +1638,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                 {patternLibraryOpen && <div className="pattern-preset-grid" aria-label="基本柄プリセット">
                   <button type="button" aria-label="ストライプを追加" onClick={() => { const item = createStripePattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "stripe-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); setPatternLibraryOpen(false); }}><i className="stripe-preview" /></button>
                   <button type="button" aria-label="水玉を追加" onClick={() => { const item = createDotPattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "dot-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); setPatternLibraryOpen(false); }}><i className="dot-preview" /></button>
+                  {HALLOWEEN_PATTERNS.map((preset) => <button key={preset.key} className="pattern-upload-tile" type="button" disabled={uploadingArtwork} aria-label={`${preset.name}を背景に追加`} title={`${preset.name}を背景に追加`} onClick={() => { setPatternLibraryOpen(false); void addPresetArtwork(preset); }}><img src={`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`} alt="" aria-hidden="true" /></button>)}
                   {otherStamps.filter((preset) => preset.key === "autumn-trial-cover").map((preset) => <button key={preset.key} className="pattern-upload-tile" type="button" disabled={uploadingArtwork} aria-label={`${preset.name}を背景に追加`} title={`${preset.name}を背景に追加`} onClick={() => { setPatternLibraryOpen(false); void addPresetArtwork(preset); }}><img src={`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`} alt="" aria-hidden="true" /></button>)}
                   <button className="pattern-upload-tile" type="button" disabled={uploadingArtwork} aria-label="自分の画像を追加" title="自分の画像を追加" onClick={() => artworkFileInput.current?.click()}>{uploadingArtwork ? "…" : "+"}</button>
                 </div>}

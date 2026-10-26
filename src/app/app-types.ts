@@ -25,6 +25,7 @@ export type TextFontWeight = 400 | 500 | 600 | 700 | 800 | 900;
 export const BUILT_IN_STAMP_KEYS = [
   "pofumofu-friends",
   "usapon-box-rabbits",
+  "halloween-pattern-01", "halloween-pattern-02", "halloween-pattern-03", "halloween-pattern-04", "halloween-pattern-05",
   "autumn-rabbit-sweet-potato-car",
   "autumn-rabbit-acorn-hug",
   "autumn-rabbit-sweet-potato",

@@ -11,11 +11,13 @@ import type {
 } from "./app-types";
 import type { DielineGeometry, DielinePageId, Panel } from "../domain/boxes/types";
 import { AUTUMN_FREE_TRIAL_STAMP_ID, AUTUMN_STAMP_FILES, AUTUMN_STAMP_IDS, AUTUMN_TRIAL_STAMP_FILES, LEGACY_AUTUMN_STAMP_FILES } from "../features/theme-packs/autumn-stamp-catalog";
+import { HALLOWEEN_PATTERNS } from "../features/templates/halloween-patterns";
 
 export const POFUMOFU_STAMP_FILE = "pofumofu-friends.png";
 export const POFUMOFU_STAMP_KEY = "pofumofu-friends" as const;
 
 export const BUILT_IN_STAMPS = [
+  ...HALLOWEEN_PATTERNS.map((preset) => ({ ...preset, themePackId: null, delivery: "public" as const, pattern: true as const })),
   {
     key: "usapon-box-rabbits",
     fileName: "usapon-box-rabbits.png",
@@ -43,7 +45,7 @@ export const BUILT_IN_STAMPS = [
 ] as const satisfies ReadonlyArray<{ key: BuiltInStampKey; fileName: string; name: string; themePackId: string | null; delivery?: "public" | "private"; legacy?: boolean; trial?: boolean }>;
 
 export function isBuiltInStampPickerVisible(preset: (typeof BUILT_IN_STAMPS)[number]) {
-  return !("legacy" in preset && preset.legacy);
+  return !("legacy" in preset && preset.legacy) && !("pattern" in preset && preset.pattern);
 }
 
 export function builtInStampForKey(key: BuiltInStampKey) {
@@ -129,6 +131,17 @@ export function createFullPanelArtwork(asset: UploadedAsset, geometry: DielineGe
   item.offsetXmm = panel.x + panel.width / 2;
   item.offsetYmm = panel.y + panel.height / 2;
   return item;
+}
+
+export function createRepeatingArtwork(asset: UploadedAsset, geometry: DielineGeometry, pageId: DielinePageId = "main"): UploadedArtworkLayer {
+  return {
+    ...createUploadedArtwork(asset, geometry, pageId),
+    widthMm: 80,
+    offsetXmm: 0,
+    offsetYmm: 0,
+    repeat: true,
+    repeatGapMm: 0,
+  };
 }
 
 export function createStripePattern(id: string, number: number, pageId: DielinePageId = "main"): StripePatternLayer {
