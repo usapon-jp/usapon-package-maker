@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import type { AppState } from '../../app/app-types';
 import { rotateView, type Vec3 } from '../../domain/boxes/finished-box';
 import type { DielineGeometry, DielinePageId } from '../../domain/boxes/types';
-import { AssembledEnvelopePreview } from './AssembledEnvelopePreview';
+import { FoldedEnvelope } from './FoldedEnvelope';
 import { FinishedStationeryPreview } from './FinishedStationeryPreview';
 
 type Angle = { yaw: number; pitch: number };
@@ -24,11 +24,12 @@ export function StationeryTurntable({ state, pageId, geometry }: Props) {
   const envelope = state.box.type === 'envelope-v1' ? state.box : null;
   const widthMm = isEnvelope ? envelope?.widthMm ?? 162 : geometry.bounds.widthMm;
   const heightMm = isEnvelope ? envelope?.heightMm ?? 114 : geometry.bounds.heightMm;
-  const labels = isEnvelope ? { front: 'おもて（B）', back: 'うら（A・C）' } : { front: 'おもて', back: 'うら' };
+  const labels = isEnvelope ? (geometry.envelope?.construction === 'kamasu' ? { front: 'おもて（B）', back: 'うら（A・C）' } : { front: 'おもて', back: 'うら' }) : { front: 'おもて', back: 'うら' };
   const viewLabels: Record<string, string> = { front: labels.front, back: labels.back, angle: '斜め' };
 
   const [angle, setAngle] = useState<Angle>(views[2][1]);
   const [animating, setAnimating] = useState(false);
+  const [flapOpen, setFlapOpen] = useState(false);
   const [stageSize, setStageSize] = useState({ width: 320, height: 300 });
   const stage = useRef<HTMLDivElement>(null);
   const drag = useRef<{ id: number; x: number; y: number; start: Angle } | null>(null);
@@ -41,7 +42,8 @@ export function StationeryTurntable({ state, pageId, geometry }: Props) {
     return () => observer.disconnect();
   }, []);
 
-  const scale = Math.max(0.5, Math.min(stageSize.width / (widthMm * 1.45), stageSize.height / (heightMm * 1.45)));
+  const flapMm = isEnvelope ? geometry.envelope?.topFlapMm ?? 0 : 0;
+  const scale = Math.max(0.5, Math.min(stageSize.width / (widthMm * 1.45), stageSize.height / ((heightMm + flapMm * 0.7) * 1.45)));
   const w = widthMm * scale, h = heightMm * scale;
   const half = Math.max(0.5, 0.2 * scale);
   const current = views.find(v => sameAngle(v[1], angle));
@@ -72,7 +74,9 @@ export function StationeryTurntable({ state, pageId, geometry }: Props) {
   };
 
   return <div className="finished-box finished-turntable">
-    <div className="finished-box-views" role="group" aria-label="完成図を見る方向">{views.map(([key, preset]) => <button key={key} type="button" aria-pressed={current?.[0] === key} onClick={() => showView(preset)}>{viewLabels[key]}</button>)}</div>
+    <div className="finished-box-views" role="group" aria-label="完成図を見る方向">{views.map(([key, preset]) => <button key={key} type="button" aria-pressed={current?.[0] === key} onClick={() => showView(preset)}>{viewLabels[key]}</button>)}
+      {isEnvelope && <button type="button" aria-pressed={flapOpen} onClick={() => setFlapOpen(open => !open)}>{flapOpen ? 'ふたを閉じる' : 'ふたを開ける'}</button>}
+    </div>
     <div
       ref={stage}
       className="finished-box-stage"
@@ -85,7 +89,7 @@ export function StationeryTurntable({ state, pageId, geometry }: Props) {
       style={{ perspective: `${Math.round(Math.hypot(w, h) * 4)}px` }}
     >
       <div className={`finished-box-scene${animating ? ' is-animating' : ''}`} style={{ transform: `rotateX(${-angle.pitch}deg) rotateY(${angle.yaw}deg)` }} onTransitionEnd={() => setAnimating(false)}>
-        {sides.map(side => {
+        {isEnvelope ? <FoldedEnvelope state={state} geometry={geometry} scale={scale} flapOpen={flapOpen} /> : sides.map(side => {
           const facing = rotateView(side.normal, angle.yaw, angle.pitch);
           return <div
             key={side.key}
@@ -94,15 +98,13 @@ export function StationeryTurntable({ state, pageId, geometry }: Props) {
             hidden={facing[2] <= 0.001}
             style={{ width: w, height: h, marginLeft: -w / 2, marginTop: -h / 2, transform: side.transform }}
           >
-            {side.key === 'front'
-              ? isEnvelope ? <AssembledEnvelopePreview state={state} side="front" showLabels={false} /> : <FinishedStationeryPreview state={state} pageId={pageId} geometry={geometry} bare />
-              : isEnvelope ? <AssembledEnvelopePreview state={state} side="back" showLabels={false} /> : <div className="finished-turntable-blank" />}
+            {side.key === 'front' ? <FinishedStationeryPreview state={state} pageId={pageId} geometry={geometry} bare /> : <div className="finished-turntable-blank" />}
             <span className="finished-box-shade" style={{ opacity: +(0.2 * (1 - Math.min(1, facing[2])) ** 2).toFixed(3) }} />
           </div>;
         })}
       </div>
     </div>
     <p className="finished-box-caption">ドラッグで回せます · {widthMm} × {heightMm} mm</p>
-    <p className="finished-box-note">{isEnvelope ? '封筒のうらは、ふたを閉じたところです。' : 'うらは白紙で表示しています。'}</p>
+    <p className="finished-box-note">{isEnvelope ? '展開図を折って組み立てた形です。のりしろは中に隠れます。' : 'うらは白紙で表示しています。'}</p>
   </div>;
 }
