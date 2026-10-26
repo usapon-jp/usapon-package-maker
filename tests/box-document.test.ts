@@ -245,6 +245,12 @@ describe("BoxDocumentV1", () => {
     expect(restored.backgroundColors.card).toBe("#fffdf9");
   });
 
+  it("廃止したひし形封筒で保存した作品も、かます貼りの封筒として開ける", () => {
+    const legacy = JSON.parse(JSON.stringify(serializeBoxDocument(stateFor("envelope-v1")))) as { box: { envelopeConstruction?: string } };
+    legacy.box.envelopeConstruction = "diamond";
+    expect(parseBoxDocument(legacy).box.envelopeConstruction).toBe("kamasu");
+  });
+
   it("新しい折り返し項目がない既存V1作品も読み込める", async () => {
     const legacy = JSON.parse(JSON.stringify(serializeBoxDocument(stateFor("two-piece-gift-box-v1")))) as {
       box: { foldoverMm?: number };

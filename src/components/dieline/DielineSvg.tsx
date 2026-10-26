@@ -372,7 +372,7 @@ export function DielineSvg({
   useEffect(() => () => stopAutoPan(), []);
 
   const handleEnvelopeFacePointerDown = (event: PointerEvent<SVGSVGElement>) => {
-    if (exportMode || !onSelectEnvelopeFace || geometry.envelope?.construction !== "kamasu") return;
+    if (exportMode || !onSelectEnvelopeFace || geometry.type !== "envelope-v1") return;
     const point = pointFromEvent(event);
     const faces: Array<[EnvelopeFaceId, string]> = [
       ["envelope-front", "envelope-front"],
@@ -527,7 +527,7 @@ export function DielineSvg({
         stopAutoPan();
       }}
     >
-      {!exportMode && onSelectEnvelopeFace && geometry.envelope?.construction === "kamasu" && (
+      {!exportMode && onSelectEnvelopeFace && geometry.type === "envelope-v1" && (
         <g className="envelope-face-hit-areas" aria-label="編集する封筒の面">
           {([
             ["envelope-front", geometry.clipPolygons.find((polygon) => polygon.id === "envelope-front")],

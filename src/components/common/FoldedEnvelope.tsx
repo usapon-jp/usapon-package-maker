@@ -64,9 +64,7 @@ export function FoldedEnvelope({ state, geometry, scale, flapOpen }: { state: Ap
     {plane('front', front, geometry.clipPolygons.find(p => p.id === 'envelope-front')!.points, half)}
     {parts.map(part => plane(part.id, part.box, part.points, half + part.layer * gap, part))}
     {edge('edge-bottom', { left: -w / 2, top: h / 2, width: w, height: half * 2 }, `translateZ(${half}px) rotateX(-90deg)`)}
-    {geometry.envelope?.construction === 'kamasu' && <>
-      {edge('edge-left', { left: -w / 2, top: -h / 2, width: half * 2, height: h }, `translateZ(${half}px) rotateY(90deg)`)}
-      {edge('edge-right', { left: w / 2, top: -h / 2, width: half * 2, height: h }, `translateZ(${half}px) rotateY(90deg)`)}
-    </>}
+    {edge('edge-left', { left: -w / 2, top: -h / 2, width: half * 2, height: h }, `translateZ(${half}px) rotateY(90deg)`)}
+    {edge('edge-right', { left: w / 2, top: -h / 2, width: half * 2, height: h }, `translateZ(${half}px) rotateY(90deg)`)}
   </>;
 }
