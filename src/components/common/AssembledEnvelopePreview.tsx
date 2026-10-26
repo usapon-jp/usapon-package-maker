@@ -12,10 +12,13 @@ interface Props {
   className?: string;
   showLabels?: boolean;
   showFaceMarkers?: boolean;
+  /** Show only this side, with no toggle or frame, so it can be placed on a 3D sheet. */
+  side?: "front" | "back";
 }
 
-export function AssembledEnvelopePreview({ state, activeFace = state.activeEnvelopeFace, className = "", showLabels = true, showFaceMarkers = false }: Props) {
-  const [viewSide, setViewSide] = useState<"front" | "back">(activeFace === "envelope-front" ? "front" : "back");
+export function AssembledEnvelopePreview({ state, activeFace = state.activeEnvelopeFace, className = "", showLabels = true, showFaceMarkers = false, side }: Props) {
+  const [chosenSide, setViewSide] = useState<"front" | "back">(activeFace === "envelope-front" ? "front" : "back");
+  const viewSide = side ?? chosenSide;
   const envelopeBox = state.box.type === "envelope-v1" ? state.box : { type: "envelope-v1" as const, widthMm: 162, depthMm: 0, heightMm: 114, paperThicknessMm: 0.1, glueFlapMm: 12 };
   const geometry = generateDieline(envelopeBox);
 
@@ -50,8 +53,8 @@ export function AssembledEnvelopePreview({ state, activeFace = state.activeEnvel
   const backCy = backPanel.y + backPanel.height / 2;
 
   return (
-    <div className={`single-assembled-envelope-card ${className}`}>
-      {showLabels && (
+    <div className={side ? "assembled-envelope-bare" : `single-assembled-envelope-card ${className}`}>
+      {showLabels && !side && (
         <div className="assembled-view-toggle">
           <button
             type="button"
@@ -70,7 +73,7 @@ export function AssembledEnvelopePreview({ state, activeFace = state.activeEnvel
         </div>
       )}
 
-      <div className="assembled-envelope-stage">
+      <div className={side ? "assembled-envelope-bare-stage" : "assembled-envelope-stage"}>
         {viewSide === "front" ? (
           <svg
             className="assembled-single-svg face-front-svg"

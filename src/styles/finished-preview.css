@@ -80,3 +80,21 @@
     margin: 8px auto 4px;
   }
 }
+
+/* 便箋・ミニカード・封筒：表と裏の2面を重ねて、箱と同じように指で回す。 */
+.finished-turntable-face {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: hidden;
+  border-radius: 2px;
+  background: #fffdfa;
+  box-shadow: 0 0 0 1px rgba(143, 122, 108, 0.35);
+  backface-visibility: hidden;
+}
+.finished-turntable-face[hidden] { display: none; }
+.finished-turntable-face > .finished-stationery-bare,
+.finished-turntable-face > .assembled-envelope-bare,
+.finished-turntable-face .assembled-envelope-bare-stage { width: 100%; height: 100%; }
+.finished-turntable-face svg { display: block; width: 100%; height: 100%; }
+.finished-turntable-blank { width: 100%; height: 100%; background: #fffdfa; }

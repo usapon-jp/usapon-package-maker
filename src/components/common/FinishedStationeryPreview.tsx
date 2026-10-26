@@ -10,10 +10,12 @@ type Props = {
   state: AppState;
   pageId: DielinePageId;
   geometry: DielineGeometry;
+  /** Only the paper, without the card frame and fold line, so it can be placed on a 3D sheet. */
+  bare?: boolean;
 };
 
 /** A finished card or letter-paper preview, using the same artwork and text data as the PDF. */
-export function FinishedStationeryPreview({ state, pageId, geometry }: Props) {
+export function FinishedStationeryPreview({ state, pageId, geometry, bare = false }: Props) {
   const rawId = useId().replaceAll(":", "");
   const clipId = `finished-stationery-${rawId}`;
   const backgroundColor = state.backgroundColors[pageId];
@@ -28,7 +30,7 @@ export function FinishedStationeryPreview({ state, pageId, geometry }: Props) {
   const writingLineWidthPercent = isLetter ? state.writingLineWidthPercent : state.cardWritingLineWidthPercent;
 
   return (
-    <div className={`finished-stationery-card ${isLetter ? "is-letter" : "is-card"}`}>
+    <div className={bare ? "finished-stationery-bare" : `finished-stationery-card ${isLetter ? "is-letter" : "is-card"}`}>
       <svg
         className="finished-stationery-svg"
         viewBox={`${x} ${y} ${widthMm} ${heightMm}`}
@@ -80,7 +82,7 @@ export function FinishedStationeryPreview({ state, pageId, geometry }: Props) {
           <TextLayer texts={texts} selectedTextId={null} exportMode />
         </g>
       </svg>
-      {isLetter && <span className="finished-stationery-fold" aria-hidden="true" />}
+      {isLetter && !bare && <span className="finished-stationery-fold" aria-hidden="true" />}
     </div>
   );
 }
