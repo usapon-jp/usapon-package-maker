@@ -118,7 +118,8 @@ export const boxDocumentV1Schema = z.object({
     lidDepthMm: z.number().positive().finite().optional(),
     lidClearanceMm: z.number().nonnegative().finite().optional(),
     foldoverMm: z.number().positive().finite().optional(),
-    envelopeConstruction: z.enum(["diamond", "kamasu"]).optional(),
+    // Older projects saved the retired diamond-glue envelope (it did not fit on A4); every envelope opens as kamasu now.
+    envelopeConstruction: z.enum(["diamond", "kamasu"]).transform(() => "kamasu" as const).optional(),
   }),
   design: z.object({
     backgroundColors: z.object({

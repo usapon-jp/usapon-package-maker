@@ -10,7 +10,7 @@ export type BoxType =
 
 export type DielinePageId = "main" | "lid" | "base" | "letter" | "card";
 export type StationerySetSelection = "envelope-only" | "envelope-letter" | "envelope-card" | "envelope-letter-card";
-export type EnvelopeConstruction = "diamond" | "kamasu";
+export type EnvelopeConstruction = "kamasu";
 export type EnvelopeFaceId = "envelope-front" | "envelope-flap" | "envelope-back";
 
 export type Point = { x: Millimeters; y: Millimeters };

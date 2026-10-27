@@ -1019,7 +1019,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     ...recommendedStampSets.flatMap((set) => set.stampKeys.flatMap((key) => BUILT_IN_STAMPS.filter((preset) => preset.key === key))),
     ...otherStamps,
   ].map((preset) => [preset.key, preset])).values()];
-  const faceEditing = geometry.type === "envelope-v1" && geometry.envelope?.construction === "kamasu" && activePage.id === "main";
+  const faceEditing = geometry.type === "envelope-v1" && activePage.id === "main";
   const [backgroundScope, setBackgroundScope] = useState<"all" | "face">("face");
   const faceScopedEditing = faceEditing && backgroundScope === "face";
   const onActiveFace = <T extends { surfaceId?: EnvelopeFaceId }>(item: T) => !faceScopedEditing || !item.surfaceId || item.surfaceId === state.activeEnvelopeFace;
@@ -1477,7 +1477,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     const arranged = arrangeEnvelopeTemplate(pageDesign(state, "main"), sourcePage.geometry, style);
     dispatch({ type: "update-envelope-design", patch: templateDefinition.settings });
     dispatch({ type: "set-background-color", pageId: "main", color: templateDefinition.backgroundColor });
-    if (sourcePage.geometry.envelope?.construction === "kamasu") dispatch({ type: "set-surface-background-color", faceId: "envelope-front", color: templateDefinition.backgroundColor });
+    dispatch({ type: "set-surface-background-color", faceId: "envelope-front", color: templateDefinition.backgroundColor });
     dispatch({ type: "apply-auto-layout", pageId: "main", ...arranged });
     const targetPages = pages.filter((page) => page.id === "letter" || page.id === "card");
     if (targetPages.length > 0) {
@@ -2139,7 +2139,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
             <button type="button" className={state.printGuideMode === "design" ? "is-selected" : ""} onClick={() => dispatch({ type: "set-print-guide-mode", mode: "design" })}><strong>デザイン優先</strong><small>必要なカット・折り線だけ</small></button>
           </div>}
           <div className="fit-notice-stack">{pages.map((page) => <FitNotice key={page.id} geometry={page.geometry} fit={page.fit} label={page.label} />)}</div>
-          {envelopePage && <div className="envelope-finished-note"><strong>完成：横 {mm(envelopePage.geometry.input.widthMm)} × 縦 {mm(envelopePage.geometry.input.heightMm)}{envelopePage.geometry.input.widthMm === 162 && envelopePage.geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong>{envelopePage.geometry.envelope?.construction === "kamasu" ? <><span>展開：{mm(envelopePage.geometry.bounds.widthMm)} × {mm(envelopePage.geometry.bounds.heightMm)} ／ A フタ {mm(envelopePage.geometry.envelope.topFlapMm)} ／ 左右のりしろ 各{mm(envelopePage.geometry.envelope.glueWidthMm)}</span><span>Cの左右のりしろを内側へ折り、Bを重ねて接着します。最後にAで封をします。</span></> : <><span>展開：{mm(envelopePage.geometry.bounds.widthMm)} × {mm(envelopePage.geometry.bounds.heightMm)}</span><span>左右 → 下の順に折り、貼って袋状にします。</span></>}</div>}
+          {envelopePage && <div className="envelope-finished-note"><strong>完成：横 {mm(envelopePage.geometry.input.widthMm)} × 縦 {mm(envelopePage.geometry.input.heightMm)}{envelopePage.geometry.input.widthMm === 162 && envelopePage.geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong><><span>展開：{mm(envelopePage.geometry.bounds.widthMm)} × {mm(envelopePage.geometry.bounds.heightMm)} ／ A フタ {mm(envelopePage.geometry.envelope?.topFlapMm ?? 0)} ／ 左右のりしろ 各{mm(envelopePage.geometry.envelope?.glueWidthMm ?? 0)}</span><span>Cの左右のりしろを内側へ折り、Bを重ねて接着します。最後にAで封をします。</span></></div>}
           {imposedPages.map(({ label, type, imposition }) => <div className="template-imposition-note" key={label}><strong>{type === "letter-paper-v1" ? "便箋をA4に2面割り付け" : `${label}をA4に${imposition.count}枚自動配置`}</strong><span>{type === "letter-paper-v1" ? "中央で1回切ると、同じ便箋が2枚できます。" : `${imposition.columns}列 × ${imposition.rows}段。編集した同じカードを実寸でまとめて印刷します。`}</span></div>)}
           <div className="print-instruction">
             <span aria-hidden="true">!</span>

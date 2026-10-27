@@ -24,7 +24,7 @@ export function StationeryTurntable({ state, pageId, geometry }: Props) {
   const envelope = state.box.type === 'envelope-v1' ? state.box : null;
   const widthMm = isEnvelope ? envelope?.widthMm ?? 162 : geometry.bounds.widthMm;
   const heightMm = isEnvelope ? envelope?.heightMm ?? 114 : geometry.bounds.heightMm;
-  const labels = isEnvelope ? (geometry.envelope?.construction === 'kamasu' ? { front: 'おもて（B）', back: 'うら（A・C）' } : { front: 'おもて', back: 'うら' }) : { front: 'おもて', back: 'うら' };
+  const labels = isEnvelope ? { front: 'おもて（B）', back: 'うら（A・C）' } : { front: 'おもて', back: 'うら' };
   const viewLabels: Record<string, string> = { front: labels.front, back: labels.back, angle: '斜め' };
 
   const [angle, setAngle] = useState<Angle>(views[2][1]);

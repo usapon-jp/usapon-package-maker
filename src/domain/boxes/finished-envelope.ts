@@ -23,7 +23,7 @@ const boundsOf = (points: Point[]): FoldRect => {
 
 /**
  * How an envelope net folds into the finished envelope: the front face stays put and the rest hinges onto it.
- * The kamasu net folds its back panel up from the bottom; the diamond net folds both side flaps and the bottom flap.
+ * The kamasu net folds its back panel (C) up from the bottom, then the closing flap (A) lays over the top.
  */
 export function envelopeFoldParts(geometry: DielineGeometry): { front: FoldRect; parts: FoldPart[] } {
   const polygon = (id: string) => geometry.clipPolygons.find(p => p.id === id);
@@ -36,9 +36,7 @@ export function envelopeFoldParts(geometry: DielineGeometry): { front: FoldRect;
     const hinge = edge === 'top' ? front.y : edge === 'bottom' ? front.y + front.height : edge === 'left' ? front.x : front.x + front.width;
     return [{ id, points: shape.points, box: boundsOf(shape.points), edge, hinge, layer, isFlap }];
   };
-  const parts = geometry.envelope?.construction === 'kamasu'
-    ? [...part('envelope-back', 'bottom', 0), ...part('envelope-top-flap', 'top', 1, true)]
-    : [...part('envelope-left-flap', 'left', 0), ...part('envelope-right-flap', 'right', 0), ...part('envelope-bottom-flap', 'bottom', 1), ...part('envelope-top-flap', 'top', 2, true)];
+  const parts = [...part('envelope-back', 'bottom', 0), ...part('envelope-top-flap', 'top', 1, true)];
   return { front, parts };
 }
 
