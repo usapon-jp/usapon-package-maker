@@ -36,12 +36,16 @@ describe("印刷線の設定", () => {
     const open = renderToStaticMarkup(<PrintLineSettingsDialog state={state} dispatch={() => undefined} open onClose={() => undefined} />);
     expect(open).toContain('role="dialog"'); expect(open).toContain('aria-label="印刷設定"'); expect(open).toContain('aria-label="閉じる"');
   });
-  it("割り付け・印刷設定・印刷プレビューにそれぞれ設定入口を出す", () => {
-    const state = start(), geometry = generateDieline(state.box), dispatch = () => undefined, onOpenSettings = () => undefined;
-    const layout = renderToStaticMarkup(<CardLayoutScreen state={state} dispatch={dispatch} geometry={geometry} owner="device" onOpenSettings={onOpenSettings} />);
-    const print = renderToStaticMarkup(<MiniCardPrintScreen state={{ ...state, screen: "print" }} dispatch={dispatch} geometry={geometry} owner="device" onOpenSettings={onOpenSettings} />);
-    expect(layout.match(/aria-label="印刷設定を開く"/g)).toHaveLength(1);
-    expect(print.match(/aria-label="印刷設定を開く"/g)).toHaveLength(2);
-    expect(renderToStaticMarkup(<PrintSettingsButton onClick={onOpenSettings} />)).toContain('type="button"');
+  it("画面内の重複した設定入口を外し、最上部は歯車だけにする", () => {
+    const state = start(), geometry = generateDieline(state.box), dispatch = () => undefined;
+    const layout = renderToStaticMarkup(<CardLayoutScreen state={state} dispatch={dispatch} geometry={geometry} owner="device" />);
+    const print = renderToStaticMarkup(<MiniCardPrintScreen state={{ ...state, screen: "print" }} dispatch={dispatch} geometry={geometry} owner="device" />);
+    expect(layout).not.toContain('aria-label="印刷設定を開く"');
+    expect(print).not.toContain('aria-label="印刷設定を開く"');
+    const button = renderToStaticMarkup(<PrintSettingsButton onClick={() => undefined} />);
+    expect(button).toContain('aria-label="印刷設定を開く"');
+    expect(button).toContain('title="設定"');
+    expect(button).toContain('class="settings-gear" aria-hidden="true"');
+    expect(button).not.toContain(">設定</button>");
   });
 });

@@ -29,6 +29,6 @@ export function PrintLineSettingsControls({ state, dispatch }: { state: AppState
 export function PrintLineSettingsDialog({ state, dispatch, open, onClose }: { state: AppState; dispatch: Dispatch<AppAction>; open: boolean; onClose: () => void }) {
   return <MobileSettingsSheet open={open} title="印刷設定" onClose={onClose}><PrintLineSettingsControls state={state} dispatch={dispatch} /></MobileSettingsSheet>;
 }
-export function PrintSettingsButton({ onClick, disabled = false }: { onClick?: () => void; disabled?: boolean }) {
-  return <button className="print-settings-trigger" type="button" onClick={onClick} disabled={disabled} aria-label="印刷設定を開く">⚙ 設定</button>;
+export function PrintSettingsButton({ onClick, label = "印刷設定を開く" }: { onClick: () => void; label?: string }) {
+  return <button className="header-details-button" type="button" onClick={onClick} aria-label={label} title="設定"><span className="settings-gear" aria-hidden="true">⚙︎</span></button>;
 }

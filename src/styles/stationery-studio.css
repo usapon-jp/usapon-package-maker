@@ -80,7 +80,6 @@
 @media(max-width:360px) { .app-shell:has(.card-workflow-nav) .mobile-design-actions { display:none !important; } }
 .print-preview-toolbar,.print-settings-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; flex:0 0 auto; }
 .print-preview-toolbar>span { min-width:0; font-size:12px; }
-.print-settings-trigger { display:inline-flex; align-items:center; justify-content:center; gap:4px; min-height:44px; padding:6px 12px; border:1px solid var(--line); border-radius:10px; background:#fff; color:#755e53; font:inherit; font-size:13px; white-space:nowrap; cursor:pointer; }
 .print-line-settings-controls { display:grid; gap:16px; }
 .print-line-settings-controls p { margin:0; font-size:14px; line-height:1.7; }
 .print-line-settings-controls small { font-size:12px; color:var(--muted); line-height:1.7; }
@@ -96,3 +95,6 @@
 .print-line-color-fields input[type=text],.print-line-hex input { width:100%; min-width:0; font-size:16px; }
 .card-sheet-slot:focus-visible { outline:2px solid #b98d5b; outline-offset:-2px; z-index:1; }
 @media(max-width:600px) { .antigravity-print-page .print-settings-heading { display:none; } }
+
+.header-details-button:has(.settings-gear) { padding:0; letter-spacing:0; }
+.header-details-button .settings-gear { font-size:22px; line-height:1; }

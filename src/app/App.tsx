@@ -325,7 +325,7 @@ function AppHeader({
         {screen !== "home" && screen !== "my-boxes" && screen !== "templates" && screen !== "letter-set" && (
           <button className={`cloud-save-button is-${saveState}`} type="button" disabled={saveState === "saving"} onClick={onSave}>☁ {saveLabel}</button>
         )}
-        {(screen === "design" || screen === "print") && <button className="header-details-button" type="button" aria-label={screen === "print" || hasCardWorkflow ? "印刷設定を開く" : "詳細メニューを開く"} title="設定" onClick={onOpenDetails}>設定</button>}
+        {(screen === "design" || screen === "print") && <PrintSettingsButton onClick={onOpenDetails} label={screen === "print" || hasCardWorkflow ? "印刷設定を開く" : "詳細メニューを開く"} />}
         {user ? (
           <details className="account-menu">
             <summary aria-label="アカウントメニュー">
@@ -2005,7 +2005,7 @@ function StickerPackGuideDialog({ loggedIn, trialStamps, onUseTrial, onLogin, on
   </div>;
 }
 
-function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSuccessfulExport, onOpenSettings }: ScreenProps & { clientContext: ClientContext; onSuccessfulExport: () => void; onOpenSettings: () => void }) {
+function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSuccessfulExport }: ScreenProps & { clientContext: ClientContext; onSuccessfulExport: () => void }) {
   const dielineSvgs = useRef<Record<string, SVGSVGElement | null>>({});
   const calibrationSvg = useRef<SVGSVGElement>(null);
   const printablePdfUrl = useRef<string | null>(null);
@@ -2128,7 +2128,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
         {viewMode === "dieline" ? (
           <div className="print-page-grid" data-ui-id="print.preview">
             <section className={`paper-preview-wrap ${activePage.fit.orientation}`} key={activePage.id}>
-              <div className="paper-label print-preview-toolbar"><span>{activePage.label}／A4 {activePage.fit.orientation === "portrait" ? "縦 210 × 297mm" : "横 297 × 210mm"}</span><PrintSettingsButton onClick={onOpenSettings} /></div>
+              <div className="paper-label print-preview-toolbar"><span>{activePage.label}／A4 {activePage.fit.orientation === "portrait" ? "縦 210 × 297mm" : "横 297 × 210mm"}</span></div>
               <div className="paper-preview">
                 <A4ExportSvg
                   pageId={activePage.id}
@@ -2173,7 +2173,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
 
         <aside className="print-settings panel-card" data-ui-id="print.settings">
           <p className="eyebrow">PRINT SETTINGS</p>
-          <div className="print-settings-heading"><h2>PDFを保存</h2><PrintSettingsButton onClick={onOpenSettings} /></div>
+          <div className="print-settings-heading"><h2>PDFを保存</h2></div>
           {activePage.geometry.type === "mini-card-v1" && <section className="card-print-settings" aria-label="ミニカードの印刷枚数">
             <strong>ミニカードの並べ方</strong>
             <label className="toggle-row"><span>画像ごとに枚数を指定</span><input type="checkbox" checked={Boolean(state.cardPrintCounts)} onChange={(event) => dispatch({ type: "set-card-print-counts", counts: event.target.checked ? Object.fromEntries(state.stamps.filter((item) => item.pageId === activePage.id && item.visible).map((item, index) => [item.id, index === 0 ? printImposition(activePage.geometry).count : 0])) : undefined })} /></label>
@@ -2793,10 +2793,10 @@ export function App() {
       {(state.screen === "home" || state.screen === "letter-set") && <CreationHome onBox={startNew} onLetter={startLetterSet} onResume={shouldPersistLocalDraft ? () => dispatch({ type: "go", screen: "design" }) : null} resumeLabel={BOX_TYPE_COPY[state.box.type].name} />}
       {state.screen === "templates" && <TemplateScreen onBack={() => dispatch({ type: "go", screen: "home" })} onSelect={startTemplate} unlockedThemePackIds={unlockedThemePackIds} />}
       {state.screen === "size" && <SizeScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
-      {state.screen === "design" && miniCardPlanning && <CardLayoutScreen state={state} dispatch={dispatch} geometry={activePage.geometry} owner={user?.id ?? "device"} onOpenSettings={() => setDesignDetailsOpen(true)} />}
+      {state.screen === "design" && miniCardPlanning && <CardLayoutScreen state={state} dispatch={dispatch} geometry={activePage.geometry} owner={user?.id ?? "device"} />}
       {state.screen === "design" && !miniCardPlanning && <DesignScreen key={user?.id ?? "device"} imageOwner={user?.id ?? "device"} user={user} onLogin={() => { void login(); }} state={state} dispatch={dispatch} pages={pages} activePage={activePage} unlockedThemePackIds={unlockedThemePackIds} onUnlockThemePack={requestThemeUnlock} detailsOpen={designDetailsOpen} onDetailsClose={() => setDesignDetailsOpen(false)} />}
-      {state.screen === "print" && state.box.type === "mini-card-v1" && state.miniCardProject && <MiniCardPrintScreen state={state} dispatch={dispatch} geometry={activePage.geometry} owner={user?.id ?? "device"} onOpenSettings={() => setDesignDetailsOpen(true)} />}
-      {state.screen === "print" && !(state.box.type === "mini-card-v1" && state.miniCardProject) && <PrintScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} clientContext={clientContext} onSuccessfulExport={offerInstallAfterSuccess} onOpenSettings={() => setDesignDetailsOpen(true)} />}
+      {state.screen === "print" && state.box.type === "mini-card-v1" && state.miniCardProject && <MiniCardPrintScreen state={state} dispatch={dispatch} geometry={activePage.geometry} owner={user?.id ?? "device"} />}
+      {state.screen === "print" && !(state.box.type === "mini-card-v1" && state.miniCardProject) && <PrintScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} clientContext={clientContext} onSuccessfulExport={offerInstallAfterSuccess} />}
       {(miniCardPlanning || state.screen === "print") && <PrintLineSettingsDialog state={state} dispatch={dispatch} open={designDetailsOpen} onClose={() => setDesignDetailsOpen(false)} />}
       {CLOUD_SYNC_UI_ENABLED && state.screen === "my-boxes" && (
         <MyBoxesScreen
