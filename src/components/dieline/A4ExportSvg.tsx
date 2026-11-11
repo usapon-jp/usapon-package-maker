@@ -22,14 +22,18 @@ export type A4PageSvgProps = {
   writingLineCount?: number;
   writingLineWidthPercent?: number;
   envelopeDesign?: EnvelopeDesignSettings;
+  cardPrintCounts?: Record<string, number>;
   printGuideMode?: PrintGuideMode;
 };
 
 export const A4PageSvg = forwardRef<SVGSVGElement, A4PageSvgProps>(function A4PageSvg(
-  { pageId = "main", geometry, fit, backgroundColor, surfaceBackgroundColors, artworkLayers, stamps, texts, lineColors, includeFoldoverLines = true, showWritingLines = false, showWritingFrame = false, writingLineCount = 18, writingLineWidthPercent = 82, envelopeDesign, printGuideMode = "assembly" },
+  { pageId = "main", geometry, fit, backgroundColor, surfaceBackgroundColors, artworkLayers, stamps, texts, lineColors, includeFoldoverLines = true, showWritingLines = false, showWritingFrame = false, writingLineCount = 18, writingLineWidthPercent = 82, envelopeDesign, cardPrintCounts, printGuideMode = "design" },
   ref,
 ) {
   const imposition = printImposition(geometry);
+  const cardImages = geometry.type === "mini-card-v1" && cardPrintCounts
+    ? stamps.filter((stamp) => stamp.visible).flatMap((stamp) => Array.from({ length: Math.min(imposition.count, cardPrintCounts[stamp.id] ?? 0) }, () => stamp))
+    : null;
   return (
     <svg
       ref={ref}
@@ -46,6 +50,7 @@ export const A4PageSvg = forwardRef<SVGSVGElement, A4PageSvgProps>(function A4Pa
     >
       <rect width={fit.pageWidthMm} height={fit.pageHeightMm} fill="#ffffff" />
       {Array.from({ length: imposition.count }, (_, index) => {
+        if (cardImages && !cardImages[index]) return null;
         const column = index % imposition.columns;
         const row = Math.floor(index / imposition.columns);
         return (
@@ -55,7 +60,7 @@ export const A4PageSvg = forwardRef<SVGSVGElement, A4PageSvgProps>(function A4Pa
               backgroundColor={backgroundColor}
               surfaceBackgroundColors={surfaceBackgroundColors}
               artworkLayers={artworkLayers}
-              stamps={stamps}
+              stamps={cardImages ? [cardImages[index]] : stamps}
               texts={texts}
               lineColors={lineColors}
               showGuides={false}

@@ -172,7 +172,8 @@ export const boxDocumentV1Schema = z.object({
       "envelope-back": z.string().optional(),
     }).default({}),
     themePackId: z.string().max(120).nullable().default(null),
-    printGuideMode: z.enum(["assembly", "design"]).default("assembly"),
+    cardPrintCounts: z.record(z.string(), z.number().int().min(0).max(100)).optional(),
+    printGuideMode: z.enum(["assembly", "design"]).default("design"),
   }),
 });
 
@@ -221,6 +222,7 @@ export function serializeBoxDocument(state: AppState): BoxDocumentV1 {
       envelopeDesign: { ...state.envelopeDesign },
       surfaceBackgroundColors: { ...state.surfaceBackgroundColors },
       themePackId: state.themePackId,
+      cardPrintCounts: state.cardPrintCounts,
       printGuideMode: state.printGuideMode,
     },
   };
@@ -275,6 +277,7 @@ export async function hydrateBoxDocument(value: unknown, resolveAsset: AssetReso
     activeEnvelopeFace: "envelope-flap",
     surfaceBackgroundColors: { ...document.design.surfaceBackgroundColors },
     themePackId: document.design.themePackId,
+    cardPrintCounts: document.design.cardPrintCounts,
     printGuideMode: document.design.printGuideMode,
   });
 }

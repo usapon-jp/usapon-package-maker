@@ -11,15 +11,15 @@ import { createStamp } from "../src/app/artwork";
 import type { UploadedAsset } from "../src/app/app-types";
 
 describe("モバイル中心のレターセットUI", () => {
-  it("ホームに4つの組み合わせをシンプルに表示する", () => {
+  it("ホームに3種類の制作画面の入口を表示する", () => {
     const markup = renderToStaticMarkup(<CreationHome onBox={() => undefined} onLetter={() => undefined} onResume={null} resumeLabel="" />);
     expect(markup).toContain('/assets/home/box-caramel.png');
     expect(markup).toContain('/assets/home/box-shallow.png');
     expect(markup).toContain('/assets/home/box-two-piece.png');
-    expect(markup).toContain("封筒＋便箋");
-    expect(markup).toContain("封筒＋ミニカード");
-    expect(markup).toContain("フルセット");
-    expect(markup).toContain("封筒のみ");
+    expect(markup).toContain(">封筒<");
+    expect(markup).toContain(">便箋<");
+    expect(markup).toContain(">ミニカード<");
+    expect(markup).not.toContain("フルセット");
     expect(markup).not.toContain("ほかのセット");
     expect(markup).toContain('class="creation-home-grid creation-home-letter-grid"');
     expect(markup).toContain('/assets/home/envelope.png');

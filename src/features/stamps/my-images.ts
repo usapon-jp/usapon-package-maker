@@ -32,7 +32,7 @@ export async function saveMyImage(owner: string, item: MyImageItem): Promise<voi
   const db = await database();
   const key = [owner, item.assetRef.assetId];
   const existing = await db.get("images", key) as StoredStampItem | undefined;
-  await db.put("images", { ...item, savedAt: existing?.savedAt ?? Date.now() }, key);
+  await db.put("images", { ...mergeMyImages(existing ? [existing] : [], [item])[0], savedAt: existing?.savedAt ?? Date.now() }, key);
 }
 
 export function mergeMyImages(...groups: MyImageItem[][]): MyImageItem[] {

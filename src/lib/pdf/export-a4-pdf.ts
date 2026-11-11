@@ -83,31 +83,41 @@ function loadSvgImage(svgMarkup: string) {
   });
 }
 
-/**
- * svg2pdf.js cannot reliably paint SVG <pattern> definitions. Render the
- * artwork layer with the browser's SVG engine first and return its canvas.
- * The canvas is added directly to jsPDF instead of being embedded back into
- * SVG, which avoids recursive SVG image processing on memory-limited phones.
- */
-async function rasterizeArtworkForPdf(svg: SVGSVGElement) {
-  const artworkLayers = [...svg.querySelectorAll<SVGGElement>('[data-layer="artwork"]')];
-  if (artworkLayers.length === 0) return null;
+/** Embed blob/remote images before serializing SVG: an SVG loaded as an image
+ * cannot fetch those resources. Reject failed loads instead of saving missing art. */
+export async function embedPdfImages(svg: SVGSVGElement) {
+  const cache = new Map<string, Promise<string>>();
+  await Promise.all([...svg.querySelectorAll("image")].map(async (element) => {
+    const href = element.getAttribute("href") ?? element.getAttributeNS("http://www.w3.org/1999/xlink", "href");
+    if (!href || href.startsWith("data:")) return;
+    if (!cache.has(href)) cache.set(href, (async () => {
+      const response = await fetch(href);
+      if (!response.ok) throw new Error("PDFに使う画像を読み込めませんでした。画像を入れ直してください。");
+      const blob = await response.blob();
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("PDF用の画像を埋め込めませんでした。"));
+        reader.readAsDataURL(blob);
+      });
+    })());
+    element.setAttribute("href", await cache.get(href)!);
+    element.removeAttributeNS("http://www.w3.org/1999/xlink", "href");
+  }));
+}
 
+// Render the complete design in its original stacking order. Frames, patterns,
+// PNG stamps and text then match the browser; cut/fold lines remain vectors.
+async function rasterizeArtworkForPdf(svg: SVGSVGElement) {
   const { width, height } = svgViewBoxSize(svg);
   const renderSource = svg.cloneNode(true) as SVGSVGElement;
-  renderSource.querySelectorAll('[data-layer]').forEach((layer) => {
-    if (layer.getAttribute("data-layer") !== "artwork") layer.setAttribute("display", "none");
-  });
-  // The first rect is the white A4 paper. Keeping the PNG transparent outside
-  // the box avoids covering the vector line work with an opaque bitmap.
-  renderSource.querySelector(':scope > rect')?.remove();
+  const vectorSelector = '[data-layer="cut"], [data-layer="fold"], [data-layer="foldover"], [data-letter-sheet-center-cut]';
+  renderSource.querySelectorAll(`${vectorSelector}, [data-layer="text"]`).forEach((layer) => layer.remove());
   renderSource.setAttribute("width", `${width}`);
   renderSource.setAttribute("height", `${height}`);
-
+  await embedPdfImages(renderSource);
   const image = await loadSvgImage(new XMLSerializer().serializeToString(renderSource));
-  const targetPixelsPerMm = ARTWORK_EXPORT_DPI / 25.4;
-  const pixelLimitScale = Math.sqrt(MAX_ARTWORK_RASTER_PIXELS / (width * height));
-  const pixelsPerMm = Math.min(targetPixelsPerMm, pixelLimitScale);
+  const pixelsPerMm = Math.min(ARTWORK_EXPORT_DPI / 25.4, Math.sqrt(MAX_ARTWORK_RASTER_PIXELS / (width * height)));
   const canvas = document.createElement("canvas");
   canvas.width = Math.ceil(width * pixelsPerMm);
   canvas.height = Math.ceil(height * pixelsPerMm);
@@ -117,16 +127,22 @@ async function rasterizeArtworkForPdf(svg: SVGSVGElement) {
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-  artworkLayers.forEach((artwork) => artwork.remove());
-  svg.querySelector(':scope > rect')?.remove();
+  const retainVectors = (parent: Element) => {
+    [...parent.children].forEach((child) => {
+      if (child.tagName.toLowerCase() === "defs" || child.matches(`${vectorSelector}, [data-layer="text"]`)) return;
+      if (child.querySelector(`${vectorSelector}, [data-layer="text"]`)) retainVectors(child);
+      else child.remove();
+    });
+  };
+  retainVectors(svg);
   return canvas;
 }
 
 async function prepareDielineForPdf(source: SVGSVGElement, font: opentype.Font) {
   const clone = source.cloneNode(true) as SVGSVGElement;
   clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-  const artworkCanvas = await rasterizeArtworkForPdf(clone);
   replaceTextWithPaths(clone, font);
+  const artworkCanvas = await rasterizeArtworkForPdf(clone);
   return { vectorSvg: clone, artworkCanvas };
 }
 

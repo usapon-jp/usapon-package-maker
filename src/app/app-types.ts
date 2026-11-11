@@ -169,6 +169,7 @@ export type AppState = {
   activeEnvelopeFace: EnvelopeFaceId;
   surfaceBackgroundColors: Partial<Record<EnvelopeFaceId, string>>;
   themePackId: string | null;
+  cardPrintCounts?: Record<string, number>;
   printGuideMode: PrintGuideMode;
   activePageId: DielinePageId;
   backgroundColors: Record<DielinePageId, string>;
@@ -186,6 +187,7 @@ export type AppState = {
 };
 
 export type AppAction =
+  | { type: "set-card-print-counts"; counts: Record<string, number> | undefined }
   | { type: "replace-state"; state: AppState }
   | { type: "go"; screen: Screen }
   | { type: "set-box-type"; boxType: BoxType }

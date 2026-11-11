@@ -1,4 +1,4 @@
-import type { BoxType, StationerySetSelection } from '../../domain/boxes/types';
+import type { BoxType } from '../../domain/boxes/types';
 
 export const HOME_BOXES = [
   ['straight-tuck-carton-v1', 'キャラメル箱'],
@@ -7,11 +7,10 @@ export const HOME_BOXES = [
 ] as const;
 
 export const HOME_LETTER_SETS = [
-  { value: 'envelope-letter', label: '封筒＋便箋', letter: true, card: false },
-  { value: 'envelope-card', label: '封筒＋ミニカード', letter: false, card: true },
-  { value: 'envelope-letter-card', label: 'フルセット', letter: true, card: true },
-  { value: 'envelope-only', label: '封筒のみ', letter: false, card: false },
-] as const satisfies ReadonlyArray<{ value: StationerySetSelection; label: string; letter: boolean; card: boolean }>;
+  { value: 'envelope-v1', label: '封筒', letter: false, card: false },
+  { value: 'letter-paper-v1', label: '便箋', letter: true, card: false },
+  { value: 'mini-card-v1', label: 'ミニカード', letter: false, card: true },
+] as const;
 
 const HOME_BOX_PICTURES: Record<(typeof HOME_BOXES)[number][0], string> = {
   'straight-tuck-carton-v1': '/assets/home/box-caramel.png',
@@ -21,7 +20,7 @@ const HOME_BOX_PICTURES: Record<(typeof HOME_BOXES)[number][0], string> = {
 
 export function CreationHome({ onBox, onLetter, onResume, resumeLabel }: {
   onBox: (type: BoxType) => void;
-  onLetter: (selection: StationerySetSelection) => void;
+  onLetter: (type: BoxType) => void;
   onResume: (() => void) | null;
   resumeLabel: string;
 }) {
@@ -43,7 +42,7 @@ export function CreationHome({ onBox, onLetter, onResume, resumeLabel }: {
             <span className={`home-letter-picture is-${option.value}`} aria-hidden="true">
               {option.letter && <img className="home-stationery-letter" src="/assets/home/letter-paper.png" alt="" />}
               {option.card && <img className="home-stationery-card" src="/assets/home/mini-card.png" alt="" />}
-              <img className="home-stationery-envelope" src="/assets/home/envelope.png" alt="" />
+              {!option.letter && !option.card && <img className="home-stationery-envelope" src="/assets/home/envelope.png" alt="" />}
             </span>
             <strong>{option.label}</strong>
           </button>

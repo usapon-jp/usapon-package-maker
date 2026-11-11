@@ -87,7 +87,7 @@ describe("秋のレターセットテンプレート", () => {
     expect(geometry.layers.fold).toHaveLength(4);
     expect(geometry.layers.glue).toHaveLength(2);
 
-    const printed = renderToStaticMarkup(<A4ExportSvg geometry={geometry} fit={fit} backgroundColor="#ffffff" artworkLayers={[]} stamps={[]} texts={[]} lineColors={initialState.lineColors} />);
+    const printed = renderToStaticMarkup(<A4ExportSvg geometry={geometry} fit={fit} backgroundColor="#ffffff" artworkLayers={[]} stamps={[]} texts={[]} lineColors={initialState.lineColors} printGuideMode="assembly" />);
     expect(printed.match(/fill="#f6e8e2"/g)).toHaveLength(2);
     expect(printed.match(/>のりしろ<\/text>/g)).toHaveLength(2);
     expect(printed).not.toContain("のりしろ（完成時に隠れます）");

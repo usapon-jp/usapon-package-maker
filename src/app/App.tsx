@@ -259,14 +259,14 @@ function AppHeader({
   onDeleteAccount: () => void;
 }) {
   const saveLabel = saveState === "saving" ? "保存中…" : saveState === "saved" ? "保存済み" : saveState === "error" ? "保存失敗" : saveState === "conflict" ? "更新あり" : "保存";
-  const isEnvelope = templateId === "y2-kamasu-envelope";
+  const isEnvelope = ["y2-kamasu-envelope", "basic-letter-paper", "basic-mini-card"].includes(templateId ?? "");
   const isMobileDesign = screen === "design";
   const designBackTarget = previousScreen("design", templateId)!;
   const backTarget = previousScreen(screen, templateId);
 
   const screenTitle =
     screen === "size" ? "BOXサイズ" :
-    screen === "design" ? (isEnvelope ? "レターデザイン" : "BOXデザイン") :
+    screen === "design" ? (isEnvelope ? `${templateById(templateId)?.categoryLabel ?? "封筒"}デザイン` : "BOXデザイン") :
     screen === "print" ? "印刷前確認" :
     screen === "my-boxes" ? "マイデザイン" :
     screen === "templates" ? "型を選ぶ" :
@@ -274,7 +274,7 @@ function AppHeader({
 
   return (
     <header className={`app-header screen-${screen} ${screen === "design" || screen === "print" || screen === "size" ? "is-editor-header" : ""}`} data-ui-id="global.header">
-      {isMobileDesign && <button className="mobile-header-design-back" type="button" onClick={() => onGo(designBackTarget)} aria-label={isEnvelope ? "セットを選び直す" : "サイズに戻る"} title="戻る">←</button>}
+      {isMobileDesign && <button className="mobile-header-design-back" type="button" onClick={() => onGo(designBackTarget)} aria-label={isEnvelope ? "種類を選び直す" : "サイズに戻る"} title="戻る">←</button>}
       <div className="brand-button-group">
         {backTarget && (
           <button className="mobile-header-back-button" type="button" onClick={() => onGo(backTarget)} aria-label="戻る">
@@ -305,14 +305,14 @@ function AppHeader({
 
       {screen !== "home" && screen !== "my-boxes" && screen !== "templates" && screen !== "letter-set" && (
         <nav className="step-nav" data-ui-id="global.step-nav" aria-label="作成ステップ">
-          {([templateId === "y2-kamasu-envelope" ? "letter-set" : templateId ? "templates" : "size", "design", "print"] as const).map((step, index) => (
+          {([isEnvelope ? "letter-set" : templateId ? "templates" : "size", "design", "print"] as const).map((step, index) => (
             <button
               key={step}
               type="button"
               className={screen === step ? "is-current" : ""}
               onClick={() => onGo(step)}
             >
-              <span>{index + 1}</span>{step === "letter-set" ? "セット" : step === "templates" ? "型を選ぶ" : step === "size" ? "サイズ" : step === "design" ? "デザイン" : "印刷"}
+              <span>{index + 1}</span>{step === "letter-set" ? "種類" : step === "templates" ? "型を選ぶ" : step === "size" ? "サイズ" : step === "design" ? "デザイン" : "印刷"}
             </button>
           ))}
         </nav>
@@ -1064,6 +1064,18 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const [letterSetShareMessage, setLetterSetShareMessage] = useState("");
   const [applyingThemePack, setApplyingThemePack] = useState(false);
   const [privateStampPreviewUrls, setPrivateStampPreviewUrls] = useState<Record<string, string>>({});
+  const backgroundAssetSignature = state.artworkLayers.flatMap((item) => item.kind === "uploaded-artwork" && item.assetRef.kind === "user" ? [item.assetRef.assetId] : []).sort().join(",");
+  useEffect(() => {
+    let current = true;
+    const images = state.artworkLayers.flatMap((item) => item.kind === "uploaded-artwork" && item.assetRef.kind === "user"
+      ? [createStamp({ ...item, id: item.assetRef.assetId }, geometry, item.name, item.pageId)] : []);
+    if (!images.length) return;
+    setMyImages((previous) => mergeMyImages(previous, images));
+    void Promise.all(images.map((image) => saveMyImage(imageOwner, image))).catch(() => {
+      if (current) setArtworkUploadError("背景は配置済みですが、端末内の素材一覧へ保存できませんでした。");
+    });
+    return () => { current = false; };
+  }, [imageOwner, backgroundAssetSignature]);
   const uploadedImages = mergeMyImages(myImages, state.stamps);
   const myImageFolderOptions = myImageFolders(uploadedImages);
   const visibleMyImages = uploadedImages.filter((image) => (
@@ -1172,6 +1184,22 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     setBackgroundCopyMessage(`本体へ背景色と背景・柄 ${copies.length}件をコピーしました。`);
   };
 
+  const addLibraryBackground = (image: MyImageItem) => {
+    const asset = { ...image, id: image.assetRef.kind === "user" ? image.assetRef.assetId : image.id };
+    const item = repeatBackgroundByDefault(state.box.type)
+      ? createRepeatingArtwork(asset, geometry, activePage.id)
+      : createUploadedArtwork(asset, geometry, activePage.id);
+    if (faceScopedEditing) {
+      const panel = envelopeFacePanel(geometry, state.activeEnvelopeFace);
+      item.surfaceId = state.activeEnvelopeFace;
+      item.offsetXmm = panel.x + panel.width / 2;
+      item.offsetYmm = panel.y + panel.height / 2;
+      item.rotationDeg = envelopeFaceRotation(state.activeEnvelopeFace) as 0 | 180;
+    }
+    dispatch({ type: "add-artwork", item });
+    setPatternLibraryOpen(false);
+  };
+
   const handleArtworkFiles = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = [...(event.target.files ?? [])];
     event.target.value = "";
@@ -1195,6 +1223,10 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
           item.rotationDeg = envelopeFaceRotation(state.activeEnvelopeFace) as 0 | 180;
         }
         dispatch({ type: "add-artwork", item });
+        const libraryImage = createStamp(asset, geometry, file.name, activePage.id);
+        setMyImages((images) => mergeMyImages(images, [libraryImage]));
+        try { await saveMyImage(imageOwner, libraryImage); }
+        catch { errors.push(`${file.name}: 配置しましたが、背景画像を端末内へ保存できませんでした。`); }
       } catch (error) {
         errors.push(`${file.name}: ${error instanceof Error ? error.message : "読み込めませんでした。"}`);
       }
@@ -1533,7 +1565,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   );
   const designActionButtons = (className: string) => (
     <div className={className}>
-      <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: isLetterSetDesign ? "letter-set" : template ? "templates" : "size" })}>{isLetterSetDesign ? "セットを選び直す" : template ? "型を選び直す" : "サイズに戻る"}</button>
+      <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: isStationeryPage ? "home" : template ? "templates" : "size" })}>{isStationeryPage ? "種類を選び直す" : template ? "型を選び直す" : "サイズに戻る"}</button>
       <button className="primary-button" type="button" onClick={() => dispatch({ type: "go", screen: "print" })}>印刷へ <span>→</span></button>
     </div>
   );
@@ -1541,7 +1573,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   return (
     <main className="tool-page design-page antigravity-design-page" data-ui-id="design.screen">
       <div className="page-heading horizontal-heading">
-        <div>{!isLetterSetDesign && <p className="eyebrow">DESIGN</p>}<h1>{isLetterSetDesign ? "レターセットデザイン" : template ? `${template.categoryLabel}をデザイン` : "デザイン編集"}</h1>{isLetterSetDesign && <div className="heading-controls-row"><PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} uiId="design.item-tabs" />{designActionButtons("heading-inline-actions")}<FitNotice geometry={geometry} fit={fit} compact /></div>}</div>
+        <div>{!isLetterSetDesign && <p className="eyebrow">DESIGN</p>}<h1>{isLetterSetDesign ? "封筒をデザイン" : template ? `${template.categoryLabel}をデザイン` : "デザイン編集"}</h1>{isLetterSetDesign && <div className="heading-controls-row"><PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} uiId="design.item-tabs" />{designActionButtons("heading-inline-actions")}<FitNotice geometry={geometry} fit={fit} compact /></div>}</div>
         {!isLetterSetDesign && <FitNotice geometry={geometry} fit={fit} compact />}
       </div>
       {!isLetterSetDesign && <PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} uiId="design.item-tabs" />}
@@ -1657,6 +1689,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                   <button type="button" aria-label="水玉を追加" onClick={() => { const item = createDotPattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "dot-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); setPatternLibraryOpen(false); }}><i className="dot-preview" /></button>
                   {BUILT_IN_PATTERNS.map((preset) => <button key={preset.key} className="pattern-upload-tile" type="button" disabled={uploadingArtwork} aria-label={`${preset.name}を背景に追加`} title={`${preset.name}を背景に追加`} onClick={() => { setPatternLibraryOpen(false); void addPresetArtwork(preset); }}><img src={`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`} alt="" aria-hidden="true" /></button>)}
                   {otherStamps.filter((preset) => preset.key === "autumn-trial-cover").map((preset) => <button key={preset.key} className="pattern-upload-tile" type="button" disabled={uploadingArtwork} aria-label={`${preset.name}を背景に追加`} title={`${preset.name}を背景に追加`} onClick={() => { setPatternLibraryOpen(false); void addPresetArtwork(preset); }}><img src={`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`} alt="" aria-hidden="true" /></button>)}
+                  {uploadedImages.map((image) => <button key={image.assetRef.kind === "user" ? image.assetRef.assetId : image.id} className="pattern-upload-tile" type="button" aria-label={`${image.name}を背景に追加`} title={`${image.name}を背景に追加`} onClick={() => addLibraryBackground(image)}><img src={image.dataUrl} alt="" /></button>)}
                   <button className="pattern-upload-tile" type="button" disabled={uploadingArtwork} aria-label="自分の画像を追加" title="自分の画像を追加" onClick={() => artworkFileInput.current?.click()}>{uploadingArtwork ? "…" : "+"}</button>
                 </div>}
                 <input ref={artworkFileInput} type="file" accept="image/png,image/svg+xml,.png,.svg" multiple hidden onChange={handleArtworkFiles} />
@@ -1997,6 +2030,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
   const [viewMode, setViewMode] = useState<"dieline" | "finished">("dieline");
   const [assemblyGuideOpen, setAssemblyGuideOpen] = useState(false);
   const hasOverflow = pages.some((page) => page.fit.status === "overflow");
+  const hasEmptyCards = Boolean(state.cardPrintCounts) && pages.some((page) => page.geometry.type === "mini-card-v1" && !state.stamps.some((item) => item.pageId === page.id && item.visible && (state.cardPrintCounts?.[item.id] ?? 0) > 0));
   const calibrationPageNumber = pages.length + 1;
   const twoPiece = state.box.type === "two-piece-gift-box-v1";
   const hasFoldoverLines = pages.some((page) => page.geometry.layers.foldover.length > 0);
@@ -2018,9 +2052,10 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
   useEffect(() => {
     clearPrintablePdf();
     setExportSuccess("");
-  }, [clearPrintablePdf, state.cardWritingLineCount, state.cardWritingLineWidthPercent, state.envelopeDesign, state.includeCalibrationPage, state.printFoldoverLines, state.printGuideMode, state.showCardWritingFrame, state.showCardWritingLines, state.showWritingFrame, state.showWritingLines, state.writingLineCount, state.writingLineWidthPercent]);
+  }, [clearPrintablePdf, state.cardPrintCounts, state.cardWritingLineCount, state.cardWritingLineWidthPercent, state.envelopeDesign, state.includeCalibrationPage, state.printFoldoverLines, state.printGuideMode, state.showCardWritingFrame, state.showCardWritingLines, state.showWritingFrame, state.showWritingLines, state.writingLineCount, state.writingLineWidthPercent]);
 
   const handleExport = async () => {
+    if (hasOverflow || hasEmptyCards || exporting) return;
     const exportPages = pages.flatMap((page) => {
       const svg = dielineSvgs.current[page.id];
       return svg ? [{ svg, fit: page.fit }] : [];
@@ -2096,6 +2131,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
             writingLineCount={page.geometry.type === "mini-card-v1" ? state.cardWritingLineCount : state.writingLineCount}
             writingLineWidthPercent={page.geometry.type === "mini-card-v1" ? state.cardWritingLineWidthPercent : state.writingLineWidthPercent}
             envelopeDesign={state.envelopeDesign}
+            cardPrintCounts={state.cardPrintCounts}
             printGuideMode={state.printGuideMode}
           />
         ))}
@@ -2119,6 +2155,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
                   writingLineCount={activePage.geometry.type === "mini-card-v1" ? state.cardWritingLineCount : state.writingLineCount}
                   writingLineWidthPercent={activePage.geometry.type === "mini-card-v1" ? state.cardWritingLineWidthPercent : state.writingLineWidthPercent}
                   envelopeDesign={state.envelopeDesign}
+                  cardPrintCounts={state.cardPrintCounts}
                   printGuideMode={state.printGuideMode}
                 />
               </div>
@@ -2149,6 +2186,20 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
         <aside className="print-settings panel-card" data-ui-id="print.settings">
           <p className="eyebrow">PRINT SETTINGS</p>
           <h2>PDFを保存</h2>
+          {activePage.geometry.type === "mini-card-v1" && <section className="card-print-settings" aria-label="ミニカードの印刷枚数">
+            <strong>ミニカードの並べ方</strong>
+            <label className="toggle-row"><span>画像ごとに枚数を指定</span><input type="checkbox" checked={Boolean(state.cardPrintCounts)} onChange={(event) => dispatch({ type: "set-card-print-counts", counts: event.target.checked ? Object.fromEntries(state.stamps.filter((item) => item.pageId === activePage.id && item.visible).map((item, index) => [item.id, index === 0 ? printImposition(activePage.geometry).count : 0])) : undefined })} /></label>
+            {!state.cardPrintCounts ? <p>編集中のデザインをすべてのカードに印刷します。</p> : <>
+              <p>配置した画像を1枚ずつ使います。背景・文字は共通です。合計 {Object.values(state.cardPrintCounts).reduce((sum, count) => sum + count, 0)} / {printImposition(activePage.geometry).count}枚（A4 1ページ）</p>
+              {state.stamps.filter((item) => item.pageId === activePage.id && item.visible).map((item) => <label className="card-print-image-row" key={item.id}><img src={item.dataUrl} alt="" /><span>{item.name}</span><input type="number" aria-label={`${item.name}の印刷枚数`} min="0" max={printImposition(activePage.geometry).count} value={state.cardPrintCounts?.[item.id] ?? 0} onChange={(event) => {
+                const capacity = printImposition(activePage.geometry).count;
+                const otherCount = Object.entries(state.cardPrintCounts ?? {}).reduce((sum, [id, count]) => sum + (id === item.id ? 0 : count), 0);
+                dispatch({ type: "set-card-print-counts", counts: { ...state.cardPrintCounts, [item.id]: Math.max(0, Math.min(capacity - otherCount, Math.floor(Number(event.target.value) || 0))) } });
+              }} /><button type="button" onClick={() => dispatch({ type: "set-card-print-counts", counts: { [item.id]: printImposition(activePage.geometry).count } })}>すべてこの画像</button></label>)}
+              {!state.stamps.some((item) => item.pageId === activePage.id && item.visible) && <p>編集画面の「スタンプ」から画像を追加してください。</p>}
+              <button type="button" onClick={() => dispatch({ type: "set-card-print-counts", counts: Object.fromEntries(state.stamps.filter((item) => item.pageId === activePage.id && item.visible).map((item, index) => [item.id, Math.max(0, Math.min(2, printImposition(activePage.geometry).count - index * 2))])) })}>画像を2枚ずつ並べる</button>
+            </>}
+          </section>}
           <details className="print-advanced-settings">
           <summary>PDFの詳細設定</summary>
           <div className="print-advanced-settings__body">
@@ -2158,7 +2209,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
           </div>}
           <div className="fit-notice-stack">{pages.map((page) => <FitNotice key={page.id} geometry={page.geometry} fit={page.fit} label={page.label} />)}</div>
           {envelopePage && <div className="envelope-finished-note"><strong>完成：横 {mm(envelopePage.geometry.input.widthMm)} × 縦 {mm(envelopePage.geometry.input.heightMm)}{envelopePage.geometry.input.widthMm === 162 && envelopePage.geometry.input.heightMm === 114 ? "（洋形2号）" : ""}</strong>{envelopePage.geometry.envelope?.construction === "kamasu" ? <><span>展開：{mm(envelopePage.geometry.bounds.widthMm)} × {mm(envelopePage.geometry.bounds.heightMm)} ／ A フタ {mm(envelopePage.geometry.envelope.topFlapMm)} ／ 左右のりしろ 各{mm(envelopePage.geometry.envelope.glueWidthMm)}</span><span>Cの左右のりしろを内側へ折り、Bを重ねて接着します。最後にAで封をします。</span></> : <><span>展開：{mm(envelopePage.geometry.bounds.widthMm)} × {mm(envelopePage.geometry.bounds.heightMm)}</span><span>左右 → 下の順に折り、貼って袋状にします。</span></>}</div>}
-          {imposedPages.map(({ label, type, imposition }) => <div className="template-imposition-note" key={label}><strong>{type === "letter-paper-v1" ? "便箋をA4に2面割り付け" : `${label}をA4に${imposition.count}枚自動配置`}</strong><span>{type === "letter-paper-v1" ? "中央で1回切ると、同じ便箋が2枚できます。" : `${imposition.columns}列 × ${imposition.rows}段。編集した同じカードを実寸でまとめて印刷します。`}</span></div>)}
+          {imposedPages.map(({ label, type, imposition }) => <div className="template-imposition-note" key={label}><strong>{type === "letter-paper-v1" ? "便箋をA4に2面割り付け" : `${label}をA4に${imposition.count}枚自動配置`}</strong><span>{type === "letter-paper-v1" ? "中央で1回切ると、同じ便箋が2枚できます。" : `${imposition.columns}列 × ${imposition.rows}段。画像ごとの枚数は上の「ミニカードの並べ方」で調整できます。`}</span></div>)}
           <div className="print-instruction">
             <span aria-hidden="true">!</span>
             <div><strong>印刷設定が重要です</strong><p>プリンター設定で<strong>「100%／実際のサイズ」</strong>を選び、<strong>「用紙に合わせる」をOFF</strong>にしてください。</p></div>
@@ -2184,10 +2235,11 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
           )}
           </div>
           </details>
+          {hasEmptyCards && <p role="status">印刷する画像の枚数を1枚以上にしてください。</p>}
           {exportError && <p className="export-error">{exportError}</p>}
           {exportSuccess && <p className="export-success" role="status">{exportSuccess}</p>}
           <div className="pdf-action-stack">
-            <button className="pdf-button" type="button" disabled={hasOverflow || exporting} onClick={handleExport}>
+            <button className="pdf-button" type="button" disabled={hasOverflow || hasEmptyCards || exporting} onClick={handleExport}>
               <SaveIcon />{exporting ? "PDFを作成中…" : "PDFを保存"}
             </button>
             {printablePdf?.canShare && <button className="pdf-button share-pdf-button" type="button" onClick={() => { void handleShare(); }}><span aria-hidden="true">↗</span>{clientContext.isIPhone ? "iPhoneの共有画面を開く" : clientContext.isAndroid ? "印刷アプリで開く" : "共有・印刷"}</button>}
@@ -2215,7 +2267,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
       <div className="hidden-export-svg" aria-hidden="true"><CalibrationSvg ref={calibrationSvg} /></div>
       <div className="sticky-actions" data-ui-id="print.actions">
         <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: "design" })}>編集に戻る</button>
-        <button className="primary-button" type="button" onClick={handleExport} disabled={hasOverflow || exporting}>{exporting ? "PDF作成中…" : "PDFを保存"}</button>
+        <button className="primary-button" type="button" onClick={handleExport} disabled={hasOverflow || hasEmptyCards || exporting}>{exporting ? "PDF作成中…" : "PDFを保存"}</button>
       </div>
       {assemblyGuideOpen && <AssemblyGuideModal onClose={() => setAssemblyGuideOpen(false)} />}
     </main>
@@ -2609,7 +2661,7 @@ export function App() {
       box: { ...template.box },
       templateId: template.id,
       showWritingLines: template.box.type === "envelope-v1" ? true : template.writingLines,
-      stationerySetSelection: template.box.type === "envelope-v1" ? letterSetSelection ?? "envelope-letter" : "envelope-only",
+      stationerySetSelection: template.box.type === "envelope-v1" ? letterSetSelection ?? "envelope-only" : "envelope-only",
       envelopeDesign: themePack ? { ...themePack.preset.envelopeDesign } : template.box.type === "envelope-v1" ? { ...DEFAULT_LETTER_SET_ENVELOPE.settings } : { ...initialState.envelopeDesign },
       backgroundColors: themePack
         ? { ...initialState.backgroundColors, ...themePack.preset.pageBackgrounds }
@@ -2636,9 +2688,14 @@ export function App() {
     setSaveMessage("");
   }, [confirmDiscard]);
 
-  const startLetterSet = useCallback((selection: StationerySetSelection) => {
+  const startLetterSet = useCallback((type: BoxType) => {
     const template = templateById("y2-kamasu-envelope");
-    if (template) openTemplate(template, selection);
+    if (!template) return;
+    if (type === "envelope-v1") openTemplate(template, "envelope-only");
+    else {
+      const standalone = templateById(type === "letter-paper-v1" ? "basic-letter-paper" : "basic-mini-card");
+      if (standalone) openTemplate(standalone);
+    }
   }, [openTemplate]);
 
   const startTemplate = useCallback((template: PackageTemplate) => {
@@ -2743,7 +2800,7 @@ export function App() {
         onDeleteAccount={() => { void deleteAccount(); }}
       />
       {clientContext.isInstagramInAppBrowser && <InstagramBrowserNotice hasBrowserOnlyWork={saveState === "dirty" || saveState === "error" || saveState === "conflict"} onOpenGuide={() => setInstallGuideOpen(true)} />}
-      {(state.screen === "home" || state.screen === "letter-set") && <CreationHome onBox={startNew} onLetter={startLetterSet} onResume={shouldPersistLocalDraft ? () => dispatch({ type: "go", screen: "design" }) : null} resumeLabel={state.box.type === "envelope-v1" ? "レターセット" : BOX_TYPE_COPY[state.box.type].name} />}
+      {(state.screen === "home" || state.screen === "letter-set") && <CreationHome onBox={startNew} onLetter={startLetterSet} onResume={shouldPersistLocalDraft ? () => dispatch({ type: "go", screen: "design" }) : null} resumeLabel={BOX_TYPE_COPY[state.box.type].name} />}
       {state.screen === "templates" && <TemplateScreen onBack={() => dispatch({ type: "go", screen: "home" })} onSelect={startTemplate} unlockedThemePackIds={unlockedThemePackIds} />}
       {state.screen === "size" && <SizeScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
       {state.screen === "design" && <DesignScreen key={user?.id ?? "device"} imageOwner={user?.id ?? "device"} user={user} onLogin={() => { void login(); }} state={state} dispatch={dispatch} pages={pages} activePage={activePage} unlockedThemePackIds={unlockedThemePackIds} onUnlockThemePack={requestThemeUnlock} detailsOpen={designDetailsOpen} onDetailsClose={() => setDesignDetailsOpen(false)} />}

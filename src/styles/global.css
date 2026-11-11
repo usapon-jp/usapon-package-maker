@@ -2687,7 +2687,7 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .creation-home h1 { font-size: clamp(24px, 3vw, 34px); margin: 8px 0 18px; }
 .creation-home h2 { font-size: 15px; margin: 14px 0 8px; color: var(--muted); }
 .creation-home-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; }
-.creation-home-letter-grid { grid-template-columns:repeat(4,minmax(0,1fr)); }
+.creation-home-letter-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
 .creation-home-grid > button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-width: 0; min-height: 132px; padding: 12px 8px; border: 1px solid var(--line); border-radius: 20px; background: #fffdfb; color: var(--ink); cursor: pointer; box-shadow: 0 3px 10px #8c5c4910; }
 .creation-home-grid > button:hover { background: var(--pink-soft); border-color: var(--pink); }
 .creation-home-grid strong { font-size: 15px; }
@@ -2904,3 +2904,12 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
  .size-page .box-type-button > span { width:66px; height:48px; padding:3px; border-radius:10px; }
  .size-page .box-type-button strong { font-size:11px; }
 }
+
+.card-print-settings { padding: 14px; margin: 12px 0; border: 1px solid var(--line); border-radius: 16px; }
+.card-print-settings p { font-size: 12px; line-height: 1.7; }
+.card-print-image-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; font-size: 12px; }
+.card-print-image-row img { width: 40px; height: 40px; object-fit: contain; }
+.card-print-image-row span { flex: 1; min-width: 70px; overflow-wrap: anywhere; }
+.card-print-image-row input { width: 56px; }
+.home-letter-picture.is-letter-paper-v1 .home-stationery-letter { left: 50%; transform: translateX(-50%) rotate(-6deg); }
+.home-letter-picture.is-mini-card-v1 .home-stationery-card { left: 50%; transform: translateX(-50%) rotate(6deg); }

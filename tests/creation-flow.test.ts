@@ -19,9 +19,9 @@ describe('制作の入口と戻り先', () => {
     expect(previousScreen('letter-set','y2-kamasu-envelope')).toBe('home');
     expect(previousScreen('my-boxes',null)).toBe('home');
   });
-  it('ホームから4種類のレターセットを直接選べる', () => {
+  it('ホームから封筒・便箋・ミニカードを個別に選べる', () => {
     const markup = renderToStaticMarkup(createElement(CreationHome, { onBox: () => undefined, onLetter: () => undefined, onResume: null, resumeLabel: '' }));
-    expect(HOME_LETTER_SETS.map((option) => option.label)).toEqual(['封筒＋便箋', '封筒＋ミニカード', 'フルセット', '封筒のみ']);
+    expect(HOME_LETTER_SETS.map((option) => option.label)).toEqual(['封筒', '便箋', 'ミニカード']);
     expect(markup).not.toContain('ほかのセット');
     HOME_LETTER_SETS.forEach((option) => expect(markup).toContain(option.label));
   });

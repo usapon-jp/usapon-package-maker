@@ -68,7 +68,7 @@ export const initialState: AppState = {
   activeEnvelopeFace: "envelope-flap",
   surfaceBackgroundColors: {},
   themePackId: null,
-  printGuideMode: "assembly",
+  printGuideMode: "design",
   activePageId: "main",
   backgroundColors: { main: "#fffdf9", lid: "#fffdf9", base: "#fffdf9", letter: "#fffdf9", card: "#fffdf9" },
   artworkLayers: [],
@@ -94,10 +94,12 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
 function reduceAppState(state: AppState, action: AppAction): AppState {
   switch (action.type) {
+    case "set-card-print-counts":
+      return { ...state, cardPrintCounts: action.counts };
     case "replace-state":
       return action.state;
     case "go":
-      return { ...state, screen: action.screen, selectedArtworkId: null, selectedStampId: null, selectedTextId: null };
+      return { ...state, screen: action.screen, ...(action.screen === "print" ? { printGuideMode: "design" as const } : {}), selectedArtworkId: null, selectedStampId: null, selectedTextId: null };
     case "set-box-type":
       return {
         ...state,
@@ -125,7 +127,7 @@ function reduceAppState(state: AppState, action: AppAction): AppState {
         activeEnvelopeFace: "envelope-flap",
         surfaceBackgroundColors: {},
         themePackId: null,
-        printGuideMode: "assembly",
+        printGuideMode: "design",
         selectedArtworkId: null,
         selectedStampId: null,
         selectedTextId: null,
@@ -144,7 +146,7 @@ function reduceAppState(state: AppState, action: AppAction): AppState {
         activeEnvelopeFace: "envelope-flap",
         surfaceBackgroundColors: {},
         themePackId: null,
-        printGuideMode: "assembly",
+        printGuideMode: "design",
         selectedArtworkId: null,
         selectedStampId: null,
         selectedTextId: null,
@@ -257,7 +259,7 @@ function reduceAppState(state: AppState, action: AppAction): AppState {
     case "update-stamp":
       return { ...state, stamps: state.stamps.map((item) => item.id === action.id ? { ...item, ...action.patch } : item) };
     case "remove-stamp":
-      return { ...state, stamps: state.stamps.filter((item) => item.id !== action.id), selectedStampId: state.selectedStampId === action.id ? null : state.selectedStampId };
+      return { ...state, cardPrintCounts: state.cardPrintCounts ? Object.fromEntries(Object.entries(state.cardPrintCounts).filter(([id]) => id !== action.id)) : undefined, stamps: state.stamps.filter((item) => item.id !== action.id), selectedStampId: state.selectedStampId === action.id ? null : state.selectedStampId };
     case "duplicate-stamp": {
       const source = state.stamps.find((item) => item.id === action.id);
       if (!source) return state;

@@ -40,6 +40,7 @@ export function A4PrintPreview({ state, pageId, pageLabel, geometry }: Props) {
           writingLineCount={isCard ? state.cardWritingLineCount : state.writingLineCount}
           writingLineWidthPercent={isCard ? state.cardWritingLineWidthPercent : state.writingLineWidthPercent}
           envelopeDesign={state.envelopeDesign}
+          cardPrintCounts={state.cardPrintCounts}
           printGuideMode={state.printGuideMode}
         />
       </div>

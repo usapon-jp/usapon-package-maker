@@ -84,7 +84,7 @@ export async function loadLocalDraft(): Promise<LocalDraft | null> {
       activeEnvelopeFace: draft.state.activeEnvelopeFace ?? "envelope-flap",
       surfaceBackgroundColors: draft.state.surfaceBackgroundColors ?? {},
       themePackId: draft.state.themePackId ?? null,
-      printGuideMode: draft.state.printGuideMode ?? "assembly",
+      printGuideMode: draft.state.printGuideMode ?? "design",
       backgroundColors: {
         ...draft.state.backgroundColors,
         letter: draft.state.backgroundColors.letter ?? "#fffdf9",

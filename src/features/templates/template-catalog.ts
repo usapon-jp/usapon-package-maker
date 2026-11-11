@@ -38,6 +38,15 @@ export const STAMP_SETS: StampSet[] = [{
 }];
 
 export const PACKAGE_TEMPLATES: PackageTemplate[] = [
+  ...([
+    ["basic-letter-paper", "便箋", "letter-paper", "letter-paper-v1", 148.5, 210],
+    ["basic-mini-card", "ミニカード", "card", "mini-card-v1", 91, 55],
+  ] as const).map(([id, name, category, type, widthMm, heightMm]): PackageTemplate => ({
+    id, name, category, categoryLabel: name, seriesId: "basic-letter-set", seriesName: "基本のレターセット",
+    description: type === "mini-card-v1" ? "画像ごとの枚数を指定してA4にまとめて印刷。" : "A4に2枚並べて印刷する便箋。",
+    box: { ...defaults, type, widthMm, heightMm }, previewStampKey: "usapon-box-rabbits",
+    recommendedStampSetIds: [], writingLines: type === "letter-paper-v1",
+  })),
   {
     id: "y2-kamasu-envelope",
     name: "洋形2号カマス貼り封筒",

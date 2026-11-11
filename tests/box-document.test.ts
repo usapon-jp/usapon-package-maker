@@ -234,7 +234,7 @@ describe("BoxDocumentV1", () => {
     expect(restored.stationerySetSelection).toBe("envelope-only");
     expect(restored.surfaceBackgroundColors).toEqual({});
     expect(restored.themePackId).toBeNull();
-    expect(restored.printGuideMode).toBe("assembly");
+    expect(restored.printGuideMode).toBe("design");
     expect(restored.envelopeDesign).toMatchObject({
       style: "simple",
       flapAccentEnabled: false,
