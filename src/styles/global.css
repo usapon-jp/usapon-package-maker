@@ -874,6 +874,8 @@ button.choice-card:hover { transform: translateY(-3px); border-color: #eda7b2; b
 .pattern-summary-previews img,.pattern-summary-previews span > i { display:block; width:100%; height:100%; border-radius:6px; object-fit:cover; }
 .pattern-summary-previews > i { display:grid; place-items:center; width:30px; height:30px; border:1px dashed #e5cbd0; border-radius:8px; color:#a45a67; background:#fff; font-size:18px; font-style:normal; }
 .pattern-library-zone .compact-upload { width: 100%; min-height: 36px; margin-top: 7px; }
+.stationery-share-control { display:grid; gap:5px; width:min(100%,560px); margin:0 auto 12px; }
+.stationery-share-control p[role="status"] { margin:0; color:#715b55; font-size:calc(11px * var(--ui-font-scale)); text-align:center; }
 .placed-artwork-zone { display: flex; flex-direction: column; }
 .placed-artwork-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:6px; align-content:start; margin-top:5px; }
 .placed-artwork-item { min-width:0; }

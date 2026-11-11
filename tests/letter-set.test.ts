@@ -1,7 +1,9 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { appReducer, initialState } from "../src/app/app-state";
-import { createStamp, createStripePattern } from "../src/app/artwork";
+import { createRepeatingArtwork, createStamp, createStripePattern } from "../src/app/artwork";
 import type { BoxInput, StationerySetSelection } from "../src/domain/boxes/types";
 import {
   calculateLetterPaperSize,
@@ -10,6 +12,8 @@ import {
 } from "../src/domain/boxes/stationery";
 import { printImposition } from "../src/domain/paper/imposition";
 import { adaptEnvelopeDesignToPage } from "../src/features/letter-set/design-sharing";
+import { A4ExportSvg } from "../src/components/dieline/A4ExportSvg";
+import { evaluateA4Fit } from "../src/domain/paper/a4";
 
 const envelope: BoxInput = {
   type: "envelope-v1",
@@ -66,6 +70,47 @@ describe("封筒連動レターセット", () => {
     expect(adapted.stamps[0].xMm).not.toBe(stamp.xMm);
     expect(adapted.stamps[0].yMm).not.toBe(stamp.yMm);
     expect(source.stamps[0]).toEqual(stamp);
+  });
+
+  it("ミニカードに反映してもリピート柄の印刷サイズを縮めず、スタンプを保持する", () => {
+    const document = generateStationerySetDocument(envelope, "envelope-card");
+    const sourceGeometry = document.pages[0].geometry;
+    const cardGeometry = document.pages[1].geometry;
+    const pattern = createRepeatingArtwork({
+      id: "orange-dots", fileName: "dots.png", sourceType: "png",
+      dataUrl: "data:image/png;base64,AA==", aspectRatio: 1,
+    }, sourceGeometry);
+    pattern.widthMm = 80;
+    pattern.repeatGapMm = 4;
+    const stamp = createStamp({
+      id: "flap-rabbit", fileName: "rabbit.png", sourceType: "png",
+      dataUrl: "data:image/png;base64,AA==", aspectRatio: 1,
+    }, sourceGeometry);
+    stamp.surfaceId = "envelope-flap";
+    const copied = adaptEnvelopeDesignToPage(sourceGeometry, cardGeometry, "card", {
+      backgroundColor: "#ffb788", artworkLayers: [pattern], stamps: [stamp], texts: [],
+    }, "cute");
+    expect(copied.artworkLayers[0]).toMatchObject({
+      pageId: "card", repeat: true, widthMm: 80, repeatGapMm: 4, offsetXmm: 0, offsetYmm: 0,
+    });
+    expect(copied.stamps[0]).toMatchObject({
+      pageId: "card", surfaceId: undefined, visible: true,
+    });
+    expect(copied.stamps[0].xMm).toBeGreaterThan(0);
+    expect(copied.stamps[0].xMm).toBeLessThan(cardGeometry.bounds.widthMm);
+    expect(copied.stamps[0].yMm).toBeGreaterThan(0);
+    expect(copied.stamps[0].yMm).toBeLessThan(cardGeometry.bounds.heightMm);
+    const markup = renderToStaticMarkup(createElement(A4ExportSvg, {
+      geometry: cardGeometry,
+      fit: evaluateA4Fit(cardGeometry.bounds.widthMm, cardGeometry.bounds.heightMm),
+      backgroundColor: copied.backgroundColor,
+      artworkLayers: copied.artworkLayers,
+      stamps: copied.stamps,
+      texts: copied.texts,
+      lineColors: initialState.lineColors,
+    }));
+    expect(markup).toContain('data-stamp-id="flap-rabbit--shared-card"');
+    expect(markup).toContain('data-artwork-id="orange-dots--shared-card"');
   });
 
   it("共有由来だけを置き換え、封筒と共有先の手動編集を保持する", () => {

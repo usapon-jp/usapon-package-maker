@@ -151,6 +151,7 @@ export const boxDocumentV1Schema = z.object({
       flapPattern: z.enum(["solid", "dots", "stripes"]),
       showAddressField: z.boolean(),
       showAddressLines: z.boolean(),
+      addressLineColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
       addressLineCount: z.number().int().min(2).max(5).default(3),
       addressLineWidthPercent: z.number().int().min(50).max(92).default(76),
       marginMm: z.number().min(4).max(30),

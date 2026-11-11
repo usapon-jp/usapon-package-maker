@@ -60,6 +60,7 @@ import {
   createUploadedArtwork,
   isBuiltInStampPickerVisible,
   markAsBuiltInStamp,
+  repeatBackgroundByDefault,
   rotateByDegrees,
   rotateQuarterTurn,
 } from "./artwork";
@@ -70,7 +71,7 @@ import { FAVORITE_SIZES_STORAGE_KEY, parseFavoriteSizes, registerFavoriteSize } 
 import { createTextItem } from "../features/auto-layout/text-layout";
 import { canOfferInstallGuide, detectInstallContext, INSTALL_GUIDE_HIDDEN_KEY } from "../lib/pwa/install-guide";
 import { TemplateScreen } from "../features/templates/TemplateScreen";
-import { HALLOWEEN_PATTERNS } from "../features/templates/halloween-patterns";
+import { BUILT_IN_PATTERNS } from "../features/templates/pattern-presets";
 import { STAMP_SETS, stampSetsForTemplate, templateById, type PackageTemplate } from "../features/templates/template-catalog";
 import { LetterSetPanel } from "../features/letter-set/LetterSetPanel";
 import { adaptEnvelopeDesignToPage } from "../features/letter-set/design-sharing";
@@ -1180,12 +1181,17 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     const errors: string[] = [];
     for (const file of files) {
       try {
-        const item = createUploadedArtwork(await readPatternFile(file), geometry, activePage.id);
+        const asset = await readPatternFile(file);
+        const item = repeatBackgroundByDefault(state.box.type)
+          ? createRepeatingArtwork(asset, geometry, activePage.id)
+          : createUploadedArtwork(asset, geometry, activePage.id);
         if (faceScopedEditing) {
           const panel = envelopeFacePanel(geometry, state.activeEnvelopeFace);
           item.surfaceId = state.activeEnvelopeFace;
-          item.offsetXmm = panel.x + panel.width / 2;
-          item.offsetYmm = panel.y + panel.height / 2;
+          if (!item.repeat) {
+            item.offsetXmm = panel.x + panel.width / 2;
+            item.offsetYmm = panel.y + panel.height / 2;
+          }
           item.rotationDeg = envelopeFaceRotation(state.activeEnvelopeFace) as 0 | 180;
         }
         dispatch({ type: "add-artwork", item });
@@ -1321,7 +1327,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
     }
   };
 
-  const addPresetArtwork = async (preset: (typeof BUILT_IN_STAMPS)[number] | (typeof HALLOWEEN_PATTERNS)[number]) => {
+  const addPresetArtwork = async (preset: (typeof BUILT_IN_STAMPS)[number] | (typeof BUILT_IN_PATTERNS)[number]) => {
     setUploadingArtwork(true);
     setArtworkUploadError("");
     try {
@@ -1330,7 +1336,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
       const file = new File([await response.blob()], preset.fileName, { type: "image/png" });
       const targetPanel = faceScopedEditing ? envelopeFacePanel(geometry, state.activeEnvelopeFace) : undefined;
       const asset = markAsBuiltInStamp(await readPatternFile(file), preset.key);
-      const repeating = HALLOWEEN_PATTERNS.some((pattern) => pattern.key === preset.key);
+      const repeating = BUILT_IN_PATTERNS.some((pattern) => pattern.key === preset.key);
       const item = repeating
         ? createRepeatingArtwork(asset, geometry, activePage.id)
         : createFullPanelArtwork(asset, geometry, activePage.id, targetPanel);
@@ -1455,7 +1461,9 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
       ...fullSourceDesign,
       backgroundColor: state.surfaceBackgroundColors["envelope-front"] ?? fullSourceDesign.backgroundColor,
       artworkLayers: fullSourceDesign.artworkLayers.filter((item) => !item.surfaceId || item.surfaceId === "envelope-front"),
-      stamps: fullSourceDesign.stamps.filter((item) => !item.surfaceId || item.surfaceId === "envelope-front"),
+      // A stamp placed on the flap or back is still part of the set's artwork.
+      // Position each stamp afresh on the target card rather than dropping it.
+      stamps: fullSourceDesign.stamps,
       texts: fullSourceDesign.texts.filter((item) => !item.surfaceId || item.surfaceId === "envelope-front"),
     };
     const adapted = targetPages.map((page) => adaptEnvelopeDesignToPage(sourcePage.geometry, page.geometry, page.id, sourceDesign, state.envelopeDesign.style));
@@ -1484,7 +1492,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
       const sourceDesign = {
         backgroundColor: templateDefinition.backgroundColor,
         artworkLayers: arranged.artworkLayers.filter((item) => !item.surfaceId || item.surfaceId === "envelope-front"),
-        stamps: arranged.stamps.filter((item) => !item.surfaceId || item.surfaceId === "envelope-front"),
+        stamps: arranged.stamps,
         texts: arranged.texts.filter((item) => !item.surfaceId || item.surfaceId === "envelope-front"),
       };
       const adapted = targetPages.map((page) => adaptEnvelopeDesignToPage(sourcePage.geometry, page.geometry, page.id, sourceDesign, style));
@@ -1609,6 +1617,15 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
 
         {editorCategoryTabs}
 
+        {isLetterSetDesign && pages.length > 1 && (
+          <div className="stationery-share-control">
+            <button type="button" className="outline-button full-button" onClick={shareEnvelopeDesignWithSet}>
+              封筒の柄・スタンプを便箋／ミニカードに反映
+            </button>
+            {letterSetShareMessage && <p role="status">{letterSetShareMessage}</p>}
+          </div>
+        )}
+
         <aside className="editor-controls panel-card" data-ui-id="design.controls" hidden={controlsCollapsed}>
           {faceEditing && <div className="edit-scope-bar"><div className="background-scope-picker" role="group" aria-label="編集する範囲"><button type="button" className={backgroundScope === "all" ? "is-selected" : ""} onClick={() => setBackgroundScope("all")}>全体</button><button type="button" className={backgroundScope === "face" ? "is-selected" : ""} onClick={() => setBackgroundScope("face")}>選択面</button></div></div>}
           {!controlsCollapsed && editorSection === "artwork" && (
@@ -1638,7 +1655,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                 {patternLibraryOpen && <div className="pattern-preset-grid" aria-label="基本柄プリセット">
                   <button type="button" aria-label="ストライプを追加" onClick={() => { const item = createStripePattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "stripe-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); setPatternLibraryOpen(false); }}><i className="stripe-preview" /></button>
                   <button type="button" aria-label="水玉を追加" onClick={() => { const item = createDotPattern(crypto.randomUUID(), pageArtworkLayers.filter((entry) => entry.kind === "dot-pattern").length + 1, activePage.id); if (faceScopedEditing) item.surfaceId = state.activeEnvelopeFace; dispatch({ type: "add-artwork", item }); setPatternLibraryOpen(false); }}><i className="dot-preview" /></button>
-                  {HALLOWEEN_PATTERNS.map((preset) => <button key={preset.key} className="pattern-upload-tile" type="button" disabled={uploadingArtwork} aria-label={`${preset.name}を背景に追加`} title={`${preset.name}を背景に追加`} onClick={() => { setPatternLibraryOpen(false); void addPresetArtwork(preset); }}><img src={`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`} alt="" aria-hidden="true" /></button>)}
+                  {BUILT_IN_PATTERNS.map((preset) => <button key={preset.key} className="pattern-upload-tile" type="button" disabled={uploadingArtwork} aria-label={`${preset.name}を背景に追加`} title={`${preset.name}を背景に追加`} onClick={() => { setPatternLibraryOpen(false); void addPresetArtwork(preset); }}><img src={`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`} alt="" aria-hidden="true" /></button>)}
                   {otherStamps.filter((preset) => preset.key === "autumn-trial-cover").map((preset) => <button key={preset.key} className="pattern-upload-tile" type="button" disabled={uploadingArtwork} aria-label={`${preset.name}を背景に追加`} title={`${preset.name}を背景に追加`} onClick={() => { setPatternLibraryOpen(false); void addPresetArtwork(preset); }}><img src={`${import.meta.env.BASE_URL}assets/stamps/${preset.fileName}`} alt="" aria-hidden="true" /></button>)}
                   <button className="pattern-upload-tile" type="button" disabled={uploadingArtwork} aria-label="自分の画像を追加" title="自分の画像を追加" onClick={() => artworkFileInput.current?.click()}>{uploadingArtwork ? "…" : "+"}</button>
                 </div>}
@@ -1823,6 +1840,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
               {geometry.type === "envelope-v1" && state.envelopeDesign.showAddressLines && (
                 <div className="line-tuning-panel" aria-label="封筒の罫線調整">
                   <div><strong>宛名線の調整</strong><button type="button" onClick={() => dispatch({ type: "update-envelope-design", patch: { addressLineCount: 3, addressLineWidthPercent: 76 } })}>おすすめ</button></div>
+                  <DesignColorControl label="宛名線の色" favoriteLabel="宛名線の色" value={state.envelopeDesign.addressLineColor ?? (state.envelopeDesign.style === "cute" ? "#c98a97" : state.envelopeDesign.style === "adult" ? "#928980" : "#aaa29c")} favoriteColors={favoriteColors} extraPalettes={themeColorPalettes} onChange={(color) => dispatch({ type: "update-envelope-design", patch: { addressLineColor: color } })} onAddFavorite={addFavorite} onRemoveFavorite={removeFavorite} />
                   <label><span>行数 <output>{state.envelopeDesign.addressLineCount ?? 3}本</output></span><input aria-label="封筒の罫線の行数" type="range" min="2" max="5" step="1" value={state.envelopeDesign.addressLineCount ?? 3} onChange={(event) => dispatch({ type: "update-envelope-design", patch: { addressLineCount: Number(event.target.value) } })} /></label>
                   <label><span>幅 <output>{state.envelopeDesign.addressLineWidthPercent ?? 76}%</output></span><input aria-label="封筒の罫線の幅" type="range" min="50" max="92" step="1" value={state.envelopeDesign.addressLineWidthPercent ?? 76} onChange={(event) => dispatch({ type: "update-envelope-design", patch: { addressLineWidthPercent: Number(event.target.value) } })} /></label>
                 </div>

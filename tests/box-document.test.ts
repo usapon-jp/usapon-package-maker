@@ -245,6 +245,14 @@ describe("BoxDocumentV1", () => {
     expect(restored.backgroundColors.card).toBe("#fffdf9");
   });
 
+  it("宛名罫線の指定色は作品の保存と復元でも維持される", async () => {
+    const state = { ...stateFor("envelope-v1"), envelopeDesign: { ...initialState.envelopeDesign, addressLineColor: "#215c77" } };
+    const document = serializeBoxDocument(state);
+    expect(document.design.envelopeDesign.addressLineColor).toBe("#215c77");
+    const restored = await hydrateBoxDocument(document, async () => ({ dataUrl: "data:image/png;base64,RESTORED" }));
+    expect(restored.envelopeDesign.addressLineColor).toBe("#215c77");
+  });
+
   it("新しい折り返し項目がない既存V1作品も読み込める", async () => {
     const legacy = JSON.parse(JSON.stringify(serializeBoxDocument(stateFor("two-piece-gift-box-v1")))) as {
       box: { foldoverMm?: number };

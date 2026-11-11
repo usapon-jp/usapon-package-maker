@@ -9,15 +9,15 @@ import type {
   UploadedArtworkLayer,
   UploadedAsset,
 } from "./app-types";
-import type { DielineGeometry, DielinePageId, Panel } from "../domain/boxes/types";
+import type { BoxType, DielineGeometry, DielinePageId, Panel } from "../domain/boxes/types";
 import { AUTUMN_FREE_TRIAL_STAMP_ID, AUTUMN_STAMP_FILES, AUTUMN_STAMP_IDS, AUTUMN_TRIAL_STAMP_FILES, LEGACY_AUTUMN_STAMP_FILES } from "../features/theme-packs/autumn-stamp-catalog";
-import { HALLOWEEN_PATTERNS } from "../features/templates/halloween-patterns";
+import { BUILT_IN_PATTERNS } from "../features/templates/pattern-presets";
 
 export const POFUMOFU_STAMP_FILE = "pofumofu-friends.png";
 export const POFUMOFU_STAMP_KEY = "pofumofu-friends" as const;
 
 export const BUILT_IN_STAMPS = [
-  ...HALLOWEEN_PATTERNS.map((preset) => ({ ...preset, themePackId: null, delivery: "public" as const, pattern: true as const })),
+  ...BUILT_IN_PATTERNS.map((preset) => ({ ...preset, themePackId: null, delivery: "public" as const, pattern: true as const })),
   {
     key: "usapon-box-rabbits",
     fileName: "usapon-box-rabbits.png",
@@ -142,6 +142,10 @@ export function createRepeatingArtwork(asset: UploadedAsset, geometry: DielineGe
     repeat: true,
     repeatGapMm: 0,
   };
+}
+
+export function repeatBackgroundByDefault(boxType: BoxType) {
+  return boxType === "envelope-v1" || boxType === "letter-paper-v1" || boxType === "mini-card-v1";
 }
 
 export function createStripePattern(id: string, number: number, pageId: DielinePageId = "main"): StripePatternLayer {

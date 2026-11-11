@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { initialState } from "../src/app/app-state";
+import type { EnvelopeDesignSettings } from "../src/app/app-types";
 import { createStamp } from "../src/app/artwork";
 import { A4ExportSvg } from "../src/components/dieline/A4ExportSvg";
 import { generateEnvelope } from "../src/domain/boxes/stationery";
@@ -87,5 +88,15 @@ describe("封筒の完成形レイアウトテンプレート", () => {
     expect(markup).not.toContain("data-envelope-flap-accent");
     expect(markup).not.toContain("data-envelope-address-field");
     expect(markup).not.toContain("data-envelope-address-line");
+  });
+
+  it("宛名の罫線色を印刷SVGへ反映し、従来のテンプレート色も維持する", () => {
+    const settings = { ...ENVELOPE_LAYOUT_TEMPLATES.cute.settings, addressLineColor: "#215c77" };
+    const render = (design: EnvelopeDesignSettings) => renderToStaticMarkup(
+      <A4ExportSvg geometry={geometry} fit={fit} backgroundColor="#ffffff"
+        artworkLayers={[]} stamps={[]} texts={[]} lineColors={initialState.lineColors} envelopeDesign={design} />,
+    );
+    expect(render(settings)).toMatch(/data-envelope-address-line[^>]*stroke="#215c77"/);
+    expect(render({ ...settings, addressLineColor: undefined })).toMatch(/data-envelope-address-line[^>]*stroke="#c98a97"/);
   });
 });

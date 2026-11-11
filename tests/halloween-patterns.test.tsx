@@ -7,6 +7,7 @@ import { A4ExportSvg } from "../src/components/dieline/A4ExportSvg";
 import { generateDielineDocument } from "../src/domain/boxes/registry";
 import { evaluateA4Fit } from "../src/domain/paper/a4";
 import { HALLOWEEN_PATTERNS } from "../src/features/templates/halloween-patterns";
+import { BUILT_IN_PATTERNS } from "../src/features/templates/pattern-presets";
 
 describe("ハロウィン総柄", () => {
   it.each(HALLOWEEN_PATTERNS)("$name を画像アップロードなしで保存・復元して印刷できる", async (preset) => {
@@ -32,5 +33,16 @@ describe("ハロウィン総柄", () => {
       stamps={[]} texts={[]} lineColors={restored.lineColors} />);
     expect(markup).toContain('<pattern');
     expect(markup).toContain(item.dataUrl);
+  });
+});
+
+describe("模様一覧", () => {
+  it("オレンジと白の手描きドットを総柄プリセットとして登録する", () => {
+    const preset = BUILT_IN_PATTERNS.find((item) => item.key === "orange-white-handdrawn-dots");
+    expect(preset).toMatchObject({
+      fileName: "orange-white-handdrawn-dots.png",
+      name: "オレンジ×白の手描きドット",
+    });
+    expect(isBuiltInStampPickerVisible(builtInStampForKey("orange-white-handdrawn-dots"))).toBe(false);
   });
 });

@@ -15,6 +15,8 @@ export type EnvelopeDesignSettings = {
   flapPattern: EnvelopeFlapPattern;
   showAddressField: boolean;
   showAddressLines: boolean;
+  /** Optional for compatibility with letter sets saved before color editing. */
+  addressLineColor?: string;
   addressLineCount: number;
   addressLineWidthPercent: number;
   marginMm: number;
@@ -26,6 +28,7 @@ export const BUILT_IN_STAMP_KEYS = [
   "pofumofu-friends",
   "usapon-box-rabbits",
   "halloween-pattern-01", "halloween-pattern-02", "halloween-pattern-03", "halloween-pattern-04", "halloween-pattern-05",
+  "orange-white-handdrawn-dots",
   "autumn-rabbit-sweet-potato-car",
   "autumn-rabbit-acorn-hug",
   "autumn-rabbit-sweet-potato",

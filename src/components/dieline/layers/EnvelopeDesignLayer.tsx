@@ -40,7 +40,7 @@ export function EnvelopeDesignLayer({ geometry, settings, idPrefix }: Props) {
       {(settings.showAddressField || settings.showAddressLines) && (
         <g data-envelope-address-field={settings.showAddressField ? "visible" : "lines-only"}>
           {settings.showAddressField && <rect x={fieldX} y={fieldY} width={fieldWidth} height={fieldHeight} rx={style.radius} fill="#ffffff" fillOpacity={style.opacity} stroke={style.border} strokeWidth={settings.style === "cute" ? 0.65 : 0.4} />}
-          {settings.showAddressLines && lineYs.map((lineY) => <line key={lineY} data-envelope-address-line x1={lineSpan.x1} x2={lineSpan.x2} y1={lineY} y2={lineY} stroke={style.line} strokeWidth="0.45" strokeLinecap="round" />)}
+          {settings.showAddressLines && lineYs.map((lineY) => <line key={lineY} data-envelope-address-line x1={lineSpan.x1} x2={lineSpan.x2} y1={lineY} y2={lineY} stroke={settings.addressLineColor ?? style.line} strokeWidth="0.45" strokeLinecap="round" />)}
         </g>
       )}
     </g>

@@ -53,7 +53,7 @@ export function adaptEnvelopeDesignToPage(
   const scale = scaleBetween(sourcePanel, targetPanel);
   const artworkLayers = source.artworkLayers.map((item, index): ArtworkLayer => {
     if (item.kind === "uploaded-artwork") {
-      const point = item.repeat ? targetPoint(normalizedPoint(item.offsetXmm, item.offsetYmm, sourcePanel), targetPanel) : templatePoint("artwork", index, targetPanel, targetGeometry, style) ?? targetPoint(normalizedPoint(item.offsetXmm, item.offsetYmm, sourcePanel), targetPanel);
+      const point = item.repeat ? { x: item.offsetXmm, y: item.offsetYmm } : templatePoint("artwork", index, targetPanel, targetGeometry, style) ?? targetPoint(normalizedPoint(item.offsetXmm, item.offsetYmm, sourcePanel), targetPanel);
       return {
         ...item,
         id: sharedId(item.id, targetPageId),
@@ -61,8 +61,10 @@ export function adaptEnvelopeDesignToPage(
         surfaceId: undefined,
         offsetXmm: roundMm(point.x, 1),
         offsetYmm: roundMm(point.y, 1),
-        widthMm: roundMm(clamp(item.widthMm * scale, 6, targetPanel.width * 0.72), 1),
-        repeatGapMm: roundMm(item.repeatGapMm * scale, 1),
+        // The printed size of a repeating tile should stay identical across
+        // envelopes, letter paper and mini cards. Scaling it makes tiny dots.
+        widthMm: item.repeat ? item.widthMm : roundMm(clamp(item.widthMm * scale, 6, targetPanel.width * 0.72), 1),
+        repeatGapMm: item.repeat ? item.repeatGapMm : roundMm(item.repeatGapMm * scale, 1),
       };
     }
     return {
@@ -72,9 +74,7 @@ export function adaptEnvelopeDesignToPage(
       surfaceId: undefined,
       offsetXmm: roundMm(item.offsetXmm * scale, 1),
       offsetYmm: roundMm(item.offsetYmm * scale, 1),
-      ...(item.kind === "stripe-pattern"
-        ? { stripeWidthMm: roundMm(Math.max(1, item.stripeWidthMm * scale), 1), gapMm: roundMm(Math.max(1, item.gapMm * scale), 1) }
-        : { dotDiameterMm: roundMm(Math.max(1, item.dotDiameterMm * scale), 1), spacingMm: roundMm(Math.max(2, item.spacingMm * scale), 1) }),
+      // Keep procedural pattern density consistent as well.
     } as ArtworkLayer;
   });
   const stamps = source.stamps.map((item, index): StampItem => {

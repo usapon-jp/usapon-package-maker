@@ -60,6 +60,7 @@ export const initialState: AppState = {
     flapPattern: "solid",
     showAddressField: false,
     showAddressLines: false,
+    addressLineColor: "#aaa29c",
     addressLineCount: RECOMMENDED_ADDRESS_LINE_COUNT,
     addressLineWidthPercent: RECOMMENDED_ADDRESS_LINE_WIDTH_PERCENT,
     marginMm: 12,

@@ -7,6 +7,7 @@ import {
   createStamp,
   createStripePattern,
   createUploadedArtwork,
+  repeatBackgroundByDefault,
   normalizeLegacyPortraitCoverPlacements,
   rotateQuarterTurn,
 } from "../src/app/artwork";
@@ -24,6 +25,12 @@ const asset: UploadedAsset = {
 };
 
 describe("背景・柄・スタンプの状態管理", () => {
+  it("レターセットの背景アップロードはリピートを初期ONにし、箱では従来どおりOFFにする", () => {
+    expect(repeatBackgroundByDefault("envelope-v1")).toBe(true);
+    expect(repeatBackgroundByDefault("letter-paper-v1")).toBe(true);
+    expect(repeatBackgroundByDefault("mini-card-v1")).toBe(true);
+    expect(repeatBackgroundByDefault("straight-tuck-carton-v1")).toBe(false);
+  });
   it("基本色と柄プリセットの初期値を設定する", () => {
     const stripe = createStripePattern("stripe-1", 1);
     const dots = createDotPattern("dots-1", 1);
