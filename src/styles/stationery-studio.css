@@ -97,4 +97,4 @@
 @media(max-width:600px) { .antigravity-print-page .print-settings-heading { display:none; } }
 
 .header-details-button:has(.settings-gear) { padding:0; letter-spacing:0; }
-.header-details-button .settings-gear { font-size:22px; line-height:1; }
+.header-details-button .settings-gear { display:block; width:28px; height:28px; object-fit:contain; }

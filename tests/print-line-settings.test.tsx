@@ -45,7 +45,8 @@ describe("印刷線の設定", () => {
     const button = renderToStaticMarkup(<PrintSettingsButton onClick={() => undefined} />);
     expect(button).toContain('aria-label="印刷設定を開く"');
     expect(button).toContain('title="設定"');
-    expect(button).toContain('class="settings-gear" aria-hidden="true"');
+    expect(button).toContain('assets/ui/settings-gear.svg');
+    expect(button).toContain('aria-hidden="true"');
     expect(button).not.toContain(">設定</button>");
   });
 });
