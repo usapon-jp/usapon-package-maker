@@ -41,7 +41,10 @@ describe("個別の文具制作と画像ごとの印刷", () => {
     const state = { ...initialState, box: geometry.input, stamps, cardPrintCounts: { red: 2, blue: 2 } };
     const restored = await hydrateBoxDocument(serializeBoxDocument(state), async () => ({ dataUrl: "data:image/png;base64,AA==" }));
     expect(restored.cardPrintCounts).toEqual({ red: 2, blue: 2 });
-    expect(appReducer(state, { type: "remove-stamp", id: "red" }).cardPrintCounts).toEqual({ blue: 2 });
+    const migrated = appReducer(state, { type: "remove-stamp", id: "red" });
+    expect(migrated.cardPrintCounts).toBeUndefined();
+    expect(migrated.miniCardProject?.designs.map((design) => design.copies)).toEqual([2]);
+    expect(migrated.miniCardProject?.designs[0].data.stamps.map((stamp) => stamp.id)).toEqual(["blue"]);
   });
   it("印刷の初期状態では案内文字を出さず、自分の文字は残す", () => {
     const envelope = generateDielineDocument(templateById("y2-kamasu-envelope")!.box).pages[0].geometry;

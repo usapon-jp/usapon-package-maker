@@ -1,0 +1,80 @@
+.writing-frame-controls { display:grid; gap:10px; padding:10px 0; }
+.writing-frame-shapes { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; }
+.writing-frame-shapes button { display:flex; flex-direction:column; align-items:center; gap:6px; min-height:56px; padding:8px 2px; border:1px solid var(--line); border-radius:12px; background:#fff; color:var(--ink); font:inherit; font-size:12px; cursor:pointer; }
+.writing-frame-controls button[aria-pressed=true] { background:#fff0f5; border-color:var(--pink); color:var(--pink-dark); }
+.frame-shape-swatch { display:block; width:26px; height:16px; border:1px solid currentColor; }
+.frame-shape-swatch.is-rounded { border-radius:5px; }
+.frame-shape-swatch.is-ellipse { border-radius:50%; }
+.frame-shape-swatch.is-bubble { border-radius:5px; position:relative; }
+.frame-shape-swatch.is-bubble::after { content:""; position:absolute; left:5px; bottom:-5px; width:5px; height:5px; border-left:1px solid currentColor; transform:skewY(-35deg); }
+.writing-frame-flips,.card-action-row { display:flex; gap:8px; flex-wrap:wrap; }
+.writing-frame-flips button,.card-action-row button { min-height:44px; padding:8px 12px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); font:inherit; cursor:pointer; }
+.writing-frame-controls small { color:var(--muted); font-size:12px; }
+.writing-frame-controls summary { padding:8px 0; cursor:pointer; }
+.frame-number-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.frame-number-grid label { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+.frame-number-grid input { width:72px; max-width:100%; }
+.card-workflow-nav { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; margin:0 0 12px; flex:0 0 auto; }
+.card-workflow-nav button { min-width:0; min-height:44px; padding:6px 3px; display:flex; justify-content:center; align-items:center; gap:5px; border:1px solid var(--line); border-radius:12px; background:white; color:var(--ink); font:inherit; font-size:13px; cursor:pointer; }
+.card-workflow-nav button[aria-current=step] { color:var(--pink-dark); border-color:var(--pink); background:#fff0f5; }
+.card-workflow-nav small { font-size:11px; opacity:.7; }
+.card-design-picker { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; min-width:0; margin:0 0 10px; flex:0 0 auto; position:relative; z-index:15; }
+.card-design-tabs { display:flex; flex-wrap:wrap; gap:5px; min-width:0; flex:1; }
+.card-design-tabs button { min-width:48px; min-height:44px; display:flex; gap:5px; align-items:center; justify-content:center; padding:5px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); cursor:pointer; }
+.card-design-tabs button[aria-pressed=true] { border-color:var(--pink); background:#fff0f5; }
+.card-design-tabs svg { width:38px; height:25px; }
+.card-library-menu summary { min-height:44px; display:flex; align-items:center; padding:5px 9px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); font-size:12px; cursor:pointer; }
+.card-library-body { display:grid; gap:12px; padding:14px; border:1px solid var(--line); border-radius:14px; background:#fffaf7; color:var(--ink); box-shadow:0 8px 24px #68504420; }
+.card-library-menu[open] .card-library-body { position:absolute; top:100%; right:0; z-index:80; width:min(420px,calc(100vw - 40px)); max-height:55dvh; overflow:auto; }
+.card-library-body>label { display:grid; gap:5px; }
+.card-library-body small { font-size:12px; color:var(--muted); }
+.saved-card-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.saved-card-grid button { display:grid; gap:5px; padding:8px; background:#fff; border:1px solid var(--line); border-radius:10px; color:var(--ink); font:inherit; cursor:pointer; overflow-wrap:anywhere; }
+.saved-card-grid svg { display:block; width:100%; height:auto; }
+.mini-card-layout-page,.mini-card-save-page { padding-bottom:100px; }
+.mini-card-layout-grid,.mini-card-save-grid { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr); gap:22px; align-items:start; }
+.card-sheet-preview { padding:16px; background:#fff; border:1px solid var(--line); box-shadow:0 8px 24px #68504415; }
+.card-sheet-slots { display:grid; width:100%; border-top:1px solid var(--line); border-left:1px solid var(--line); }
+.card-sheet-slot { position:relative; min-width:0; min-height:0; display:grid; align-items:center; justify-items:center; padding:0; border:0; border-bottom:1px solid var(--line); border-right:1px solid var(--line); border-radius:0; background:#fff; color:#806a60; cursor:pointer; overflow:hidden; }
+.card-sheet-slot:disabled { cursor:default; opacity:1; }
+.card-sheet-slot svg { display:block; width:100%; height:100%; }
+.card-sheet-slot span { font-size:11px; }
+.card-sheet-slot svg+span { position:absolute; bottom:1px; right:2px; background:#ffffffe8; padding:1px 3px; border-radius:3px; }
+.card-plan-controls { padding:18px; display:grid; gap:12px; min-width:0; }
+.card-plan-controls small { color:var(--muted); font-size:12px; }
+.card-count-row { display:flex; gap:10px; align-items:center; justify-content:space-between; }
+.card-count-design { display:flex; gap:8px; align-items:center; min-width:0; padding:0; border:0; background:transparent; color:var(--ink); font:inherit; text-align:left; cursor:pointer; }
+.card-count-design span { overflow-wrap:anywhere; }
+.card-count-design svg { width:64px; height:auto; flex:0 0 64px; border:1px solid var(--line); }
+.card-count-row label { display:flex; gap:4px; align-items:center; }
+.card-count-row input { width:64px; min-height:44px; }
+.card-page-select { display:flex; justify-content:center; align-items:center; gap:10px; margin-top:14px; }
+.card-page-select select { min-height:44px; }
+.card-paint-options { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.card-paint-options button { min-width:0; min-height:44px; padding:7px; display:grid; gap:5px; background:#fff; border:1px solid var(--line); border-radius:10px; color:var(--ink); font:inherit; font-size:12px; cursor:pointer; }
+.card-paint-options svg { width:100%; height:auto; }
+.card-paint-options button[aria-pressed=true] { border-color:var(--pink); background:#fff0f5; }
+.card-workflow-actions { display:flex; justify-content:space-between; gap:10px; margin-top:22px; }
+.mini-card-output-preview { min-width:0; }
+.mini-card-output-preview>svg { width:100%; height:auto; display:block; max-height:65dvh; background:#fff; box-shadow:0 8px 24px #68504420; }
+.mini-card-export-controls { display:grid; gap:16px; padding:18px; min-width:0; }
+.mini-card-export-controls>label { display:grid; gap:7px; }
+.mini-card-export-controls select,.card-library-body input { width:100%; min-width:0; min-height:44px; }
+.mini-card-export-controls p { margin:0; font-size:13px; line-height:1.7; }
+.mini-card-export-controls .card-design-picker { margin:0; }
+@media(max-width:720px) {
+  .mini-card-layout-grid,.mini-card-save-grid { grid-template-columns:minmax(0,1fr); gap:16px; }
+  .mini-card-layout-page,.mini-card-save-page { padding-inline:12px; }
+  .card-sheet-preview { width:min(100%,400px); margin:0 auto; }
+  .mini-card-output-preview>svg { max-height:48dvh; }
+  .card-workflow-nav { gap:4px; margin-bottom:8px; }
+  .card-workflow-nav button { font-size:12px; gap:4px; }
+  .card-workflow-nav small { display:none; }
+  .antigravity-design-page:has(.card-workflow-nav) { display:flex; flex-direction:column; height:calc(100dvh - 64px); min-height:0; }
+  .antigravity-design-page:has(.card-workflow-nav)>.card-design-picker { z-index:45; }
+  .antigravity-design-page:has(.card-workflow-nav)>.editor-layout { flex:1 1 auto; min-height:0; height:auto; }
+  .antigravity-design-page:has(.writing-frame-controls) .editor-controls { overflow:auto; }
+  .card-design-tabs svg { width:30px; height:20px; }
+}
+.card-design-tabs .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
+@media(max-width:360px) { .app-shell:has(.card-workflow-nav) .mobile-design-actions { display:none !important; } }

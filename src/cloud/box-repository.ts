@@ -1,3 +1,4 @@
+import { allRuntimeDesignAssets } from "../features/letter-set/mini-card-project";
 import type { User } from "@supabase/supabase-js";
 
 import { collectUserAssetIds, hydrateBoxDocument, parseBoxDocument, serializeBoxDocument, type AssetResolver, type BoxDocumentV1 } from "../app/box-document";
@@ -169,7 +170,7 @@ export async function openCloudProject(id: string): Promise<{ project: CloudProj
 }
 
 function runtimeUserAssets(state: AppState): Map<string, RuntimeAsset> {
-  const assets = [...state.artworkLayers, ...state.stamps].flatMap((item) => {
+  const assets = allRuntimeDesignAssets(state).flatMap((item) => {
     if (!("assetRef" in item) || item.assetRef.kind !== "user") return [];
     return [[item.assetRef.assetId, item] as const];
   });

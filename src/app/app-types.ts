@@ -1,3 +1,5 @@
+import type { MiniCardProject, MiniCardAction } from "../features/letter-set/mini-card-project";
+import type { WritingFrameSettings } from "../features/letter-set/writing-frame";
 import type { BoxInput, BoxType, DielinePageId, EnvelopeFaceId, StationerySetSelection } from "../domain/boxes/types";
 
 export type Screen = "home" | "size" | "templates" | "letter-set" | "design" | "print" | "my-boxes";
@@ -169,6 +171,8 @@ export type AppState = {
   activeEnvelopeFace: EnvelopeFaceId;
   surfaceBackgroundColors: Partial<Record<EnvelopeFaceId, string>>;
   themePackId: string | null;
+  miniCardProject?: MiniCardProject;
+  writingFrames?: Partial<Record<DielinePageId, WritingFrameSettings>>;
   cardPrintCounts?: Record<string, number>;
   printGuideMode: PrintGuideMode;
   activePageId: DielinePageId;
@@ -187,6 +191,8 @@ export type AppState = {
 };
 
 export type AppAction =
+  | MiniCardAction
+  | { type: "update-writing-frame"; pageId: DielinePageId; patch: Partial<WritingFrameSettings> }
   | { type: "set-card-print-counts"; counts: Record<string, number> | undefined }
   | { type: "replace-state"; state: AppState }
   | { type: "go"; screen: Screen }

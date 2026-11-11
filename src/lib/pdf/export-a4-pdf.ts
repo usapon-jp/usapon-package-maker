@@ -1,3 +1,4 @@
+import { pngWithDpi } from "./png-density";
 import { jsPDF } from "jspdf";
 import opentype from "opentype.js";
 import "svg2pdf.js";
@@ -208,4 +209,23 @@ export async function exportA4Pdf(options: {
     byteLength: blob.size,
     pageCount: options.pages.length + (options.calibrationSvg ? 1 : 0),
   };
+}
+
+/** Card and A4 PNG use the same SVG and font outlines as the PDF. */
+export async function exportSvgPng(source: SVGSVGElement, dpi = 300): Promise<Blob> {
+  const clone = source.cloneNode(true) as SVGSVGElement;
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  replaceTextWithPaths(clone, await loadJapaneseFont());
+  await embedPdfImages(clone);
+  const { width, height } = svgViewBoxSize(clone);
+  clone.setAttribute("width", String(width)); clone.setAttribute("height", String(height));
+  const image = await loadSvgImage(new XMLSerializer().serializeToString(clone));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(width * dpi / 25.4); canvas.height = Math.round(height * dpi / 25.4);
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("画像保存用のキャンバスを作成できませんでした。");
+  context.fillStyle = "#ffffff"; context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const png = await new Promise<Blob>((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("PNG画像を作成できませんでした。")), "image/png"));
+  return pngWithDpi(png, dpi);
 }

@@ -44,6 +44,7 @@ export async function saveLocalDraft(state: AppState, workspace: ProjectWorkspac
   const db = await database();
   const storedState: AppState = {
     ...state,
+    miniCardProject: state.miniCardProject ? { ...state.miniCardProject, designs: state.miniCardProject.designs.map((design) => ({ ...design, data: { ...design.data, artworkLayers: design.data.artworkLayers.map(stripRenderUrl), stamps: design.data.stamps.map(stripRenderUrl) } })) } : undefined,
     artworkLayers: state.artworkLayers.map(stripRenderUrl),
     stamps: state.stamps.map(stripRenderUrl),
   };
@@ -54,11 +55,13 @@ export async function loadLocalDraft(): Promise<LocalDraft | null> {
   const db = await database();
   const draft = await db.get(STORE_NAME, CURRENT_DRAFT_KEY) as LocalDraft | undefined;
   if (!draft) return null;
+  if (draft.state.box.type === "mini-card-v1" && !draft.state.miniCardProject && !await db.get(STORE_NAME, "before-card-studio-v1")) await db.put(STORE_NAME, draft, "before-card-studio-v1");
   const storedEnvelopeDesign = draft.state.envelopeDesign as Partial<EnvelopeDesignSettings> | undefined;
   const restoredDraft = {
     ...draft,
     state: {
       ...draft.state,
+      miniCardProject: draft.state.miniCardProject ? { ...draft.state.miniCardProject, designs: await Promise.all(draft.state.miniCardProject.designs.map(async (design) => ({ ...design, data: { ...design.data, artworkLayers: await Promise.all(design.data.artworkLayers.map(restoreRenderUrl)), stamps: await Promise.all(design.data.stamps.map(restoreRenderUrl)) } }))) } : undefined,
       templateId: draft.state.templateId ?? null,
       showWritingLines: draft.state.showWritingLines ?? false,
       showWritingFrame: draft.state.showWritingFrame ?? false,

@@ -1,3 +1,5 @@
+import type { CardDesignData } from "../../features/letter-set/mini-card-project";
+import type { WritingFrameSettings } from "../../features/letter-set/writing-frame";
 import { forwardRef } from "react";
 
 import type { ArtworkLayer, DielineLineColors, EnvelopeDesignSettings, PrintGuideMode, StampItem, TextItem } from "../../app/app-types";
@@ -19,15 +21,17 @@ export type A4PageSvgProps = {
   includeFoldoverLines?: boolean;
   showWritingLines?: boolean;
   showWritingFrame?: boolean;
+  writingFrame?: WritingFrameSettings;
   writingLineCount?: number;
   writingLineWidthPercent?: number;
   envelopeDesign?: EnvelopeDesignSettings;
+  cardDesigns?: Array<CardDesignData | null>;
   cardPrintCounts?: Record<string, number>;
   printGuideMode?: PrintGuideMode;
 };
 
 export const A4PageSvg = forwardRef<SVGSVGElement, A4PageSvgProps>(function A4PageSvg(
-  { pageId = "main", geometry, fit, backgroundColor, surfaceBackgroundColors, artworkLayers, stamps, texts, lineColors, includeFoldoverLines = true, showWritingLines = false, showWritingFrame = false, writingLineCount = 18, writingLineWidthPercent = 82, envelopeDesign, cardPrintCounts, printGuideMode = "design" },
+  { pageId = "main", geometry, fit, backgroundColor, surfaceBackgroundColors, artworkLayers, stamps, texts, lineColors, includeFoldoverLines = true, showWritingLines = false, showWritingFrame = false, writingFrame, writingLineCount = 18, writingLineWidthPercent = 82, envelopeDesign, cardDesigns, cardPrintCounts, printGuideMode = "design" },
   ref,
 ) {
   const imposition = printImposition(geometry);
@@ -50,29 +54,31 @@ export const A4PageSvg = forwardRef<SVGSVGElement, A4PageSvgProps>(function A4Pa
     >
       <rect width={fit.pageWidthMm} height={fit.pageHeightMm} fill="#ffffff" />
       {Array.from({ length: imposition.count }, (_, index) => {
-        if (cardImages && !cardImages[index]) return null;
+        if ((cardImages && !cardImages[index]) || (cardDesigns && !cardDesigns[index])) return null;
+        const card = cardDesigns?.[index];
         const column = index % imposition.columns;
         const row = Math.floor(index / imposition.columns);
         return (
           <g key={index} data-imposition-item={index} transform={`translate(${fit.offsetXmm + column * geometry.bounds.widthMm} ${fit.offsetYmm + row * geometry.bounds.heightMm})`}>
             <DielineLayers
               geometry={geometry}
-              backgroundColor={backgroundColor}
+              backgroundColor={card?.backgroundColor ?? backgroundColor}
               surfaceBackgroundColors={surfaceBackgroundColors}
-              artworkLayers={artworkLayers}
-              stamps={cardImages ? [cardImages[index]] : stamps}
-              texts={texts}
-              lineColors={lineColors}
+              artworkLayers={card?.artworkLayers ?? artworkLayers}
+              stamps={card?.stamps ?? (cardImages ? [cardImages[index]] : stamps)}
+              texts={card?.texts ?? texts}
+              lineColors={card?.lineColors ?? lineColors}
               showGuides={false}
               selectedArtworkId={null}
               selectedStampId={null}
               selectedTextId={null}
               exportMode
               includeFoldoverLines={includeFoldoverLines}
-              showWritingLines={showWritingLines}
-              showWritingFrame={showWritingFrame}
-              writingLineCount={writingLineCount}
-              writingLineWidthPercent={writingLineWidthPercent}
+              showWritingLines={card?.showLines ?? showWritingLines}
+              showWritingFrame={card?.showFrame ?? showWritingFrame}
+              writingFrame={card ? card.frame : writingFrame}
+              writingLineCount={card?.lineCount ?? writingLineCount}
+              writingLineWidthPercent={card?.lineWidth ?? writingLineWidthPercent}
               envelopeDesign={envelopeDesign}
               printGuideMode={printGuideMode}
               idPrefix={`export-dieline-${pageId}${imposition.count > 1 ? `-${index}` : ""}`}

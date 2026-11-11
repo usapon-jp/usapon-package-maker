@@ -1,3 +1,5 @@
+import { applyCardDesign, createMiniCardProject, reduceMiniCardAction, syncCardProject } from "../features/letter-set/mini-card-project";
+import { DEFAULT_WRITING_FRAME, writingFrameSchema } from "../features/letter-set/writing-frame";
 import { resizeBoxArtwork } from "./resize-box-artwork";
 import type { AppAction, AppState } from "./app-types";
 import {
@@ -85,7 +87,14 @@ export const initialState: AppState = {
 };
 
 export function appReducer(state: AppState, action: AppAction): AppState {
-  const next = reduceAppState(state, action);
+  const cardNext = reduceMiniCardAction(state, action);
+  if (cardNext) return cardNext;
+  let next = reduceAppState(state, action);
+  if (next.box.type === "mini-card-v1" && !next.miniCardProject) {
+    const project = createMiniCardProject(next);
+    next = { ...applyCardDesign(next, project.designs[0].data), miniCardProject: project, cardPrintCounts: undefined };
+  }
+  next = syncCardProject(next);
   if (["set-box-type", "update-box", "replace-box"].includes(action.type) && JSON.stringify(state.box) !== JSON.stringify(next.box)) {
     return resizeBoxArtwork(state, next);
   }
@@ -94,6 +103,10 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
 function reduceAppState(state: AppState, action: AppAction): AppState {
   switch (action.type) {
+    case "update-writing-frame": {
+      const parsed = writingFrameSchema.safeParse({ ...DEFAULT_WRITING_FRAME, ...state.writingFrames?.[action.pageId], ...action.patch });
+      return parsed.success ? { ...state, writingFrames: { ...state.writingFrames, [action.pageId]: parsed.data } } : state;
+    }
     case "set-card-print-counts":
       return { ...state, cardPrintCounts: action.counts };
     case "replace-state":

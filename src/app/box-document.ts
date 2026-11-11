@@ -1,3 +1,5 @@
+import { allRuntimeDesignAssets } from "../features/letter-set/mini-card-project";
+import { writingFrameSchema } from "../features/letter-set/writing-frame";
 import { z } from "zod";
 
 import type {
@@ -105,6 +107,23 @@ const persistedBoxTypeSchema = z.union([
   z.literal("n-style-gift-box-v1"),
 ]).transform((type) => type === "n-style-gift-box-v1" ? "gift-box-v1" : type);
 
+const cardDataSchema = z.object({
+  backgroundColor: z.string(),
+  artworkLayers: z.array(z.union([uploadedArtworkSchema, stripeSchema, dotSchema])),
+  stamps: z.array(stampSchema), texts: z.array(textSchema),
+  lineColors: z.object({ cut: z.string(), fold: z.string() }),
+  frame: writingFrameSchema.optional(), showFrame: z.boolean(), showLines: z.boolean(),
+  lineCount: z.number().int().min(2).max(5), lineWidth: z.number().min(50).max(92),
+});
+const miniCardProjectSchema = z.object({
+  step: z.enum(["layout", "design", "arrange"]), activeId: z.string(),
+  designs: z.array(z.object({ id: z.string(), name: z.string().max(60), copies: z.number().int().min(0).max(100), libraryId: z.string().optional(), data: cardDataSchema })).min(1).max(26),
+  slots: z.array(z.string().nullable()).max(3000),
+}).superRefine((project, context) => {
+  const ids = new Set(project.designs.map((design) => design.id));
+  if (ids.size !== project.designs.length || !ids.has(project.activeId) || project.slots.some((id) => id !== null && !ids.has(id))) context.addIssue({ code: "custom", message: "カードの割り当てが壊れています。" });
+});
+
 export const boxDocumentV1Schema = z.object({
   schemaVersion: z.literal(1),
   box: z.object({
@@ -172,6 +191,8 @@ export const boxDocumentV1Schema = z.object({
       "envelope-back": z.string().optional(),
     }).default({}),
     themePackId: z.string().max(120).nullable().default(null),
+    miniCardProject: miniCardProjectSchema.optional(),
+    writingFrames: z.partialRecord(pageIdSchema, writingFrameSchema).optional(),
     cardPrintCounts: z.record(z.string(), z.number().int().min(0).max(100)).optional(),
     printGuideMode: z.enum(["assembly", "design"]).default("design"),
   }),
@@ -197,6 +218,23 @@ function persistedStamp(item: StampItem): BoxDocumentV1["design"]["stamps"][numb
   return persisted;
 }
 
+const CARD_ASSET_REFERENCE_PREFIX = "--mini-card-asset-";
+
+// The existing save RPC validates user-asset references in the top-level arrays.
+// Keep inactive card assets there as invisible references, so its ownership and
+// cleanup checks continue to protect every image without changing DB permissions.
+function documentStamps(state: AppState): PersistedStamp[] {
+  const stamps = state.stamps.map(persistedStamp);
+  if (!state.miniCardProject) return stamps;
+  const known = new Set([...state.artworkLayers, ...state.stamps].flatMap((item) => "assetRef" in item && item.assetRef.kind === "user" ? [item.assetRef.assetId] : []));
+  for (const item of allRuntimeDesignAssets(state)) {
+    if (!("assetRef" in item) || item.assetRef.kind !== "user" || known.has(item.assetRef.assetId)) continue;
+    known.add(item.assetRef.assetId);
+    stamps.push({ id: `${CARD_ASSET_REFERENCE_PREFIX}${item.assetRef.assetId}`, kind: "stamp", role: "stamp", pageId: "card", name: item.fileName, assetRef: item.assetRef, fileName: item.fileName, sourceType: item.sourceType, aspectRatio: item.aspectRatio, visible: false, opacity: 0, widthMm: 1, xMm: 0, yMm: 0, rotationDeg: 0 });
+  }
+  return stamps;
+}
+
 export function serializeBoxDocument(state: AppState): BoxDocumentV1 {
   return {
     schemaVersion: 1,
@@ -204,7 +242,7 @@ export function serializeBoxDocument(state: AppState): BoxDocumentV1 {
     design: {
       backgroundColors: { ...state.backgroundColors },
       artworkLayers: state.artworkLayers.map(persistedArtwork),
-      stamps: state.stamps.map(persistedStamp),
+      stamps: documentStamps(state),
       texts: state.texts.map((item) => ({ ...item })),
       lineColors: { ...state.lineColors },
       includeCalibrationPage: state.includeCalibrationPage,
@@ -222,6 +260,8 @@ export function serializeBoxDocument(state: AppState): BoxDocumentV1 {
       envelopeDesign: { ...state.envelopeDesign },
       surfaceBackgroundColors: { ...state.surfaceBackgroundColors },
       themePackId: state.themePackId,
+      miniCardProject: state.miniCardProject ? { ...state.miniCardProject, designs: state.miniCardProject.designs.map((design) => ({ ...design, data: { ...design.data, artworkLayers: design.data.artworkLayers.map(persistedArtwork), stamps: design.data.stamps.map(persistedStamp) } })) } : undefined,
+      writingFrames: state.writingFrames,
       cardPrintCounts: state.cardPrintCounts,
       printGuideMode: state.printGuideMode,
     },
@@ -249,7 +289,7 @@ export async function hydrateBoxDocument(value: unknown, resolveAsset: AssetReso
   const document = parseBoxDocument(value);
   const [artworkLayers, stamps] = await Promise.all([
     Promise.all(document.design.artworkLayers.map((item) => hydrateArtwork(item, resolveAsset))),
-    Promise.all(document.design.stamps.map((item) => hydrateStamp(item, resolveAsset))),
+    Promise.all(document.design.stamps.filter((item) => !(document.design.miniCardProject && item.pageId === "card" && item.id.startsWith(CARD_ASSET_REFERENCE_PREFIX) && !item.visible)).map((item) => hydrateStamp(item, resolveAsset))),
   ]);
   return normalizeLegacyPortraitCoverPlacements({
     ...initialState,
@@ -277,13 +317,15 @@ export async function hydrateBoxDocument(value: unknown, resolveAsset: AssetReso
     activeEnvelopeFace: "envelope-flap",
     surfaceBackgroundColors: { ...document.design.surfaceBackgroundColors },
     themePackId: document.design.themePackId,
+    miniCardProject: document.design.miniCardProject ? { ...document.design.miniCardProject, designs: await Promise.all(document.design.miniCardProject.designs.map(async (design) => ({ ...design, data: { ...design.data, artworkLayers: await Promise.all(design.data.artworkLayers.map((item) => hydrateArtwork(item, resolveAsset))), stamps: await Promise.all(design.data.stamps.map((item) => hydrateStamp(item, resolveAsset))) } }))) } : undefined,
+    writingFrames: document.design.writingFrames,
     cardPrintCounts: document.design.cardPrintCounts,
     printGuideMode: document.design.printGuideMode,
   });
 }
 
 export function collectUserAssetIds(document: BoxDocumentV1): string[] {
-  const ids = [...document.design.artworkLayers, ...document.design.stamps]
+  const ids = [...document.design.artworkLayers, ...document.design.stamps, ...(document.design.miniCardProject?.designs.flatMap((design) => [...design.data.artworkLayers, ...design.data.stamps]) ?? [])]
     .flatMap((item) => "assetRef" in item && item.assetRef.kind === "user" ? [item.assetRef.assetId] : []);
   return [...new Set(ids)];
 }

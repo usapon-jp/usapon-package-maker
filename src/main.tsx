@@ -8,6 +8,7 @@ import { loadPublishedPackageUI } from "./ui-editor/repository";
 import "./styles/global.css";
 import "./styles/design-workspace.css";
 import "./styles/finished-preview.css";
+import "./styles/stationery-studio.css";
 
 const PackageUIEditor = lazy(() => import("./ui-editor/PackageUIEditor").then((module) => ({ default: module.PackageUIEditor })));
 

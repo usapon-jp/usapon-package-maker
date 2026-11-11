@@ -1,3 +1,5 @@
+import { WritingFrameLayer } from "./layers/WritingFrameLayer";
+import type { WritingFrameSettings } from "../../features/letter-set/writing-frame";
 import { StampPinch } from "../../features/stamps/pinch";
 import { StampHandleGesture, type StampHandleMode } from "../../features/stamps/transform-handle";
 import { useEffect, useId, useRef, useState, type PointerEvent } from "react";
@@ -56,6 +58,9 @@ type LayersProps = {
   includeFoldoverLines?: boolean;
   showWritingLines?: boolean;
   showWritingFrame?: boolean;
+  writingFrame?: WritingFrameSettings;
+  writingFrameSelected?: boolean;
+  onWritingFrameChange?: (patch: Partial<WritingFrameSettings>) => void;
   writingLineCount?: number;
   writingLineWidthPercent?: number;
   envelopeDesign?: EnvelopeDesignSettings;
@@ -87,6 +92,9 @@ export function DielineLayers({
   includeFoldoverLines = true,
   showWritingLines = false,
   showWritingFrame = false,
+  writingFrame,
+  writingFrameSelected,
+  onWritingFrameChange,
   writingLineCount = 18,
   writingLineWidthPercent = 82,
   envelopeDesign,
@@ -136,22 +144,7 @@ export function DielineLayers({
         onStampRotate={onStampRotate}
       />
       {envelopeDesign && <EnvelopeDesignLayer geometry={geometry} settings={envelopeDesign} idPrefix={idPrefix} />}
-      {(geometry.type === "letter-paper-v1" || geometry.type === "mini-card-v1") && showWritingFrame && (
-        <rect
-          data-letter-writing-frame={geometry.type === "letter-paper-v1" || undefined}
-          data-card-writing-frame={geometry.type === "mini-card-v1" || undefined}
-          x={geometry.bounds.x + (geometry.type === "mini-card-v1" ? 7 : 14)}
-          y={geometry.bounds.y + (geometry.type === "mini-card-v1" ? 7 : 20)}
-          width={Math.max(1, geometry.bounds.widthMm - (geometry.type === "mini-card-v1" ? 14 : 28))}
-          height={Math.max(1, geometry.bounds.heightMm - (geometry.type === "mini-card-v1" ? 14 : 40))}
-          rx="4"
-          fill="#ffffff"
-          fillOpacity="0.92"
-          stroke="#ead8d3"
-          strokeWidth="0.55"
-          pointerEvents="none"
-        />
-      )}
+      {(geometry.type === "letter-paper-v1" || geometry.type === "mini-card-v1") && showWritingFrame && <WritingFrameLayer clipId={clipId} geometry={geometry} settings={writingFrame} selected={!exportMode && writingFrameSelected} onChange={onWritingFrameChange} handleRadius={stampHandleRadiusMm} />}
       <g clipPath={`url(#${clipId})`}>
         {(geometry.type === "letter-paper-v1" || geometry.type === "mini-card-v1") && showWritingLines && (() => {
           const span = centeredLineSpan(geometry.bounds.x, geometry.bounds.widthMm, writingLineWidthPercent);
@@ -238,6 +231,9 @@ export function DielineSvg({
   includeFoldoverLines = true,
   showWritingLines = false,
   showWritingFrame = false,
+  writingFrame,
+  writingFrameSelected,
+  onWritingFrameChange,
   writingLineCount = 18,
   writingLineWidthPercent = 82,
   envelopeDesign,
@@ -461,7 +457,7 @@ export function DielineSvg({
   const startPan = (event: PointerEvent<SVGSVGElement>) => {
     if (zoom <= 1 || !onViewportCenterChange) return false;
     const target = event.target as Element;
-    if (target.closest("[data-artwork-id], [data-stamp-id], [data-text-container], [data-stamp-handle]")) return false;
+    if (target.closest("[data-artwork-id], [data-stamp-id], [data-text-container], [data-stamp-handle], [data-writing-frame]")) return false;
     const current = viewBoxRef.current;
     pan.current = { pointerId: event.pointerId, point: pointFromEvent(event), center: { x: current.x + current.width / 2, y: current.y + current.height / 2 } };
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -478,7 +474,7 @@ export function DielineSvg({
       aria-label="箱の実寸展開図プレビュー"
       style={{ touchAction: "none" }}
       onPointerDownCapture={(event) => {
-        if (stampHandle.current.active || (event.target as Element).closest("[data-stamp-handle]")) return;
+        if (stampHandle.current.active || (event.target as Element).closest("[data-stamp-handle], [data-writing-frame]")) return;
         if (event.pointerType === "touch") {
           const target = event.target as Element;
           const stampId = target.closest("[data-stamp-id]")?.getAttribute("data-stamp-id");
@@ -552,6 +548,9 @@ export function DielineSvg({
         includeFoldoverLines={includeFoldoverLines}
         showWritingLines={showWritingLines}
         showWritingFrame={showWritingFrame}
+        writingFrame={writingFrame}
+        writingFrameSelected={writingFrameSelected}
+        onWritingFrameChange={onWritingFrameChange}
         writingLineCount={writingLineCount}
         writingLineWidthPercent={writingLineWidthPercent}
         envelopeDesign={envelopeDesign}

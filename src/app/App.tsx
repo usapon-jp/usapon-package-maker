@@ -1,3 +1,5 @@
+import { CardWorkflowNav, CardDesignPicker, CardLayoutScreen, MiniCardPrintScreen } from "../features/letter-set/MiniCardStudio";
+import { WritingFrameControls } from "../features/letter-set/WritingFrameControls";
 import { previousScreen } from "./navigation";
 import { CreationHome } from "../components/common/CreationHome";
 import { MaterialNotice } from "../MaterialNotice";
@@ -204,6 +206,9 @@ function PageTabs({ pages, activePageId, dispatch, uiId, compactLabels = false }
 }
 
 const NON_UNDOABLE_ACTIONS = new Set<AppAction["type"]>([
+  "card-step",
+  "card-select",
+  "card-library-id",
   "replace-state",
   "go",
   "set-box-type",
@@ -241,6 +246,7 @@ function AppHeader({
   onLogin,
   onLogout,
   onDeleteAccount,
+  hasCardWorkflow = false,
 }: {
   screen: Screen;
   templateId: string | null;
@@ -257,6 +263,7 @@ function AppHeader({
   onLogin: () => void;
   onLogout: () => void;
   onDeleteAccount: () => void;
+  hasCardWorkflow?: boolean;
 }) {
   const saveLabel = saveState === "saving" ? "保存中…" : saveState === "saved" ? "保存済み" : saveState === "error" ? "保存失敗" : saveState === "conflict" ? "更新あり" : "保存";
   const isEnvelope = ["y2-kamasu-envelope", "basic-letter-paper", "basic-mini-card"].includes(templateId ?? "");
@@ -295,7 +302,7 @@ function AppHeader({
       </div>
 
       {isMobileDesign && <div className="mobile-design-actions" aria-label={`${screenTitle}の操作`}>
-        <button type="button" onClick={() => onGo("print")}>印刷へ →</button>
+        <button type="button" onClick={() => onGo("print")}>{templateId === "basic-mini-card" ? "並べる →" : "印刷へ →"}</button>
       </div>}
 
       {isMobileDesign && <div className="mobile-history-actions" aria-label="編集の履歴">
@@ -303,7 +310,7 @@ function AppHeader({
         <button type="button" disabled={!canRedo} onClick={onRedo} aria-label="戻した操作をやり直す" title="やり直す"><RedoIcon /></button>
       </div>}
 
-      {screen !== "home" && screen !== "my-boxes" && screen !== "templates" && screen !== "letter-set" && (
+      {!hasCardWorkflow && screen !== "home" && screen !== "my-boxes" && screen !== "templates" && screen !== "letter-set" && (
         <nav className="step-nav" data-ui-id="global.step-nav" aria-label="作成ステップ">
           {([isEnvelope ? "letter-set" : templateId ? "templates" : "size", "design", "print"] as const).map((step, index) => (
             <button
@@ -939,7 +946,8 @@ function SizeScreen({ state, dispatch, pages, activePage }: ScreenProps) {
                         {...design}
                         lineColors={state.lineColors}
                         showWritingLines={page.geometry.type === "mini-card-v1" ? state.showCardWritingLines : state.showWritingLines}
-                        showWritingFrame={page.geometry.type === "mini-card-v1" ? state.showCardWritingFrame : state.showWritingFrame}
+                        writingFrame={state.writingFrames?.[page.id]}
+            showWritingFrame={page.geometry.type === "mini-card-v1" ? state.showCardWritingFrame : state.showWritingFrame}
                         writingLineCount={page.geometry.type === "mini-card-v1" ? state.cardWritingLineCount : state.writingLineCount}
                         writingLineWidthPercent={page.geometry.type === "mini-card-v1" ? state.cardWritingLineWidthPercent : state.writingLineWidthPercent}
                         envelopeDesign={state.envelopeDesign}
@@ -1566,12 +1574,13 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
   const designActionButtons = (className: string) => (
     <div className={className}>
       <button className="secondary-button" type="button" onClick={() => dispatch({ type: "go", screen: isStationeryPage ? "home" : template ? "templates" : "size" })}>{isStationeryPage ? "種類を選び直す" : template ? "型を選び直す" : "サイズに戻る"}</button>
-      <button className="primary-button" type="button" onClick={() => dispatch({ type: "go", screen: "print" })}>印刷へ <span>→</span></button>
+      <button className="primary-button" type="button" onClick={() => dispatch(state.miniCardProject && state.box.type === "mini-card-v1" ? { type: "card-step", step: "arrange" } : { type: "go", screen: "print" })}>{state.miniCardProject && state.box.type === "mini-card-v1" ? "並べる" : "印刷へ"} <span>→</span></button>
     </div>
   );
 
   return (
     <main className="tool-page design-page antigravity-design-page" data-ui-id="design.screen">
+      {state.miniCardProject && state.box.type === "mini-card-v1" && <><CardWorkflowNav state={state} dispatch={dispatch} /><CardDesignPicker state={state} dispatch={dispatch} geometry={geometry} owner={imageOwner} /></>}
       <div className="page-heading horizontal-heading">
         <div>{!isLetterSetDesign && <p className="eyebrow">DESIGN</p>}<h1>{isLetterSetDesign ? "封筒をデザイン" : template ? `${template.categoryLabel}をデザイン` : "デザイン編集"}</h1>{isLetterSetDesign && <div className="heading-controls-row"><PageTabs pages={pages} activePageId={activePage.id} dispatch={dispatch} uiId="design.item-tabs" />{designActionButtons("heading-inline-actions")}<FitNotice geometry={geometry} fit={fit} compact /></div>}</div>
         {!isLetterSetDesign && <FitNotice geometry={geometry} fit={fit} compact />}
@@ -1598,6 +1607,9 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
               selectedTextId={state.selectedTextId}
               exportMode={false}
               showWritingLines={geometry.type === "mini-card-v1" ? state.showCardWritingLines : state.showWritingLines}
+              writingFrame={state.writingFrames?.[activePage.id]}
+              writingFrameSelected={editorSection === "other"}
+              onWritingFrameChange={(patch) => dispatch({ type: "update-writing-frame", pageId: activePage.id, patch })}
               showWritingFrame={geometry.type === "mini-card-v1" ? state.showCardWritingFrame : state.showWritingFrame}
               writingLineCount={geometry.type === "mini-card-v1" ? state.cardWritingLineCount : state.writingLineCount}
               writingLineWidthPercent={geometry.type === "mini-card-v1" ? state.cardWritingLineWidthPercent : state.writingLineWidthPercent}
@@ -1856,6 +1868,7 @@ function DesignScreen({ state, dispatch, pages, activePage, unlockedThemePackIds
                   <label className={`other-option-card ${state.envelopeDesign.showAddressLines ? "is-selected" : ""}`}><span className="other-option-preview writing-lines-preview" aria-hidden="true"><i /><i /><i /></span><span><strong>宛名の罫線</strong><small>住所や名前を書きやすい{state.envelopeDesign.addressLineCount ?? 3}本線</small></span><input aria-label="封筒に宛名の罫線を表示" type="checkbox" checked={state.envelopeDesign.showAddressLines} onChange={(event) => dispatch({ type: "update-envelope-design", patch: { showAddressLines: event.target.checked } })} /></label>
                 </>}
               </div>
+              {((geometry.type === "letter-paper-v1" && state.showWritingFrame) || (geometry.type === "mini-card-v1" && state.showCardWritingFrame)) && <WritingFrameControls settings={state.writingFrames?.[activePage.id]} onChange={(patch) => dispatch({ type: "update-writing-frame", pageId: activePage.id, patch })} />}
               {geometry.type === "letter-paper-v1" && state.showWritingLines && (
                 <div className="line-tuning-panel" aria-label="便箋の罫線調整">
                   <div><strong>罫線の調整</strong><button type="button" onClick={() => { dispatch({ type: "set-writing-line-count", value: 18 }); dispatch({ type: "set-writing-line-width", value: 82 }); }}>おすすめ</button></div>
@@ -2127,6 +2140,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
             lineColors={state.lineColors}
             includeFoldoverLines={state.printFoldoverLines}
             showWritingLines={page.geometry.type === "mini-card-v1" ? state.showCardWritingLines : state.showWritingLines}
+            writingFrame={state.writingFrames?.[page.id]}
             showWritingFrame={page.geometry.type === "mini-card-v1" ? state.showCardWritingFrame : state.showWritingFrame}
             writingLineCount={page.geometry.type === "mini-card-v1" ? state.cardWritingLineCount : state.writingLineCount}
             writingLineWidthPercent={page.geometry.type === "mini-card-v1" ? state.cardWritingLineWidthPercent : state.writingLineWidthPercent}
@@ -2151,6 +2165,7 @@ function PrintScreen({ state, dispatch, pages, activePage, clientContext, onSucc
                   lineColors={state.lineColors}
                   includeFoldoverLines={state.printFoldoverLines}
                   showWritingLines={activePage.geometry.type === "mini-card-v1" ? state.showCardWritingLines : state.showWritingLines}
+                  writingFrame={state.writingFrames?.[activePage.id]}
                   showWritingFrame={activePage.geometry.type === "mini-card-v1" ? state.showCardWritingFrame : state.showWritingFrame}
                   writingLineCount={activePage.geometry.type === "mini-card-v1" ? state.cardWritingLineCount : state.writingLineCount}
                   writingLineWidthPercent={activePage.geometry.type === "mini-card-v1" ? state.cardWritingLineWidthPercent : state.writingLineWidthPercent}
@@ -2422,11 +2437,12 @@ export function App() {
     window.scrollTo(0, 0);
   }, [state.screen, state.activePageId]);
 
+  const miniCardPlanning = state.box.type === "mini-card-v1" && Boolean(state.miniCardProject) && (state.screen === "print" || (state.screen === "design" && state.miniCardProject?.step !== "design"));
   useEffect(() => {
-    const fixedWorkspace = state.screen === "size" || state.screen === "design" || state.screen === "print";
+    const fixedWorkspace = !miniCardPlanning && (state.screen === "size" || state.screen === "design" || state.screen === "print");
     window.document.body.classList.toggle("has-fixed-workspace", fixedWorkspace);
     return () => window.document.body.classList.remove("has-fixed-workspace");
-  }, [state.screen]);
+  }, [state.screen, miniCardPlanning]);
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("install") === "1" && !installContext.isStandalone) {
@@ -2781,14 +2797,15 @@ export function App() {
   };
 
   return (
-    <div className={`app-shell ${state.screen === "size" || state.screen === "design" || state.screen === "print" ? "is-fixed-workspace" : ""}`} data-ui-id="global.app-shell">
+    <div className={`app-shell ${!miniCardPlanning && (state.screen === "size" || state.screen === "design" || state.screen === "print") ? "is-fixed-workspace" : ""}`} data-ui-id="global.app-shell">
       <AppHeader
         screen={state.screen === "letter-set" ? "home" : state.screen}
         templateId={state.templateId}
+        hasCardWorkflow={state.box.type === "mini-card-v1" && Boolean(state.miniCardProject)}
         user={user}
         saveState={saveState}
         saveMessage={saveMessage}
-        onGo={(screen) => { setDesignDetailsOpen(false); dispatch({ type: "go", screen }); }}
+        onGo={(screen) => { setDesignDetailsOpen(false); dispatch(screen === "print" && state.box.type === "mini-card-v1" && state.miniCardProject ? { type: "card-step", step: "arrange" } : { type: "go", screen }); }}
         canUndo={canUndo}
         canRedo={canRedo}
         onUndo={undo}
@@ -2803,8 +2820,10 @@ export function App() {
       {(state.screen === "home" || state.screen === "letter-set") && <CreationHome onBox={startNew} onLetter={startLetterSet} onResume={shouldPersistLocalDraft ? () => dispatch({ type: "go", screen: "design" }) : null} resumeLabel={BOX_TYPE_COPY[state.box.type].name} />}
       {state.screen === "templates" && <TemplateScreen onBack={() => dispatch({ type: "go", screen: "home" })} onSelect={startTemplate} unlockedThemePackIds={unlockedThemePackIds} />}
       {state.screen === "size" && <SizeScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} />}
-      {state.screen === "design" && <DesignScreen key={user?.id ?? "device"} imageOwner={user?.id ?? "device"} user={user} onLogin={() => { void login(); }} state={state} dispatch={dispatch} pages={pages} activePage={activePage} unlockedThemePackIds={unlockedThemePackIds} onUnlockThemePack={requestThemeUnlock} detailsOpen={designDetailsOpen} onDetailsClose={() => setDesignDetailsOpen(false)} />}
-      {state.screen === "print" && <PrintScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} clientContext={clientContext} onSuccessfulExport={offerInstallAfterSuccess} />}
+      {state.screen === "design" && miniCardPlanning && <CardLayoutScreen state={state} dispatch={dispatch} geometry={activePage.geometry} owner={user?.id ?? "device"} />}
+      {state.screen === "design" && !miniCardPlanning && <DesignScreen key={user?.id ?? "device"} imageOwner={user?.id ?? "device"} user={user} onLogin={() => { void login(); }} state={state} dispatch={dispatch} pages={pages} activePage={activePage} unlockedThemePackIds={unlockedThemePackIds} onUnlockThemePack={requestThemeUnlock} detailsOpen={designDetailsOpen} onDetailsClose={() => setDesignDetailsOpen(false)} />}
+      {state.screen === "print" && state.box.type === "mini-card-v1" && state.miniCardProject && <MiniCardPrintScreen state={state} dispatch={dispatch} geometry={activePage.geometry} owner={user?.id ?? "device"} />}
+      {state.screen === "print" && !(state.box.type === "mini-card-v1" && state.miniCardProject) && <PrintScreen state={state} dispatch={dispatch} pages={pages} activePage={activePage} clientContext={clientContext} onSuccessfulExport={offerInstallAfterSuccess} />}
       {CLOUD_SYNC_UI_ENABLED && state.screen === "my-boxes" && (
         <MyBoxesScreen
           user={user}

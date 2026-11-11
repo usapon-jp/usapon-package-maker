@@ -1,3 +1,4 @@
+import { WritingFrameLayer } from "../dieline/layers/WritingFrameLayer";
 import { useId } from "react";
 
 import type { AppState } from "../../app/app-types";
@@ -55,7 +56,7 @@ export function FinishedStationeryPreview({ state, pageId, geometry, bare = fals
           exportMode
           showStamps={false}
         />
-        {showWritingFrame && <rect x={x + (isLetter ? 14 : 7)} y={y + (isLetter ? 20 : 7)} width={Math.max(1, widthMm - (isLetter ? 28 : 14))} height={Math.max(1, heightMm - (isLetter ? 40 : 14))} rx="4" fill="#ffffff" fillOpacity="0.92" stroke="#ead8d3" strokeWidth="0.55" />}
+        {showWritingFrame && <WritingFrameLayer clipId={clipId} geometry={geometry} settings={state.writingFrames?.[pageId]} />}
         <g clipPath={`url(#${clipId})`}>
           {showWritingLines && (
             <g fill="none" stroke="#c9b4a7" strokeWidth="0.22" opacity="0.72">

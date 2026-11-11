@@ -36,6 +36,7 @@ export function A4PrintPreview({ state, pageId, pageLabel, geometry }: Props) {
           lineColors={state.lineColors}
           includeFoldoverLines={state.printFoldoverLines}
           showWritingLines={isCard ? state.showCardWritingLines : state.showWritingLines}
+          writingFrame={state.writingFrames?.[pageId]}
           showWritingFrame={isCard ? state.showCardWritingFrame : state.showWritingFrame}
           writingLineCount={isCard ? state.cardWritingLineCount : state.writingLineCount}
           writingLineWidthPercent={isCard ? state.cardWritingLineWidthPercent : state.writingLineWidthPercent}
