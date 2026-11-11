@@ -103,6 +103,8 @@ export function appReducer(state: AppState, action: AppAction): AppState {
 
 function reduceAppState(state: AppState, action: AppAction): AppState {
   switch (action.type) {
+    case "set-print-line-colors":
+      return { ...state, lineColors: { ...action.colors }, miniCardProject: state.miniCardProject ? { ...state.miniCardProject, designs: state.miniCardProject.designs.map((design) => ({ ...design, data: { ...design.data, lineColors: { ...action.colors } } })) } : undefined };
     case "update-writing-frame": {
       const parsed = writingFrameSchema.safeParse({ ...DEFAULT_WRITING_FRAME, ...state.writingFrames?.[action.pageId], ...action.patch });
       return parsed.success ? { ...state, writingFrames: { ...state.writingFrames, [action.pageId]: parsed.data } } : state;

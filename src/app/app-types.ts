@@ -191,6 +191,7 @@ export type AppState = {
 };
 
 export type AppAction =
+  | { type: "set-print-line-colors"; colors: DielineLineColors }
   | MiniCardAction
   | { type: "update-writing-frame"; pageId: DielinePageId; patch: Partial<WritingFrameSettings> }
   | { type: "set-card-print-counts"; counts: Record<string, number> | undefined }

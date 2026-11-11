@@ -1,3 +1,4 @@
+import { PrintSettingsButton } from "./PrintLineSettings";
 import { zipSync } from "fflate";
 import { useEffect, useId, useRef, useState, type Dispatch } from "react";
 import type { AppAction, AppState } from "../../app/app-types";
@@ -10,7 +11,7 @@ import { loadCardLibrary, saveLibraryCard, type SavedCard } from "./card-library
 import { downloadPdfBlob } from "../../lib/pdf/download-pdf";
 import { createTimestampedPdfFileName, canSharePdfFile, createPdfShareFile, sharePdfFile } from "../../lib/pdf/share-pdf";
 
-type Props = { state: AppState; dispatch: Dispatch<AppAction>; geometry: DielineGeometry; owner: string };
+type Props = { state: AppState; dispatch: Dispatch<AppAction>; geometry: DielineGeometry; owner: string; onOpenSettings?: () => void };
 export function CardWorkflowNav({ state, dispatch }: Pick<Props, "state" | "dispatch">) {
   const step = state.screen === "print" ? "save" : state.miniCardProject?.step;
   return <nav className="card-workflow-nav" aria-label="ミニカードの制作工程">{([["layout", "割り付け"], ["design", "デザイン"], ["arrange", "並べる"], ["save", "保存"]] as const).map(([value, label], index) => <button key={value} type="button" aria-current={step === value ? "step" : undefined} onClick={() => value === "save" ? dispatch({ type: "go", screen: "print" }) : dispatch({ type: "card-step", step: value })}><small>{index + 1}</small>{label}</button>)}</nav>;
@@ -49,7 +50,7 @@ export function CardDesignPicker({ state, dispatch, geometry, owner, showTabs = 
 }
 
 export function CardLayoutScreen(props: Props) {
-  const { state, dispatch, geometry } = props;
+  const { state, dispatch, geometry, onOpenSettings } = props;
   const project = state.miniCardProject!;
   const [pageIndex, setPageIndex] = useState(0);
   const [paintId, setPaintId] = useState<string | null>(project.activeId);
@@ -63,12 +64,12 @@ export function CardLayoutScreen(props: Props) {
     <CardWorkflowNav state={state} dispatch={dispatch} />
     <div className="page-heading"><h1>{arrange ? "カードを並べる" : "何種類、何枚つくる？"}</h1><p>A4 {pages}ページ · 合計 {total}枚</p></div>
     <div className="mini-card-layout-grid">
-      <section className="card-sheet-preview" aria-label="A4の割り付け">
-        <div className="card-sheet-slots" style={{ gridTemplateColumns: `repeat(${imposition.columns}, minmax(0, 1fr))`, aspectRatio: `${imposition.columns * geometry.bounds.widthMm} / ${imposition.rows * geometry.bounds.heightMm}` }}>{Array.from({ length: imposition.count }, (_, index) => {
+      <section className="card-sheet-preview" aria-label="A4の割り付け"><div className="print-preview-toolbar"><span>A4プレビュー</span><PrintSettingsButton onClick={onOpenSettings} /></div>
+        <div className="card-sheet-slots" style={{ borderColor: state.lineColors.cut, gridTemplateColumns: `repeat(${imposition.columns}, minmax(0, 1fr))`, aspectRatio: `${imposition.columns * geometry.bounds.widthMm} / ${imposition.rows * geometry.bounds.heightMm}` }}>{Array.from({ length: imposition.count }, (_, index) => {
           const slotIndex = page * imposition.count + index;
           const id = project.slots[slotIndex];
           const design = project.designs.find((item) => item.id === id);
-          return <button className="card-sheet-slot" type="button" key={index} disabled={!arrange} aria-label={`${slotIndex + 1}枠目：${design?.name ?? "空白"}`} onClick={() => dispatch({ type: "card-place", index: slotIndex, id: paintId })}>{design ? <><CardDesignSvg data={design.data} geometry={geometry} prefix={`slot-${uid}-${index}`} /><span>{design.name}</span></> : <span>空白</span>}</button>;
+          return <button className="card-sheet-slot" style={{ borderColor: design?.data.lineColors.cut ?? state.lineColors.cut }} type="button" key={index} disabled={!arrange} aria-label={`${slotIndex + 1}枠目：${design?.name ?? "空白"}`} onClick={() => dispatch({ type: "card-place", index: slotIndex, id: paintId })}>{design ? <><CardDesignSvg data={design.data} geometry={geometry} prefix={`slot-${uid}-${index}`} /><span>{design.name}</span></> : <span>空白</span>}</button>;
         })}</div>
         {pages > 1 && <label className="card-page-select">ページ<select aria-label="割り付けのページ" value={page} onChange={(event) => setPageIndex(Number(event.target.value))}>{Array.from({ length: pages }, (_, index) => <option key={index} value={index}>{index + 1} / {pages}</option>)}</select></label>}
       </section>
@@ -85,7 +86,7 @@ export function CardLayoutScreen(props: Props) {
   </main>;
 }
 
-export function MiniCardPrintScreen({ state, dispatch, geometry, owner }: Props) {
+export function MiniCardPrintScreen({ state, dispatch, geometry, owner, onOpenSettings }: Props) {
   const project = state.miniCardProject!;
   const imposition = printImposition(geometry);
   const fit = evaluateA4Fit(imposition.widthMm, imposition.heightMm);
@@ -130,8 +131,8 @@ export function MiniCardPrintScreen({ state, dispatch, geometry, owner }: Props)
     finally { setBusy(false); }
   };
   return <main className="tool-page mini-card-save-page"><CardWorkflowNav state={state} dispatch={dispatch} /><div className="page-heading"><h1>カードを保存・印刷</h1><p>A4 {pageCount}ページ · 合計 {total}枚</p></div>
-    <div className="mini-card-save-grid"><section className="mini-card-output-preview" aria-label="保存する内容のプレビュー">{target === "card" ? <CardDesignSvg data={active.data} geometry={geometry} prefix="single-preview" /> : <A4ExportSvg {...sheetProps} pageId={`sheet-preview-${page}`} cardDesigns={cards(page)} />}{target === "sheet" && pageCount > 1 && <label className="card-page-select">ページ<select aria-label="保存プレビューのページ" value={page} onChange={(event) => setPageIndex(Number(event.target.value))}>{Array.from({ length: pageCount }, (_, index) => <option key={index} value={index}>{index + 1} / {pageCount}</option>)}</select></label>}</section>
-    <section className="panel-card mini-card-export-controls"><label>保存するもの<select aria-label="保存するもの" value={target} onChange={(event) => setTarget(event.target.value as "sheet" | "card")}><option value="sheet">A4印刷シート</option><option value="card">カード1枚</option></select></label>{target === "sheet" ? <label>形式<select aria-label="保存形式" value={format} onChange={(event) => setFormat(event.target.value as "pdf" | "png")}><option value="pdf">PDF（実寸印刷）</option><option value="png">PNG画像</option></select></label> : <><label>カード<select aria-label="保存するカード" value={active.id} onChange={(event) => dispatch({ type: "card-select", id: event.target.value })}>{project.designs.map((design) => <option key={design.id} value={design.id}>{design.name}</option>)}</select></label><small>PNG画像・300dpiで保存します。</small></>}
+    <div className="mini-card-save-grid"><section className="mini-card-output-preview" aria-label="保存する内容のプレビュー"><div className="print-preview-toolbar"><span>{target === "sheet" ? "A4プレビュー" : "カードプレビュー"}</span><PrintSettingsButton onClick={onOpenSettings} disabled={busy} /></div>{target === "card" ? <CardDesignSvg data={active.data} geometry={geometry} prefix="single-preview" /> : <A4ExportSvg {...sheetProps} pageId={`sheet-preview-${page}`} cardDesigns={cards(page)} />}{target === "sheet" && pageCount > 1 && <label className="card-page-select">ページ<select aria-label="保存プレビューのページ" value={page} onChange={(event) => setPageIndex(Number(event.target.value))}>{Array.from({ length: pageCount }, (_, index) => <option key={index} value={index}>{index + 1} / {pageCount}</option>)}</select></label>}</section>
+    <section className="panel-card mini-card-export-controls"><div className="print-settings-heading"><strong>保存・印刷</strong><PrintSettingsButton onClick={onOpenSettings} disabled={busy} /></div><label>保存するもの<select aria-label="保存するもの" value={target} onChange={(event) => setTarget(event.target.value as "sheet" | "card")}><option value="sheet">A4印刷シート</option><option value="card">カード1枚</option></select></label>{target === "sheet" ? <label>形式<select aria-label="保存形式" value={format} onChange={(event) => setFormat(event.target.value as "pdf" | "png")}><option value="pdf">PDF（実寸印刷）</option><option value="png">PNG画像</option></select></label> : <><label>カード<select aria-label="保存するカード" value={active.id} onChange={(event) => dispatch({ type: "card-select", id: event.target.value })}>{project.designs.map((design) => <option key={design.id} value={design.id}>{design.name}</option>)}</select></label><small>PNG画像・300dpiで保存します。</small></>}
       {target === "sheet" && format === "pdf" && <p>プリンター設定を「100%／実際のサイズ」にしてください。</p>}
       {target === "sheet" && total === 0 && <p role="status">「割り付け」で1枚以上指定してください。</p>}
       {fit.status === "overflow" && target === "sheet" && <p role="alert">A4に収まらないため保存を停止しています。</p>}

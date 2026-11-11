@@ -78,3 +78,21 @@
 }
 .card-design-tabs .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
 @media(max-width:360px) { .app-shell:has(.card-workflow-nav) .mobile-design-actions { display:none !important; } }
+.print-preview-toolbar,.print-settings-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; flex:0 0 auto; }
+.print-preview-toolbar>span { min-width:0; font-size:12px; }
+.print-settings-trigger { display:inline-flex; align-items:center; justify-content:center; gap:4px; min-height:44px; padding:6px 12px; border:1px solid var(--line); border-radius:10px; background:#fff; color:#755e53; font:inherit; font-size:13px; white-space:nowrap; cursor:pointer; }
+.print-line-settings-controls { display:grid; gap:16px; }
+.print-line-settings-controls p { margin:0; font-size:14px; line-height:1.7; }
+.print-line-settings-controls small { font-size:12px; color:var(--muted); line-height:1.7; }
+.print-line-quick-colors { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.print-line-quick-colors button { display:flex; align-items:center; justify-content:center; gap:8px; min-height:44px; padding:8px; border:1px solid var(--line); border-radius:12px; background:#fff; color:#755e53; font:inherit; cursor:pointer; }
+.print-line-quick-colors button[aria-pressed=true] { background:#fff0f5; border-color:var(--pink); }
+.print-line-quick-colors i { width:20px; height:20px; border-radius:50%; border:1px solid #d8c8b8; }
+.print-line-color-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.print-line-color-fields fieldset { min-width:0; padding:10px; border:1px solid var(--line); border-radius:12px; }
+.print-line-color-fields legend { font-size:14px; padding:0 4px; }
+.print-line-color-fields label { margin:0 0 10px; font-size:12px; }
+.print-line-color-fields input[type=color] { width:100%; min-height:44px; padding:3px; }
+.print-line-color-fields input[type=text],.print-line-hex input { width:100%; min-width:0; font-size:16px; }
+.card-sheet-slot:focus-visible { outline:2px solid #b98d5b; outline-offset:-2px; z-index:1; }
+@media(max-width:600px) { .antigravity-print-page .print-settings-heading { display:none; } }
